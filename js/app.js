@@ -838,7 +838,7 @@ function setEzberSurah(target, surahNum, { autofillRange = false } = {}) {
     const fromEl = document.getElementById(`ezber-${target}-from`);
     const toEl = document.getElementById(`ezber-${target}-to`);
     fromEl.value = 1;
-    toEl.value = 1;
+    toEl.value = info.versesCount;
     fromEl.setCustomValidity("");
     toEl.setCustomValidity("");
   }
@@ -2296,12 +2296,25 @@ function ezberWordMealText(surah, ayah, wordId) {
   return "";
 }
 
-// Redraws covers for exactly the still-hidden units of the current ayah
-// (everything from revealedCount onward), by looking up each one's
-// on-screen bounding box from the CURRENT page's own segment data --
-// state.currentPageWordSegments for oku, state.currentPageUnitSegments
-// for yaz (see render.js). Call after any change to revealedCount or
-// after the page they're drawn on changes.
+// Redraws covers for:
+//  - the current ayah's still-hidden units (everything from revealedCount
+//    onward, as before), and
+//  - every OTHER ayah in the study range (from..to) that's visible on the
+//    current page and hasn't been reached yet (i.e. comes after
+//    currentAyah) -- fully covered, word-for-word/unit-for-unit, same as a
+//    freshly-arrived current ayah starts out. Ayahs before currentAyah
+//    (already studied) and ayahs outside the from..to range entirely are
+//    left uncovered, same as always.
+// This is what makes the WHOLE selected range read as hidden at a glance
+// (this message's 2nd request) rather than only ever one ayah at a time
+// -- eski-uygulama (and this codebase before this change) covered just the
+// active ayah, so the rest of a multi-ayah range sat in plain view until
+// its own turn came up, reading as "revealing one ayah at a time" instead
+// of "the whole range is hidden, revealing bit by bit".
+// Looks up each covered unit's on-screen bounding box from the CURRENT
+// page's own segment data -- state.currentPageWordSegments for oku,
+// state.currentPageUnitSegments for yaz (see render.js). Call after any
+// change to revealedCount or after the page they're drawn on changes.
 function ezberRenderCoverState() {
   const es = state.ezberStudy;
   if (!es || !state.currentPageSvg) return;
@@ -2310,11 +2323,25 @@ function ezberRenderCoverState() {
   if (es.mode === "oku") {
     const byWordId = new Map(state.currentPageWordSegments.map((s) => [s.wordId, s]));
     coverDefs = hidden.map((u) => byWordId.get(u.wordId)).filter(Boolean);
+    for (const s of state.currentPageWordSegments) {
+      if (ezberWordIsUpcoming(es, s.wordId)) coverDefs.push(s);
+    }
   } else {
     const byKey = new Map(state.currentPageUnitSegments.map((s) => [`${s.wordId}:${s.unitIndex}`, s]));
     coverDefs = hidden.map((u) => byKey.get(`${u.wordId}:${u.unitIndex}`)).filter(Boolean);
+    for (const s of state.currentPageUnitSegments) {
+      if (ezberWordIsUpcoming(es, s.wordId)) coverDefs.push(s);
+    }
   }
   drawEzberCovers(state.currentPageSvg, coverDefs);
+}
+
+// Whether `wordId` belongs to an ayah strictly after the session's current
+// ayah but still within its from..to range -- i.e. a not-yet-reached ayah
+// that should read as fully hidden regardless of what page it's on.
+function ezberWordIsUpcoming(es, wordId) {
+  const owner = wordIdToAyah(wordId);
+  return !!owner && owner.surah === es.surah && owner.ayah > es.currentAyah && owner.ayah <= es.to;
 }
 
 // Navigates to `ayahNum`'s page (setting expectedPage first -- see
