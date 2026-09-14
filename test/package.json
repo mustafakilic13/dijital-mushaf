@@ -1,0 +1,10 @@
+{
+  "name": "mushaf-tests",
+  "private": true,
+  "type": "module",
+  "description": "Run: npm install && node full_corpus_test.mjs",
+  "devDependencies": {
+    "jsdom": "^25.0.0",
+    "wawoff2": "^2.0.1"
+  }
+}

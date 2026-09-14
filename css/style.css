@@ -1,0 +1,1146 @@
+/* ---------------------------------------------------------------------
+   Fonts
+   ------------------------------------------------------------------- */
+@font-face {
+  font-family: "DigitalKhattV2";
+  src: url("../fonts/DigitalKhattV2.woff2") format("woff2");
+  font-display: swap;
+}
+
+/* ---------------------------------------------------------------------
+   Tokens
+   ------------------------------------------------------------------- */
+:root {
+  --paper: #efe9d8;
+  --paper-edge: #e4dcc4;
+  --shell-bg: #f7f4ec;
+  --shell-bg-2: #eee8d8;
+  --ink: #262019;
+  --ink-soft: #59503f;
+  --emerald: #1e5147;
+  --emerald-deep: #163b34;
+  --gold: #a9812e;
+  --gold-soft: #c9a24f;
+  --line: rgba(38, 32, 25, 0.12);
+  --shadow: 0 30px 60px -25px rgba(30, 25, 15, 0.35), 0 8px 20px -12px rgba(30, 25, 15, 0.25);
+
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-arabic: "DigitalKhattV2", "Amiri", "Traditional Arabic", serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(30, 81, 71, 0.10), transparent 60%),
+    linear-gradient(180deg, var(--shell-bg) 0%, var(--shell-bg-2) 100%);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+.hidden { display: none !important; }
+
+/* ---------------------------------------------------------------------
+   Loading
+   ------------------------------------------------------------------- */
+.loading {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--emerald);
+  background: linear-gradient(180deg, var(--shell-bg) 0%, var(--shell-bg-2) 100%);
+  transition: opacity 0.25s ease;
+}
+.loading.hidden {
+  display: flex !important; /* override .hidden so the transition can run */
+  opacity: 0;
+  pointer-events: none;
+}
+.loading-inner { text-align: center; }
+.loading-mark svg { animation: spin 1.1s linear infinite; }
+.loading-inner p {
+  margin-top: 14px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------------------------------------------------------------------
+   App shell
+   ------------------------------------------------------------------- */
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+/* Üst çubuk (.topbar) ve alt çubuk (.bottombar) aynı kabuk görünümünü
+   paylaşıyor; tek fark hangi kenara border koyulduğu ve alt çubuğun
+   safe-area payı (bkz. Bottom bar bölümündeki .bottombar kuralı). */
+.topbar,
+.bottombar {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--shell-bg) 88%, transparent);
+  backdrop-filter: blur(6px);
+  z-index: 5;
+}
+.topbar { border-bottom: 1px solid var(--line); }
+
+/* Aynı şekilde .topbar-btn (Cüz/Sayfa/Sure) ile .action-btn--side
+   (Ezber/Arama) da tek ortak kuraldan besleniyor -- ikisi de aynı beyaz
+   kart, kenarlık, köşe yuvarlaklığı, metin rengi ve hover/active
+   davranışını paylaşsın diye. Alt çubuğa özgü kalanlar (metin boyutu,
+   disabled durumu) .action-btn--side altında ayrıca tanımlı. */
+.topbar-btn,
+.action-btn--side {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-ui);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: var(--ink);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.topbar-btn { flex-direction: column; gap: 2px; }
+.topbar-btn:hover,
+.action-btn--side:not(:disabled):hover { border-color: var(--gold-soft); }
+.topbar-btn:active,
+.action-btn--side:not(:disabled):active { background: var(--paper-edge); }
+.topbar-btn--page { flex-grow: 1.15; }
+
+/* Cüz butonu: sol tarafta mevcut Cüz etiketi/değeri, sağında ince bir
+   ayraçla ayrılmış Hizb/Rub/Menzil mini-göstergeleri -- sayfada seçili
+   ayetin hangi hizb/rub/menzile ait olduğunu tek bakışta gösterir. Bu
+   buton artık Sayfa/Sure'den daha fazla içerik taşıdığı için flex-grow'u
+   da onlara göre daha yüksek. */
+.topbar-btn--juz {
+  flex-direction: row;
+  flex-grow: 1.7;
+  gap: 8px;
+  padding: 6px 10px;
+}
+.juz-btn-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.juz-btn-subdivisions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+.juz-btn-sub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.juz-btn-sub-label {
+  font-size: 8.5px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.juz-btn-sub-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--emerald-deep);
+  font-variant-numeric: tabular-nums;
+}
+/* Çok dar ekranlarda Hizb/Rub/Menzil mini-göstergelerini gizle, Cüz/Sayfa/Sure
+   temel navigasyonu her zaman rahat sığsın */
+@media (max-width: 359px) {
+  .juz-btn-subdivisions { display: none; }
+}
+
+.topbar-btn-label {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.topbar-btn-value {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--emerald-deep);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+/* Sure değeri iki ayrı parçadan oluşuyor: "5." rakamı (--font-ui, LTR) ve
+   Arapça sure adı (--font-arabic, RTL). Tek span içinde tek fontla
+   basılınca mushaf fontu Latin rakamını da alıyor ve aradaki boşluk
+   bidi-karışıklığından görsel olarak kayboluyordu (rakam isme yapışık
+   duruyordu); iki span + unicode-bidi:isolate ile modal listelerindeki
+   .modal-item-num/.modal-item-arabic ayrımıyla aynı çözüm uygulanıyor.
+   Düz inline bırakıldı (flex değil) ki #surah-btn-value'daki
+   white-space:nowrap + text-overflow:ellipsis (çok dar ekranda sure adı
+   taşarsa) doğru çalışmaya devam etsin. */
+.topbar-btn-value-num {
+  font-family: var(--font-ui);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.topbar-btn-value-arabic {
+  font-family: var(--font-arabic);
+  direction: rtl;
+  unicode-bidi: isolate;
+  margin-left: 0.3em;
+}
+.topbar-btn-total {
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+.topbar-btn-total::before { content: " / "; }
+
+/* ---------------------------------------------------------------------
+   Modals (Cüz / Sayfa / Sure pickers)
+   ------------------------------------------------------------------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 17, 12, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 90;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.modal-backdrop.open { opacity: 1; }
+
+.modal-sheet {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translate(-50%, 100%);
+  width: min(480px, 100vw);
+  max-height: min(78vh, 640px);
+  display: flex;
+  flex-direction: column;
+  background: var(--shell-bg);
+  border: 1px solid var(--paper-edge);
+  border-bottom: none;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -20px 50px -20px rgba(30, 25, 15, 0.5);
+  z-index: 91;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.modal-sheet.open { transform: translate(-50%, 0); }
+.modal-sheet--compact { max-height: none; }
+.modal-sheet[hidden] { display: none; }
+
+@media (min-width: 640px) {
+  .modal-sheet {
+    top: 50%;
+    bottom: auto;
+    transform: translate(-50%, -46%) scale(0.96);
+    opacity: 0;
+    border-radius: 18px;
+    border-bottom: 1px solid var(--paper-edge);
+    box-shadow: 0 30px 70px -25px rgba(30, 25, 15, 0.5);
+  }
+  .modal-sheet.open { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+.modal-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--paper-edge);
+  margin: 10px auto 2px;
+  flex-shrink: 0;
+}
+@media (min-width: 640px) { .modal-handle { display: none; } }
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 18px 6px;
+  flex-shrink: 0;
+}
+.modal-header h2 {
+  font-size: 16px;
+  margin: 0;
+  color: var(--ink);
+}
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  padding: 6px;
+  margin: -6px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.modal-close:hover { background: var(--paper-edge); color: var(--ink); }
+
+.modal-list {
+  overflow-y: auto;
+  padding: 6px 10px 18px;
+  -webkit-overflow-scrolling: touch;
+}
+.modal-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 10px;
+  font-family: var(--font-ui);
+  color: var(--ink);
+  cursor: pointer;
+}
+.modal-item:hover { background: var(--paper-edge); }
+.modal-item.active {
+  background: color-mix(in srgb, var(--emerald) 12%, transparent);
+}
+.modal-item-num {
+  flex-shrink: 0;
+  width: 2.4em;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+.modal-item.active .modal-item-num { color: var(--emerald-deep); font-weight: 600; }
+.modal-item-main {
+  flex: 1;
+  min-width: 0;
+}
+.modal-item-arabic {
+  font-family: var(--font-arabic);
+  font-size: 17px;
+  direction: rtl;
+}
+.modal-item-sub {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 1px;
+}
+
+/* ---------------------------------------------------------------------
+   Alt-modal sekme çubuğu: Cüz modalındaki Cüz/Hizb/Rub/Menzil VE Ezber
+   modalındaki Dinle/Oku/Yaz aynı yan-yana sekme görünümünü paylaşıyor --
+   her sekme kendi panelini gösterir, aynı anda sadece biri görünür,
+   [aria-selected] ile vurgulanır. Cüz modalında dördü aynı
+   { "n": {firstVerseKey, page} } şeklini paylaştığı ve birbirinin alt
+   kümesi değil eşdeğer/bağımsız bölümlemeler olduğu için (bkz.
+   app.js'teki state.manzil yorumu: menzil cüze girmiyor, birkaç cüzü
+   birden kapsıyor) akordion yerine bu sekmeler tercih edildi; Ezber
+   modalında ise Dinle/Oku/Yaz zaten birbirinden bağımsız üç ayrı mod.
+   Varsayılan sekme her ikisinde de modal her açıldığında sıfırlanır
+   (bkz. setupModals'daki switchJuzTab, setupEzberModal'daki
+   switchEzberTab çağrıları).
+   ------------------------------------------------------------------- */
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  padding: 0 10px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.tab-bar-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 12px 4px 10px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.tab-bar-btn:hover { color: var(--ink); }
+.tab-bar-btn[aria-selected="true"] {
+  color: var(--emerald-deep);
+  border-bottom-color: var(--emerald-deep);
+}
+
+/* ---------------------------------------------------------------------
+   Surah row expand/collapse + ayah grid (inside the Sure modal)
+   ------------------------------------------------------------------- */
+.surah-row-wrapper { margin-bottom: 1px; }
+.surah-row {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+.surah-row .modal-item { flex: 1; min-width: 0; }
+
+.surah-expand-btn {
+  flex-shrink: 0;
+  width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.surah-expand-btn:hover { background: var(--paper-edge); color: var(--ink); }
+.surah-expand-btn svg { transition: transform 0.18s ease; }
+.surah-expand-btn.open svg { transform: rotate(180deg); }
+.surah-expand-btn.open { color: var(--emerald-deep); }
+
+.ayah-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 10px 14px 10px;
+  margin: 0 4px 6px;
+  background: color-mix(in srgb, var(--paper) 55%, transparent);
+  border-radius: 10px;
+}
+.ayah-grid[hidden] { display: none; }
+.ayah-chip {
+  min-width: 34px;
+  height: 30px;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.ayah-chip:hover { border-color: var(--gold-soft); }
+.ayah-chip.active {
+  background: var(--emerald);
+  border-color: var(--emerald);
+  color: #fff;
+  font-weight: 600;
+}
+
+.page-jump-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 18px 14px;
+}
+.page-jump-step {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--emerald-deep);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.page-jump-step:active { background: var(--paper-edge); }
+#page-jump-input {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 4px;
+}
+#page-jump-input::-webkit-outer-spin-button,
+#page-jump-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.page-jump-go {
+  flex-shrink: 0;
+  padding: 0 18px;
+  height: 42px;
+  border-radius: 12px;
+  border: none;
+  background: var(--emerald);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  cursor: pointer;
+}
+.page-jump-go:active { background: var(--emerald-deep); }
+.page-jump-slider {
+  width: calc(100% - 36px);
+  margin: 4px 18px 22px;
+  accent-color: var(--emerald);
+}
+
+/* ---------------------------------------------------------------------
+   Reader
+   ------------------------------------------------------------------- */
+.reader {
+  position: relative;
+  min-height: 0; /* let the grid track's 1fr win over the content's intrinsic size, so .reader-scroll scrolls internally instead of growing the whole page */
+  overflow: hidden; /* the inner .reader-scroll handles actual scrolling, so nav buttons stay put */
+}
+
+.reader-scroll {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* horizontal centering */
+  justify-content: center; /* vertical centering when the page fits fully */
+  justify-content: safe center; /* ...but never hide the top edge behind a scroll if it doesn't fit */
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.page-container {
+  background: var(--paper);
+  border: 1px solid var(--paper-edge);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+  padding: clamp(10px, 2.4vw, 26px);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  flex-shrink: 0;
+  /* Width is set in px by layoutPageContainer() in app.js: the page always
+     fills the reader's available WIDTH (like "Page Width" mode in a PDF
+     viewer, matching digitalkhatt.org). Height is intentionally left
+     automatic here -- normally there's a single svg child sized to the
+     page's own fixed aspect ratio, so this is equivalent to setting an
+     explicit height; but while the word-meal panel is open (see
+     .word-meal-panel below) there are three stacked children instead (a
+     cropped top slice of the page, the panel, a cropped bottom slice), and
+     leaving this automatic is what lets the container simply grow to fit
+     the panel's content -- "pushing" the bottom slice down -- with no JS
+     needed to track the panel's own height. */
+}
+.page-container::before {
+  /* faint inner frame, echoing a manuscript border without being literal */
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border: 1px solid rgba(169, 129, 46, 0.28);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.mushaf-page-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  color: var(--ink);
+}
+.mushaf-page-svg .glyph-path { fill: currentColor; }
+/* Ayah-ending numbers alternate colour by ruku: 1st, 3rd, 5th... ruku of a
+   surah keeps the page's normal ink colour (fill: currentColor above);
+   2nd, 4th, 6th... gets this accent instead (see js/app.js isAltRuku).
+   Needs a colour with clearly different LIGHTNESS from --ink, not just a
+   different hue -- two similarly-dark colours read as "the same dark ink"
+   at a glance, especially at this glyph size. --gold has ~16x the
+   luminance of --ink, so it reads unmistakably as a distinct colour. */
+.mushaf-page-svg .ayah-num-alt { fill: var(--gold); }
+.mushaf-page-svg .ayah-highlight {
+  fill: color-mix(in srgb, var(--gold-soft) 32%, transparent);
+  transition: opacity 0.2s ease;
+}
+/* Kıraat sırasında o an okunan tek kelimenin altı -- ayah-highlight'tan
+   (soluk altın) farklı bir renk ailesi (zümrüt) kullanıyor ki "seçili ayet"
+   ile "şu an okunan kelime" görsel olarak karışmasın; word-highlight-layer
+   ayah-highlight-layer'ın üstünde ama tüm glyph'lerin altında (bkz.
+   render.js renderPage) -- yani seçili ayetin içinde daha canlı bir
+   "spot" gibi görünür. */
+.mushaf-page-svg .word-highlight {
+  fill: color-mix(in srgb, var(--emerald) 45%, transparent);
+}
+
+/* Invisible text laid exactly over the drawn glyphs so long-press /
+   double-tap selection and copy work like normal text, even though the
+   visible mushaf letters are plain SVG paths. */
+.text-layer-fo { overflow: visible; }
+.text-layer-line {
+  white-space: nowrap;
+  line-height: 1.55;
+  color: transparent;
+  transform-origin: right center;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+.text-layer-line::selection { background: rgba(169, 129, 46, 0.35); }
+
+/* ---------------------------------------------------------------------
+   Ayet detay paneli -- kelime meali, meal (ve ileride tefsir), üst üste
+   ------------------------------------------------------------------- */
+/* The two "slices" of the page svg the panel opens between -- see
+   js/app.js's openWordMealStructure. Each is an overflow:hidden window
+   showing only part of a (real, or cloned) full-height page svg; heights
+   are set in px by layoutPageContainer(). */
+.page-slice { overflow: hidden; width: 100%; }
+.page-slice--top svg,
+.page-slice-inner svg { display: block; }
+.page-slice-inner { position: relative; } /* marginTop (set in JS) shifts this up so only the bottom portion peeks out of .page-slice--bottom */
+
+.word-meal-panel {
+  display: grid;
+  grid-template-rows: 0fr; /* animates to 1fr when open -- a modern, JS-measurement-free way to transition to/from a content-driven ("auto") height */
+  transition: grid-template-rows 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+  width: 100%;
+}
+.word-meal-panel.wm-open { grid-template-rows: 1fr; }
+
+.word-meal-panel-inner {
+  overflow: hidden; /* required by the 0fr/1fr grid-row trick -- clips the content while its row is collapsed */
+  min-height: 0; /* likewise required -- without it grid refuses to shrink the row below the content's intrinsic height */
+  opacity: 0;
+  transition: opacity 0.25s ease 0.05s;
+  background: color-mix(in srgb, var(--emerald) 5%, var(--shell-bg));
+  border-top: 1px solid var(--paper-edge);
+  border-bottom: 1px solid var(--paper-edge);
+}
+.word-meal-panel.wm-open .word-meal-panel-inner { opacity: 1; }
+
+.word-meal-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px 6px;
+}
+.word-meal-title {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--emerald-deep);
+}
+.word-meal-close-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  padding: 6px;
+  margin: -6px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.word-meal-close-btn:hover { background: var(--paper-edge); color: var(--ink); }
+
+.word-meal-body { padding: 4px 14px 16px; }
+.word-meal-loading,
+.word-meal-empty,
+.wm-meal-empty {
+  padding: 14px 2px;
+  text-align: center;
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+}
+
+/* One stacked block per translation type (kelime meali / meal / tefsir). */
+.wm-section + .wm-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--paper-edge);
+}
+.wm-section-label {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--emerald-deep);
+  margin-bottom: 8px;
+}
+
+.wm-meal-text {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink);
+  direction: ltr;
+}
+.wm-meal-source {
+  margin-top: 6px;
+  text-align: right;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-style: italic;
+  color: var(--ink-soft);
+  direction: ltr;
+}
+
+/* Tefsir: a row of source buttons, one shared collapsible area below them
+   -- see js/app.js's onTafsirTabClick. Reuses the same 0fr/1fr grid trick
+   as .word-meal-panel for the same JS-measurement-free reason. */
+.wm-tafsir-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.wm-tafsir-tab {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--paper-edge);
+  background: #fff;
+  color: var(--emerald-deep);
+  cursor: pointer;
+}
+.wm-tafsir-tab:hover { background: var(--paper-edge); }
+.wm-tafsir-tab.active {
+  background: var(--emerald);
+  border-color: var(--emerald);
+  color: #fff;
+}
+
+.wm-tafsir-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.wm-tafsir-panel.wm-open { grid-template-rows: 1fr; }
+.wm-tafsir-panel-inner {
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  transition: opacity 0.25s ease 0.05s;
+}
+.wm-tafsir-panel.wm-open .wm-tafsir-panel-inner { opacity: 1; }
+
+.wm-tafsir-content {
+  padding-top: 12px;
+  font-family: var(--font-ui);
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: var(--ink);
+  direction: ltr;
+}
+/* the source data's own markup (see js/tafsir.js) -- ayah-group
+   translation preamble, revelation-info notes, and inline emphasis on
+   quoted Qur'an phrases / key terms within the commentary */
+.wm-tafsir-content p,
+.wm-tafsir-content div { margin: 0 0 10px; }
+.wm-tafsir-content > :last-child { margin-bottom: 0; }
+.wm-tafsir-content .translation {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--gold) 10%, transparent);
+  font-weight: 600;
+}
+.wm-tafsir-content .green { color: #3f7a52; }
+.wm-tafsir-content .brown { color: #8a5a2f; font-weight: 600; }
+.wm-tafsir-content .blue { color: #2f5f8a; }
+
+.wbw-container {
+  display: flex;
+  flex-wrap: wrap;
+  direction: rtl; /* first card (first word of the ayah) lands rightmost, wrapping leftward then down -- same order the ayah itself reads in */
+  gap: 10px 8px;
+}
+.wbw-word {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  max-width: 132px;
+  padding: 6px 8px;
+  background: #fff;
+  border: 1px solid var(--paper-edge);
+  border-radius: 8px;
+}
+.wbw-ar {
+  font-family: var(--font-arabic);
+  font-size: 19px;
+  line-height: 1.5;
+  color: var(--ink);
+  direction: rtl;
+}
+.wbw-tr {
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--emerald-deep);
+  direction: ltr;
+  text-align: center;
+}
+
+.nav-edge {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20; /* must beat #page-container's own position:relative stacking */
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--emerald-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 20px -10px rgba(30, 25, 15, 0.4);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.nav-edge:hover { background: var(--emerald); color: #fff; }
+.nav-edge:active { transform: translateY(-50%) scale(0.94); }
+/* Real mushaf page-turn direction (opposite of a Latin book): the arrow on
+   the left points left and advances to the next page; the one on the right
+   points right and goes back -- matches the on-page tap-arrow convention,
+   distinct from the swipe gesture (finger right = next) which mimics the
+   physical page-turn motion instead of pointing at where the content is. */
+.nav-edge--next { left: 18px; }
+.nav-edge--prev { right: 18px; }
+
+/* ---------------------------------------------------------------------
+   Bottom bar (mobile-first nav)
+   ------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------
+   Bottom bar: Ezber (sol, henüz pasif) / Besmele-Sadakallah oynatma
+   (orta) / Arama (sağ, henüz pasif) -- her zaman görünür (masaüstünde de),
+   sayfa çevirme .nav-edge (masaüstü) ve kaydırma/klavye ile ayrıca
+   yapılıyor (bkz. setupNav), o yüzden bu çubukta artık Önceki/Sonraki yok.
+   Kabuk (arka plan/gap/padding) ve Ezber/Arama'nın beyaz-kart görünümü
+   üst çubukla ortak -- bkz. .topbar / .topbar-btn kuralları yukarıda;
+   burada sadece konuma özgü farklar (alt kenar border'ı, safe-area payı)
+   ve Ezber/Arama'ya özgü metin boyutu/disabled durumu kalıyor. */
+.bottombar {
+  border-top: 1px solid var(--line);
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+}
+.action-btn {
+  font-family: var(--font-ui);
+  border-radius: 12px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.action-btn--side {
+  font-size: 14px;
+  font-weight: 600;
+}
+.action-btn--side:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.action-btn--play {
+  flex: 2.2 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  background: var(--emerald);
+  border-color: var(--emerald);
+  box-shadow: 0 10px 20px -10px rgba(30, 81, 71, 0.55);
+}
+.action-btn--play:active { transform: translateY(1px); }
+.action-btn-play-label {
+  font-family: var(--font-arabic);
+  direction: rtl;
+  unicode-bidi: isolate;
+  color: var(--shell-bg);
+  font-size: 17px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+/* Çalma sırasında: daha sıcak bir altın dolgu + yavaş bir "nefes alma"
+   animasyonu -- sadece etiketi değişmiş değil, gerçekten "devam ediyor"
+   hissi versin diye. */
+.action-btn--play.playing {
+  background: var(--gold);
+  border-color: var(--gold);
+  animation: play-pulse 2.2s ease-in-out infinite;
+}
+@keyframes play-pulse {
+  0%, 100% { box-shadow: 0 10px 20px -10px rgba(169, 129, 46, 0.55); }
+  50% { box-shadow: 0 10px 26px -8px rgba(169, 129, 46, 0.85); }
+}
+@media (max-width: 359px) {
+  .action-btn-play-label { font-size: 15px; }
+  .action-btn--side { font-size: 12.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .action-btn--play.playing { animation: none; }
+}
+
+/* ---------------------------------------------------------------------
+   Ezber modalı -- Dinle/Oku/Yaz'ın ortak form dili. Form elemanları
+   .page-jump-* ile aynı beyaz-kart/12px-köşe dilini kullanıyor, bu modala
+   özel yeni bir görsel dil icat edilmedi. Sure seçimi native <select>
+   yerine uygulamanın kendi sure listesiyle aynı satır tasarımını
+   (.modal-item) paylaşan bir buton + alt-görünüm liste (.ezber-surah-picker)
+   üzerinden yapılıyor -- üçü de (Dinle/Oku/Yaz) tek bir paylaşılan listeyi
+   kullanıyor (bkz. app.js'teki openEzberSurahPicker).
+   ------------------------------------------------------------------- */
+.ezber-panel {
+  overflow-y: auto;
+  padding: 14px 18px 20px;
+  -webkit-overflow-scrolling: touch;
+}
+.ezber-panel[hidden] { display: none; }
+
+.ezber-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ezber-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ezber-field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.ezber-field-label small { font-weight: 400; }
+.ezber-field select,
+.ezber-field input[type="number"] {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.ezber-field select:focus,
+.ezber-field input[type="number"]:focus {
+  outline: none;
+  border-color: var(--gold-soft);
+}
+.ezber-range-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ezber-range-row input { flex: 1; min-width: 0; text-align: center; }
+.ezber-range-row span { color: var(--ink-soft); flex-shrink: 0; }
+
+.ezber-field-hint {
+  margin: -4px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.ezber-apply-btn {
+  margin-top: 4px;
+  padding: 13px;
+  border-radius: 12px;
+  border: none;
+  background: var(--emerald);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ezber-apply-btn:active { background: var(--emerald-deep); }
+
+.ezber-surah-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: start;
+}
+.ezber-surah-btn:hover { border-color: var(--gold-soft); }
+.ezber-surah-btn-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ezber-surah-btn-chevron { flex-shrink: 0; color: var(--ink-soft); }
+
+.ezber-surah-picker {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.ezber-surah-picker[hidden] { display: none; }
+.ezber-surah-picker-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 600;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+.ezber-surah-picker-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: none;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ezber-surah-picker-back:hover { background: var(--paper-edge); }
+.ezber-surah-picker .modal-list { flex: 1; overflow-y: auto; }
+
+button { font: inherit; }
+select:focus-visible, input:focus-visible, button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------
+   Breakpoints
+   ------------------------------------------------------------------- */
+@media (min-width: 720px) {
+  .reader-scroll { padding: 28px; }
+}
+@media (max-width: 719px) {
+  .nav-edge { display: none; }
+  .reader-scroll { padding: 10px 8px; }
+  .page-container { border-radius: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-mark svg { animation: none; }
+  .nav-edge { transition: none; }
+}
+
+/* ---------------------------------------------------------------------
+   Ezber -> Oku/Yaz: cover rectangles + word tooltip, drawn straight into
+   the page's own SVG (see render.js's .ezber-cover-layer, always the
+   last layer so it paints over the glyphs, not behind them like the
+   highlight layers) -- so these need no HTML/SVG coordinate conversion,
+   just plain SVG presentation attributes.
+   ------------------------------------------------------------------- */
+.ezber-cover {
+  fill: var(--shell-bg);
+  stroke: var(--paper-edge);
+  stroke-width: 10;
+}
+.ezber-tooltip rect {
+  fill: var(--ink);
+  opacity: 0.94;
+}
+.ezber-tooltip text {
+  font-family: var(--font-ui);
+  font-size: 420px;
+  fill: var(--paper);
+}
+
+/* ---------------------------------------------------------------------
+   Ezber -> Yaz: virtual Arabic keyboard, fixed just above the bottombar
+   (see app.js's positionYazKeyboard -- "just above" is measured from the
+   bottombar's own real height, not a guessed offset, since that height
+   comes from its buttons' content/padding rather than a fixed value).
+   ------------------------------------------------------------------- */
+.yaz-keyboard {
+  position: fixed;
+  left: 50%;
+  bottom: 64px; /* correct value set by positionYazKeyboard() before this is ever unhidden */
+  transform: translateX(-50%);
+  width: min(480px, 100vw);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--shell-bg) 96%, transparent);
+  backdrop-filter: blur(6px);
+  border-top: 1px solid var(--line);
+  z-index: 6;
+}
+.yaz-keyboard[hidden] { display: none; }
+.yaz-keyboard-row {
+  display: flex;
+  gap: 4px;
+}
+.yaz-key {
+  flex: 1;
+  min-width: 0;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-arabic);
+  font-size: 20px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.yaz-key:active { background: var(--paper-edge); }
+.yaz-key--hint {
+  font-size: 16px;
+  background: var(--gold-soft);
+  border-color: var(--gold);
+}
+.yaz-hint-text {
+  margin: 0;
+  padding: 7px 10px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  text-align: center;
+}
+.yaz-hint-text[hidden] { display: none; }
