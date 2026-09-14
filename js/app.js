@@ -1583,18 +1583,35 @@ function openWordMealStructure(bodyHTML, refText) {
 async function openWordMeal(ayah) {
   const segsForAyah = state.currentPageSegments.filter((s) => s.surah === ayah.surah && s.ayah === ayah.ayah);
   if (!segsForAyah.length) return;
-  // a long ayah can span several lines -- cut after the LAST one. Midway
-  // between that line's baseline and the next (INTERLINE/2 below it) is
-  // blank paper regardless of what follows (another line, a surah header
-  // with its own clearance, or the page's own bottom margin) -- see the
-  // GAP_BEFORE_HEADER/BOTTOM_MARGIN constants in render.js, all of which
-  // are comfortably bigger than INTERLINE/2.
+  // a long ayah can span several lines -- cut after the LAST one, at the Y
+  // that best clears both the line above's diacritics (which reach up to
+  // baselineY + 550, see updateAyahHighlight's rect: y = baselineY-1350,
+  // height 1900) and the line below's (which reach down to
+  // nextBaselineY - 1350). On a normal page those two safe zones actually
+  // overlap slightly -- 1900 (highlight height) > INTERLINE (1800), i.e.
+  // consecutive lines' diacritic clearance already eats ~100 units into
+  // each other by design -- so no single Y can sit fully clear of both;
+  // splitting the difference (the midpoint of the two edges) minimises
+  // whichever side ends up slightly short, which in practice keeps actual
+  // glyph ink (rarely using the full clearance) off the panel edges.
   const lastSeg = segsForAyah.reduce((best, s) => (!best || s.baselineY > best.baselineY ? s : best), null);
+  const nextSeg = state.currentPageSegments.reduce(
+    (best, s) => (s.baselineY > lastSeg.baselineY && (!best || s.baselineY < best.baselineY) ? s : best),
+    null
+  );
+  const HIGHLIGHT_ABOVE_BASELINE = 1350; // matches updateAyahHighlight's rect y-offset
+  const HIGHLIGHT_HEIGHT = 1900; // matches updateAyahHighlight's rect height
+  const aboveClearEdge = lastSeg.baselineY + (HIGHLIGHT_HEIGHT - HIGHLIGHT_ABOVE_BASELINE); // bottom of the line-above's diacritic zone
+  // no next line (last ayah on the page) -- nothing to split against, just
+  // clear the line above and let the page's own BOTTOM_MARGIN handle the rest.
+  const cutY = nextSeg
+    ? (aboveClearEdge + (nextSeg.baselineY - HIGHLIGHT_ABOVE_BASELINE)) / 2
+    : aboveClearEdge;
 
   const target = { surah: ayah.surah, ayah: ayah.ayah };
   state.wordMeal.open = true;
   state.wordMeal.ayah = target;
-  state.wordMeal.cutY = lastSeg.baselineY + INTERLINE / 2;
+  state.wordMeal.cutY = cutY;
   state.wordMeal.tafsirActive = null; // Tefsir starts collapsed each time the panel opens -- it's the biggest/priciest data source of the three, so it's fetched only once actually requested (see showTafsirContent)
 
   const refText = wordMealRefLabel(target);
