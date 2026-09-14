@@ -1040,6 +1040,28 @@ body {
 .ezber-surah-picker-back:hover { background: var(--paper-edge); }
 .ezber-surah-picker .modal-list { flex: 1; overflow-y: auto; }
 
+/* Sabit alt bilgi -- Ezber modalının hangi sekmesi (Dinle/Oku/Yaz) veya
+   Sure seçici açık olursa olsun her zaman en altta görünür (modal-sheet
+   flex column'unun son, flex-shrink:0 çocuğu), kaynak kod deposuna link
+   verir. */
+.ezber-modal-footer {
+  flex-shrink: 0;
+  padding: 10px 18px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+.ezber-modal-footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.ezber-modal-footer-link:hover { color: var(--emerald-deep); }
+.ezber-modal-footer-link svg { flex-shrink: 0; }
+
 button { font: inherit; }
 select:focus-visible, input:focus-visible, button:focus-visible {
   outline: 2px solid var(--gold);
