@@ -115,11 +115,14 @@ mümkün değil. Bunun yerine sayfa görsel olarak ikiye "dilimleniyor":
   kesim noktasından sonrası görünecek şekilde.
 
 İki dilim de tek parça sayfanın birebir aynı piksellerini gösteriyor —
-kesim, panel araya girmeden önce görünmüyor. Kesim noktası (`cutY`),
-dokunulan ayetin en alt satırının baseline'ından `INTERLINE/2` (yarım satır
-arası boşluk) kadar aşağısı: bir sonraki satır/sure başlığı/sayfa alt
-boşluğu ne olursa olsun bu her zaman boş kağıt bölgesine denk geliyor
-(`js/app.js`, `openWordMeal`).
+kesim, panel araya girmeden önce görünmüyor. Kesim noktası (`cutY`), iki
+komşu satırın harekelerine (üstteki satırın vurgu/hareke alt sınırı ile
+alttaki satırın vurgu/hareke üst sınırı) göre hesaplanıyor. Bu iki sınır
+normal satır aralığında birbirine hafifçe giriyor (harekelerin ihtiyaç
+duyduğu boşluk, satırlar arası mesafeden biraz daha geniş tasarlanmış),
+bu yüzden `cutY` her iki tarafa da tam bitişik olamıyor; ortalarını alarak
+her iki komşu satırın da harekelerinin panelin arkasında kalma riskini
+en aza indiriyor (`js/app.js`, `openWordMeal`).
 
 Açılma/kapanma animasyonu CSS Grid'in `grid-template-rows: 0fr` → `1fr`
 tekniğiyle yapılıyor (`css/style.css`, `.word-meal-panel`) — JS ile
