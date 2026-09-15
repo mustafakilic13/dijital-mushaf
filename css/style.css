@@ -1080,6 +1080,26 @@ select:focus-visible, input:focus-visible, button:focus-visible {
   .page-container { border-radius: 4px; }
 }
 
+/* Ezber -> Yaz: while the virtual keyboard (.yaz-keyboard, fixed/overlaid
+   above the bottombar) is open, it would otherwise cover the page's own
+   bottom lines -- .reader-scroll's height/scroll-end and its
+   justify-content: center centering both stay oblivious to a fixed
+   overlay sitting on top of them. positionYazKeyboard() sets this
+   variable to the keyboard's real measured height (0px the rest of the
+   time), so the scroll area gains that much real bottom breathing room:
+   its scrollable end moves above the keyboard, and centering shifts the
+   page up to compensate. Declared last (after the two breakpoints above)
+   so this padding-bottom always wins over their shorthand `padding`,
+   regardless of which breakpoint is active. */
+:root { --yaz-keyboard-space: 0px; }
+.reader-scroll { padding-bottom: calc(18px + var(--yaz-keyboard-space)); }
+@media (min-width: 720px) {
+  .reader-scroll { padding-bottom: calc(28px + var(--yaz-keyboard-space)); }
+}
+@media (max-width: 719px) {
+  .reader-scroll { padding-bottom: calc(10px + var(--yaz-keyboard-space)); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .loading-mark svg { animation: none; }
   .nav-edge { transition: none; }
