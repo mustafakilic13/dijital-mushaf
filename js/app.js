@@ -593,6 +593,17 @@ function populateJuzList() {
 // tam olarak bir panel (.modal-list) görünür, seçili sekme
 // aria-selected="true" alır. Modal her kapandığında "juz"a sıfırlanır
 // (bkz. closeModal).
+//
+// setActiveModalItem, modal her açıldığında (openModal'ın onOpen'ı) dört
+// panelin de vurgusunu birden ayarlıyor -- ama o an sadece "juz" görünür,
+// diğer üçü hidden'dır; hidden bir elemanda scrollIntoView hiçbir şey
+// yapmıyor (layout'a girmediği için ölçülecek bir konum yok), yani hizb/
+// rub/menzil listelerindeki vurgulu satırın kendiliğinden ortalı gelmesi
+// gerektiği varsayımı hiç doğru olmuyordu. Panel gerçekten görünür hale
+// geldiği an (aşağıdaki hidden=false satırından hemen sonra, ki panelde
+// hiç geçiş animasyonu da yok) burada tekrar scrollIntoView çağırmak bunu
+// düzeltiyor: sekmeye her tıklandığında o listenin vurgulu satırı görünür
+// alanın ortasına gelir.
 const JUZ_TABS = ["juz", "hizb", "rub", "manzil"];
 function switchJuzTab(tabName) {
   for (const name of JUZ_TABS) {
@@ -602,6 +613,9 @@ function switchJuzTab(tabName) {
     if (tabBtn) tabBtn.setAttribute("aria-selected", active ? "true" : "false");
     if (panel) panel.hidden = !active;
   }
+  const shownPanel = els[`${tabName}List`];
+  const activeItem = shownPanel && shownPanel.querySelector(".modal-item.active");
+  if (activeItem && activeItem.scrollIntoView) activeItem.scrollIntoView({ block: "center" });
 }
 
 function setActiveModalItem(listEl, matchAttr, value) {
