@@ -2465,6 +2465,14 @@ async function startEzberStudy(mode, surah, from, to) {
   if (mode === "yaz") {
     els.yazKeyboard.hidden = false;
     positionYazKeyboard();
+  } else {
+    // switching straight from an in-progress Yaz session into Oku (modal
+    // re-opened mid-session) without going through endEzberStudy first --
+    // make sure its keyboard and the reserved space (--yaz-keyboard-space)
+    // don't linger.
+    els.yazKeyboard.hidden = true;
+    els.yazHintText.hidden = true;
+    document.documentElement.style.setProperty("--yaz-keyboard-space", "0px");
   }
   await ezberStudyGoToAyah(from);
 }
@@ -2486,6 +2494,7 @@ function endEzberStudy() {
   }
   els.yazKeyboard.hidden = true;
   els.yazHintText.hidden = true;
+  document.documentElement.style.setProperty("--yaz-keyboard-space", "0px");
   state.ezberStudy = null;
   els.ezberBtn.textContent = "Ezber";
 }
@@ -2529,9 +2538,18 @@ function toggleEzberYazHint() {
 // Sits the keyboard directly above the bottombar's own real, rendered
 // height (measured, not assumed -- its height comes from its buttons'
 // content/padding, not a fixed CSS value, so a hardcoded offset would
-// drift out of sync with actual font metrics across platforms).
+// drift out of sync with actual font metrics across platforms), and
+// reserves that same real height as extra bottom space on .reader-scroll
+// (via --yaz-keyboard-space, see its CSS rule) so the fixed/overlaid
+// keyboard never covers the page's own bottom lines -- short pages
+// (sayfa 1-2, header+besmele eating into their line count) that used to
+// sit centered right behind the keyboard now get pushed up above it, and
+// full pages get real extra scroll room instead of their last lines
+// being permanently covered.
 function positionYazKeyboard() {
   if (els.bottombar) els.yazKeyboard.style.bottom = `${els.bottombar.getBoundingClientRect().height}px`;
+  const kbH = els.yazKeyboard.hidden ? 0 : els.yazKeyboard.getBoundingClientRect().height;
+  document.documentElement.style.setProperty("--yaz-keyboard-space", `${kbH}px`);
 }
 
 function setupEzberYazKeyboard() {
