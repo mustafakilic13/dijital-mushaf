@@ -85,15 +85,33 @@ hesaplanıp o kelimelerin gerçek glyph pozisyonlarının arkasına bir dikdört
 ayetlerde normal) her satırda ayrı vurgu çiziliyor. Aynı segment hesabı hem
 vurguyu hem de sayfa üzerindeki tıklanabilir alanları besliyor.
 
-**Sure Bilgisi (kaldırıldı):** Sayfadaki sure başlığı kutusuna dokununca
-bir bilgi paneli (toplam ayet/mushaf sırası/nüzul sırası/cüz kartları,
-Hakkında/Nüzul/Konusu/Fazileti akordeonları) açan bir özellik vardı;
-içeriği Diyanet Kur'an Yolu tefsirinden (`data/sura-info.json`) geliyordu.
-Diyanet'e üçüncü parti bir uygulamada kullanım izni sorulduğunda kaynak
-dosyaların paylaşılamayacağı yanıtı geldiği için özellik, verisiyle
-birlikte kaldırıldı (bkz. hemen altındaki Tefsir bölümü — aynı gerekçe).
-Sure başlığı kutusu görsel olarak duruyor, sadece artık tıklanabilir
-değil. Telif sorunu olmayan bir kaynak bulununca yeniden eklenebilir.
+**Sure Bilgisi:** Sayfadaki sure başlığı kutusuna dokununca (`js/render.js`
+`drawSurahHeader`'ın çizdiği görünmez tam-kutu `.surah-header-hit` hedefi;
+kutu görsel olarak süslemeli bir COLR glifi olduğu ve çoğu zaman boşluktan
+ibaret olduğu için hit-test'i tek başına çizilen path'lere değil, glifin
+tüm bbox'unu kaplayan görünmez bir `<rect>`'e yaptırıyoruz) bir modal açılır
+(`js/app.js` `openSurahInfo`/`setupSurahInfoModal`): üstte ayet sayısı/nüzul
+yeri/cüz bilgisini gösteren küçük bir istatistik şeridi (zaten yüklü olan
+`data/surahs.json` + `data/surah-pages.json`/cüz eşlemesinden), altında
+sure hakkında bir akordeon. Akordeonun bölüm sayısı ve başlıkları sureden
+sureye değişiyor (İsim ve İniş Dönemi hep var, ama Tarihî Arka Plan, adlı
+yan sorular vb. bazı surelerde de geliyor — en fazla 11 bölümlü sureler
+var); bu yüzden sabit bir şemaya göre değil, `js/surahinfo.js`
+`splitInfoSections`'ın kaynağın kendi `<h2>` sınırlarından çıkardığı
+listeye göre kuruluyor.
+
+İçerik `data/surah-info-tr.json`'dan geliyor — QUL'un (qul.tarteel.ai)
+surah-info exportunun İslami terimlere uygun şekilde Türkçeye çevirisi, bu
+projede hazırlandı. Bu, özelliğin İKİNCİ veri kaynağı: ilki Diyanet Kur'an
+Yolu tefsiriydi (`data/sura-info.json`, farklı bir şema: toplam ayet/mushaf
+sırası/nüzul sırası/cüz kartları + Hakkında/Nüzul/Konusu/Fazileti
+akordeonları), Diyanet'e üçüncü parti bir uygulamada kullanım izni
+sorulduğunda kaynak dosyaların paylaşılamayacağı yanıtı geldiği için
+verisiyle birlikte kaldırılmıştı (bkz. hemen altındaki Tefsir bölümü — aynı
+gerekçe). `sources`'ın (tıpkı tefsirdeki gibi) ileride başka bir kaynak
+eklenmesine açık bir sözlük olması burada da mümkündü, ama şimdilik tek
+kaynak olduğu için `getSurahInfoEntry`'nin doğrudan sure numarasıyla arama
+yapması yeterli.
 
 ## Ayet detay paneli (kelime meali, meal, tefsir)
 
@@ -217,6 +235,7 @@ js/render.js            HarfBuzz şekillendirme + SVG glyph çizimi + ayet vurgu
 js/wordmeal.js          Kelime meali: veri yükleme + kelime/çeviri gruplama mantığı
 js/meal.js               Meal: veri yükleme + render (kaynak: Elmalılı M. Hamdi Yazır)
 js/tafsir.js              Tefsir: kaynak kaydı + veri yükleme + ayet-grubu çözümleme
+js/surahinfo.js           Sure Bilgisi: veri yükleme + <h2> sınırlarından akordeon bölümleri
 js/app.js               Sayfa yükleme, önbellek, gezinme, modaller, ayet seçimi, ayet detay paneli
 data/mushaf.json         604 sayfa × satır × kelime (QUL'dan üretildi, ~3MB)
 data/surahs.json          Sure adları/metadata (Türkçe isim dahil) + başlık glyph'i
@@ -227,6 +246,7 @@ data/page-first-ayah.json    Sayfa → o sayfadaki ilk ayet [sure, ayet]
 data/word-meal.json          Kelime meali (Türkçe, QUL word-by-word export, ~1.6MB)
 data/meal.json                Meal (Türkçe, Elmalılı M. Hamdi Yazır sadeleştirilmiş, ~1MB)
 data/tafsir-saadi.json         Tefsîr-i Sa'dî (QUL export, ayet-grubu yönlendirmeli, ~8.7MB)
+data/surah-info-tr.json        Sure Bilgisi (Türkçe, QUL surah-info exportundan çevrildi, 114 sure, ~950KB)
 data/surah-headers/         Her sure için hazır SVG path verisi (114 dosya)
 fonts/                    DigitalKhattV2.woff2 (tarayıcıda gerçekten yüklenen tek font)
 vendor/                   hb.wasm, hb.js, hbjs.js (resmi harfbuzzjs, MIT) +

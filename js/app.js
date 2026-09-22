@@ -17,6 +17,13 @@ import {
   loadTafsirData,
   resolveTafsirText,
 } from "./tafsir.js";
+import {
+  isSurahInfoDataReady,
+  getCachedSurahInfoData,
+  loadSurahInfoData,
+  getSurahInfoEntry,
+  splitInfoSections,
+} from "./surahinfo.js";
 
 const state = {
   lineRenderer: null,
@@ -166,6 +173,10 @@ const els = {
   playBtn: document.getElementById("play-btn"),
   playBtnLabel: document.getElementById("play-btn-label"),
   aramaBtn: document.getElementById("arama-btn"),
+
+  surahInfoModal: document.getElementById("surah-info-modal"),
+  surahInfoTitle: document.getElementById("surah-info-modal-title"),
+  surahInfoBody: document.getElementById("surah-info-body"),
 };
 
 // Sizes the page to fill the reader's available WIDTH ("Page Width" mode,
@@ -681,7 +692,7 @@ function closeModal(modalEl) {
 }
 
 function closeAllModals() {
-  [els.surahModal, els.juzModal, els.pageModal, els.ezberModal].forEach(closeModal);
+  [els.surahModal, els.juzModal, els.pageModal, els.ezberModal, els.surahInfoModal].forEach(closeModal);
 }
 
 function setupModals() {
@@ -1705,6 +1716,97 @@ async function onAyahTextClick(hit) {
   }
 }
 
+// ---------------------------------------------------------------------
+// "Sure Bilgisi" modalı: sayfadaki sure başlığı kutusuna dokununca açılır
+// (bkz. render.js drawSurahHeader'ın çizdiği .surah-header-hit hedefi ve
+// yukarıdaki els.pageContainer "click" işleyicisi). Veri js/surahinfo.js
+// üzerinden, tafsir.js ile aynı tembel-yükle-ve-önbelleğe-al düzeninde
+// geliyor -- ilk açılışta data/surah-info-tr.json (~950KB) indirilir,
+// sonraki açılışlarda önbellekten anında gelir.
+//
+// Üstteki istatistik şeridi (ayet sayısı / nüzul yeri / cüz) zaten yüklü
+// olan state.surahs + state.surahPages/state.pageToJuz'dan çıkarılıyor, o
+// yüzden veri henüz gelmemişken bile hemen gösterilebiliyor -- sadece
+// asıl metin (isim/iniş dönemi/tema... bölümleri) "Yükleniyor…" durumunda
+// bekliyor.
+function surahInfoStatsHTML(surahNum) {
+  const meta = state.surahs[String(surahNum)];
+  const startPage = state.surahPages[String(surahNum)];
+  const juzNum = startPage ? state.pageToJuz[startPage] : null;
+  const placeLabel = !meta ? "—" : meta.revelationPlace === "makkah" ? "Mekkî" : meta.revelationPlace === "madinah" ? "Medenî" : "—";
+  return `<div class="info-stats">
+      <div class="info-stat"><span class="info-stat-value">${meta ? meta.versesCount : "—"}</span><span class="info-stat-label">Ayet</span></div>
+      <div class="info-stat"><span class="info-stat-value">${escapeHtml(placeLabel)}</span><span class="info-stat-label">Nüzul Yeri</span></div>
+      <div class="info-stat"><span class="info-stat-value">${juzNum || "—"}</span><span class="info-stat-label">Cüz</span></div>
+    </div>`;
+}
+
+// Bölüm sayısı ve başlıkları sureden sureye değişiyor (İsim ve İniş Dönemi
+// hep var, ama bazı surelerde Tarihî Arka Plan, adlı yan sorular vb. de
+// geliyor -- en fazla 11 bölümlü sureler var), o yüzden akordeon burada
+// sabit bir şemaya göre değil, splitInfoSections'ın kaynağın kendi <h2>
+// sınırlarından çıkardığı listeye göre kuruluyor. .text zaten güvenilir
+// (kendi çevirdiğimiz) markup, tafsirContentHTML'in tafsir-saadi.json
+// içeriğine yaptığı gibi doğrudan innerHTML'e veriliyor.
+function surahInfoBodyHTML(surahNum, entry) {
+  const meta = state.surahs[String(surahNum)];
+  const nameHTML = meta && meta.nameArabic ? `<div class="info-name-arabic">${escapeHtml(meta.nameArabic)}</div>` : "";
+  const { intro, sections } = splitInfoSections(entry.text);
+  const introHTML = intro.trim() ? `<div class="info-intro">${intro}</div>` : "";
+  const sectionsHTML = sections
+    .map(
+      (s, i) => `<div class="info-section">
+        <button type="button" class="info-section-toggle" aria-expanded="${i === 0 ? "true" : "false"}">
+          <span>${escapeHtml(s.title)}</span>
+          <svg class="info-section-chevron" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="info-section-panel${i === 0 ? " open" : ""}">
+          <div class="info-section-panel-inner"><div class="info-section-content">${s.bodyHTML}</div></div>
+        </div>
+      </div>`
+    )
+    .join("");
+  return `${nameHTML}${surahInfoStatsHTML(surahNum)}${introHTML}<div class="info-sections">${sectionsHTML}</div>`;
+}
+
+function openSurahInfo(surahNum) {
+  const meta = state.surahs[String(surahNum)];
+  els.surahInfoTitle.textContent = meta ? `${surahNum}. ${meta.nameTurkish}` : "Sure Bilgisi";
+
+  const showEntry = () => {
+    const entry = getSurahInfoEntry(getCachedSurahInfoData(), surahNum);
+    els.surahInfoBody.innerHTML = entry
+      ? surahInfoBodyHTML(surahNum, entry)
+      : `${surahInfoStatsHTML(surahNum)}<p class="word-meal-loading">Bu sure için bilgi bulunamadı.</p>`;
+  };
+
+  if (isSurahInfoDataReady()) {
+    showEntry();
+  } else {
+    els.surahInfoBody.innerHTML = `${surahInfoStatsHTML(surahNum)}${WORD_MEAL_LOADING_HTML}`;
+    loadSurahInfoData()
+      .then(showEntry)
+      .catch(() => {
+        els.surahInfoBody.innerHTML = `${surahInfoStatsHTML(surahNum)}<p class="word-meal-loading">Yüklenemedi, lütfen tekrar deneyin.</p>`;
+      });
+  }
+  openModal(els.surahInfoModal);
+}
+
+function setupSurahInfoModal() {
+  // Akordeon bölümlerinin açık/kapalı durumu ayrıca state'te tutulmuyor --
+  // sadece kendi .info-section-panel'inin sınıfında; modal her açıldığında
+  // surahInfoBodyHTML zaten sıfırdan kuruluyor, bir önceki surenin açık
+  // bıraktığı bölümler otomatik olarak sıfırlanmış oluyor.
+  els.surahInfoBody.addEventListener("click", (e) => {
+    const toggle = e.target.closest(".info-section-toggle");
+    if (!toggle) return;
+    const panel = toggle.nextElementSibling;
+    const open = panel.classList.toggle("open");
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+}
+
 // Uygulama açık/görünür olduğu sürece ekranın kararıp kilitlenmesini
 // önler (mushaf okurken ekran sürekli kapanmasın diye). Desteklenmeyen
 // tarayıcılarda ya da izin verilmediğinde sessizce devre dışı kalır --
@@ -1742,6 +1844,11 @@ function setupNav() {
   els.pageContainer.addEventListener("click", (e) => {
     const svgEl = e.target.closest("svg.mushaf-page-svg");
     if (!svgEl) return;
+    const headerHit = e.target.closest(".surah-header-hit");
+    if (headerHit) {
+      openSurahInfo(parseInt(headerHit.dataset.surah, 10));
+      return;
+    }
     const hit = pointToAyah(e.clientX, e.clientY, svgEl);
     if (!hit) return;
     if (state.ezberStudy) {
@@ -2625,6 +2732,7 @@ async function main() {
     els.pageJumpInput.max = mushaf.pagesCount;
     els.pageJumpSlider.max = mushaf.pagesCount;
     setupModals();
+    setupSurahInfoModal();
     setupEzberModal();
     setupEzberYazKeyboard();
     setupNav();

@@ -770,6 +770,144 @@ body {
 .wm-tafsir-content .brown { color: #8a5a2f; font-weight: 600; }
 .wm-tafsir-content .blue { color: #2f5f8a; }
 
+/* ---------------------------------------------------------------------
+   Sure Bilgisi: sayfadaki sure başlığı kutusuna dokununca açılan modal
+   (bkz. js/render.js drawSurahHeader, js/app.js openSurahInfo). Kutunun
+   kendisi salt SVG içinde çizildiği için tıklanabilirliği burada değil
+   render.js'te (.surah-header-hit + görünmez hit-rect) veriliyor; burada
+   sadece imleci ipucu olarak değiştiriyoruz -- eser üzerinde hover'da
+   renk/ölçek gibi bir vurgu YOK, matbu sayfa hissini bozmasın diye.
+   ------------------------------------------------------------------- */
+.mushaf-page-svg .surah-header-hit { cursor: pointer; }
+
+.modal-sheet--info { width: min(560px, 100vw); }
+.info-body { padding: 8px 16px 22px; }
+
+.info-name-arabic {
+  font-family: var(--font-arabic);
+  font-size: 30px;
+  line-height: 1.3;
+  text-align: center;
+  direction: rtl;
+  color: var(--emerald-deep);
+  margin: 2px 0 14px;
+}
+
+.info-stats {
+  display: flex;
+  border: 1px solid var(--paper-edge);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.info-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  text-align: center;
+}
+.info-stat + .info-stat { border-left: 1px solid var(--paper-edge); }
+.info-stat-value {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--emerald-deep);
+}
+.info-stat-label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.info-intro {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-style: italic;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+.info-intro p { margin: 0 0 8px; }
+.info-intro > :last-child { margin-bottom: 0; }
+
+/* Bölüm sayısı ve başlıkları sureden sureye değişiyor (bazısında 3, bazısında
+   10'un üzerinde -- İsim/İniş Dönemi hep var, ama Tarihî Arka Plan, adlı
+   yan sorular vb. surede varsa geliyor), o yüzden akordeon js/surahinfo.js
+   splitInfoSections ile kaynağın kendi <h2> sınırlarından üretiliyor; sabit
+   dört bölümlü (Hakkında/Nüzul/Konusu/Fazileti) eski şema burada yok. Açık/
+   kapalı durumu -- .wm-tafsir-panel'deki gibi -- salt bu elemanların kendi
+   sınıfında tutuluyor, state'te ayrıca izlenmiyor. */
+.info-section + .info-section { border-top: 1px solid var(--paper-edge); }
+.info-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 12px 2px;
+  font-family: var(--font-ui);
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.info-section-toggle:hover { color: var(--emerald-deep); }
+.info-section-chevron {
+  flex-shrink: 0;
+  color: var(--ink-soft);
+  transition: transform 0.2s ease;
+}
+.info-section-toggle[aria-expanded="true"] .info-section-chevron { transform: rotate(90deg); color: var(--emerald-deep); }
+
+.info-section-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.info-section-panel.open { grid-template-rows: 1fr; }
+.info-section-panel-inner {
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  transition: opacity 0.25s ease 0.05s;
+}
+.info-section-panel.open .info-section-panel-inner { opacity: 1; }
+
+.info-section-content {
+  padding: 0 2px 14px;
+  font-family: var(--font-ui);
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: var(--ink);
+  direction: ltr;
+}
+.info-section-content h3 {
+  font-size: 13.5px;
+  color: var(--emerald-deep);
+  margin: 14px 0 6px;
+}
+.info-section-content p,
+.info-section-content ol,
+.info-section-content ul { margin: 0 0 10px; }
+.info-section-content > :last-child { margin-bottom: 0; }
+.info-section-content ol,
+.info-section-content ul { padding-inline-start: 22px; }
+.info-section-content li { margin-bottom: 4px; }
+.info-section-content em { color: var(--emerald-deep); font-style: italic; }
+.info-section-content a {
+  color: var(--gold);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--gold) 40%, transparent);
+  text-underline-offset: 2px;
+}
+.info-section-content a:hover { text-decoration-color: var(--gold); }
+
 .wbw-container {
   display: flex;
   flex-wrap: wrap;

@@ -324,20 +324,41 @@ export class LineRenderer {
   // as plain coloured SVG paths, full column width with height following
   // proportionally from the glyph's own aspect ratio, centred at `centerY`
   // (both computed by computeHeaderMetrics/the layout pass in renderPage).
-  // Purely decorative -- not a tap target (a previous version opened a
-  // "Sure Bilgisi" info panel here; removed along with its Diyanet Kur'an
-  // Yolu-sourced content, see README.md).
-  drawSurahHeader(pageG, headerData, centerY, scale) {
+  // Tapping it opens the "Sure Bilgisi" info modal for `surahNumber` (see
+  // app.js's setupSurahInfoModal/the page click handler in setupNav) -- a
+  // previous version had this same tap target, removed along with its
+  // Diyanet Kur'an Yolu-sourced content, see README.md; restored here
+  // against a different, redistributable source (js/surahinfo.js).
+  drawSurahHeader(pageG, headerData, centerY, scale, surahNumber) {
     const [xmin, ymin, xmax, ymax] = headerData.bbox;
     const glyphCenterX = (xmin + xmax) / 2;
     const glyphCenterY = (ymin + ymax) / 2;
     const targetCenterX = PAGE_WIDTH / 2;
 
     const group = document.createElementNS(SVG_NS, "g");
+    group.setAttribute("class", "surah-header-hit");
+    group.setAttribute("data-surah", surahNumber);
     group.setAttribute(
       "transform",
       `translate(${targetCenterX} ${centerY}) scale(${scale} ${-scale}) translate(${-glyphCenterX} ${-glyphCenterY})`
     );
+
+    // Invisible, full-bbox hit target, UNDER the artwork: the COLR glyph
+    // itself is mostly negative space (an ornamental border + calligraphy,
+    // not a filled block), so hit-testing the drawn <path>s alone would
+    // miss most taps within the header's own visual footprint. A
+    // transparent (not `fill: none`, which would opt back OUT of hit
+    // testing) rect the glyph's own bbox gives the whole box a uniform,
+    // reliable tap target -- same idea as the invisible text-selection
+    // layer addTextSelectionLayer draws over a normal text line.
+    const hitRect = document.createElementNS(SVG_NS, "rect");
+    hitRect.setAttribute("x", xmin);
+    hitRect.setAttribute("y", ymin);
+    hitRect.setAttribute("width", xmax - xmin);
+    hitRect.setAttribute("height", ymax - ymin);
+    hitRect.setAttribute("fill", "transparent");
+    group.appendChild(hitRect);
+
     for (const layer of headerData.layers) {
       const path = document.createElementNS(SVG_NS, "path");
       path.setAttribute("d", layer.d);
@@ -374,7 +395,7 @@ export class LineRenderer {
   // alternating-ruku colour (see analyzeLineForJust ayahNumberRanges below).
   renderMushafLine(pageG, line, pos, headerData, wordIdToAyah, isAltRuku) {
     if (line.t === "s") {
-      if (headerData) this.drawSurahHeader(pageG, headerData, pos.centerY, pos.scale);
+      if (headerData) this.drawSurahHeader(pageG, headerData, pos.centerY, pos.scale, line.surah);
       return { ayahSegments: [], wordSegments: [], unitSegments: [] };
     }
 
