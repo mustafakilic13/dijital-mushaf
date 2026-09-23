@@ -113,6 +113,21 @@ eklenmesine açık bir sözlük olması burada da mümkündü, ama şimdilik tek
 kaynak olduğu için `getSurahInfoEntry`'nin doğrudan sure numarasıyla arama
 yapması yeterli.
 
+Metnin içindeki `<a href="...">` linkleri QUL'un kendi site-içi path'leri
+(`/{sure}`, `/{sure}/{ayet}[-{ayet}]`, dipnotlarda `/{sure}:{ayet}[-{ayet}]
+?font=...&translations=...`) — çeviri onları olduğu gibi korudu, ama bu
+uygulamada karşılıkları yok. `js/app.js`'teki `setupSurahInfoModal` bu
+yüzden info body'deki her tıklamayı yakalayıp (`e.preventDefault()`)
+`js/surahinfo.js` `parseInfoLink`'e yönlendiriyor: salt sure linki bir
+"Mushaf'a Sureye Git" teklifine (`goToSurah`), ayet/aralık/dipnot linkleri
+(dipnotun kendi numarası karşılıksız olduğu için bağlı olduğu ayete
+indirgenir) aralıktaki her ayetin Elmalılı meali + kendi "Mushaf'ta Ayete
+Git" butonuna (`goToAyah`) dönüşür — ikisi de `#surah-info-detail`
+alt-panelinde, `.ezber-surah-picker`'la aynı geri-gidilebilir düzende
+(bkz. `js/app.js`'teki `openSurahInfoLink`/`closeSurahInfoDetail`).
+`test/surah_info_links_test.mjs`, `parseInfoLink`'i güncel
+`surah-info-tr.json`'daki linklerin tamamına karşı doğruluyor.
+
 ## Ayet detay paneli (kelime meali, meal, tefsir)
 
 Sayfadaki bir ayetin metnine dokunmak, o ayetin **son satırından hemen

@@ -1,0 +1,445 @@
+diff --git a/README.md b/README.md
+index 2c2bcd6..2dc3d61 100644
+--- a/README.md
++++ b/README.md
+@@ -113,6 +113,21 @@ eklenmesine açık bir sözlük olması burada da mümkündü, ama şimdilik tek
+ kaynak olduğu için `getSurahInfoEntry`'nin doğrudan sure numarasıyla arama
+ yapması yeterli.
+ 
++Metnin içindeki `<a href="...">` linkleri QUL'un kendi site-içi path'leri
++(`/{sure}`, `/{sure}/{ayet}[-{ayet}]`, dipnotlarda `/{sure}:{ayet}[-{ayet}]
++?font=...&translations=...`) — çeviri onları olduğu gibi korudu, ama bu
++uygulamada karşılıkları yok. `js/app.js`'teki `setupSurahInfoModal` bu
++yüzden info body'deki her tıklamayı yakalayıp (`e.preventDefault()`)
++`js/surahinfo.js` `parseInfoLink`'e yönlendiriyor: salt sure linki bir
++"Mushaf'a Sureye Git" teklifine (`goToSurah`), ayet/aralık/dipnot linkleri
++(dipnotun kendi numarası karşılıksız olduğu için bağlı olduğu ayete
++indirgenir) aralıktaki her ayetin Elmalılı meali + kendi "Mushaf'ta Ayete
++Git" butonuna (`goToAyah`) dönüşür — ikisi de `#surah-info-detail`
++alt-panelinde, `.ezber-surah-picker`'la aynı geri-gidilebilir düzende
++(bkz. `js/app.js`'teki `openSurahInfoLink`/`closeSurahInfoDetail`).
++`test/surah_info_links_test.mjs`, `parseInfoLink`'i güncel
++`surah-info-tr.json`'daki linklerin tamamına karşı doğruluyor.
++
+ ## Ayet detay paneli (kelime meali, meal, tefsir)
+ 
+ Sayfadaki bir ayetin metnine dokunmak, o ayetin **son satırından hemen
+diff --git a/css/style.css b/css/style.css
+index e974b48..a6462aa 100644
+--- a/css/style.css
++++ b/css/style.css
+@@ -907,6 +907,97 @@ body {
+   text-underline-offset: 2px;
+ }
+ .info-section-content a:hover { text-decoration-color: var(--gold); }
++.info-intro a {
++  color: var(--gold);
++  text-decoration: underline;
++  text-decoration-color: color-mix(in srgb, var(--gold) 40%, transparent);
++  text-underline-offset: 2px;
++}
++.info-intro a:hover { text-decoration-color: var(--gold); }
++
++/* Sure Bilgisi içindeki linkler (js/surahinfo.js parseInfoLink, js/app.js
++   openSurahInfoLink): #surah-info-body ile aynı .modal-sheet içinde bir
++   kardeş panel, .ezber-surah-picker'la birebir aynı "ikisinden biri her an
++   [hidden]" düzeni -- bkz. o bloğun üstündeki yorum. */
++.info-detail {
++  display: flex;
++  flex-direction: column;
++  min-height: 0;
++  flex: 1;
++}
++.info-detail[hidden] { display: none; }
++.info-detail-header {
++  display: flex;
++  align-items: center;
++  gap: 10px;
++  padding: 10px 14px;
++  border-bottom: 1px solid var(--line);
++  font-weight: 600;
++  color: var(--ink);
++  flex-shrink: 0;
++}
++.info-detail-back {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  width: 32px;
++  height: 32px;
++  border-radius: 10px;
++  border: none;
++  background: none;
++  color: var(--ink);
++  cursor: pointer;
++  flex-shrink: 0;
++}
++.info-detail-back:hover { background: var(--paper-edge); }
++.info-detail-body { flex: 1; overflow-y: auto; }
++
++/* Salt sure linki: "N. İsim Sûresi" + tek bir yönlendirme butonu, dikey ortalı. */
++.info-detail-surah {
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  gap: 14px;
++  padding: 32px 16px;
++  text-align: center;
++}
++.info-detail-surah-label {
++  font-family: var(--font-ui);
++  font-size: 17px;
++  font-weight: 700;
++  color: var(--ink);
++}
++
++/* Ayet / aralık / dipnot linki: aralıktaki her ayet kendi bloğunda --
++   .wm-meal-text/.wm-meal-source'u (renderMealHTML) doğrudan yeniden
++   kullanıyor, o yüzden burada meal metninin kendi stili yok. */
++.info-detail-ayah + .info-detail-ayah {
++  margin-top: 16px;
++  padding-top: 14px;
++  border-top: 1px solid var(--paper-edge);
++}
++.info-detail-ayah-ref {
++  font-family: var(--font-ui);
++  font-size: 12px;
++  font-weight: 600;
++  letter-spacing: 0.02em;
++  color: var(--emerald-deep);
++  margin-bottom: 8px;
++}
++.info-detail-ayah-actions { text-align: right; margin-top: 8px; }
++
++.info-detail-goto-btn {
++  font-family: var(--font-ui);
++  font-size: 12.5px;
++  font-weight: 600;
++  padding: 7px 14px;
++  border-radius: 999px;
++  border: 1px solid var(--emerald);
++  background: #fff;
++  color: var(--emerald-deep);
++  cursor: pointer;
++}
++.info-detail-goto-btn:hover { background: var(--emerald); color: #fff; }
+ 
+ .wbw-container {
+   display: flex;
+diff --git a/index.html b/index.html
+index 1ac7a48..fc63e56 100644
+--- a/index.html
++++ b/index.html
+@@ -293,6 +293,15 @@
+     </button>
+   </div>
+   <div class="modal-list info-body" id="surah-info-body"></div>
++  <div class="info-detail" id="surah-info-detail" hidden>
++    <div class="info-detail-header">
++      <button type="button" class="info-detail-back" id="surah-info-detail-back" aria-label="Geri dön">
++        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
++      </button>
++      <span>Bağlantı</span>
++    </div>
++    <div class="modal-list info-detail-body" id="surah-info-detail-body"></div>
++  </div>
+ </div>
+ 
+ <script src="vendor/hb.js"></script>
+diff --git a/js/app.js b/js/app.js
+index 6add595..d58a519 100644
+--- a/js/app.js
++++ b/js/app.js
+@@ -23,6 +23,7 @@ import {
+   loadSurahInfoData,
+   getSurahInfoEntry,
+   splitInfoSections,
++  parseInfoLink,
+ } from "./surahinfo.js";
+ 
+ const state = {
+@@ -177,6 +178,9 @@ const els = {
+   surahInfoModal: document.getElementById("surah-info-modal"),
+   surahInfoTitle: document.getElementById("surah-info-modal-title"),
+   surahInfoBody: document.getElementById("surah-info-body"),
++  surahInfoDetail: document.getElementById("surah-info-detail"),
++  surahInfoDetailBack: document.getElementById("surah-info-detail-back"),
++  surahInfoDetailBody: document.getElementById("surah-info-detail-body"),
+ };
+ 
+ // Sizes the page to fill the reader's available WIDTH ("Page Width" mode,
+@@ -661,6 +665,7 @@ function closeModal(modalEl) {
+   // closed the modal (backdrop, X, Escape, or picking an item, all of
+   // which funnel through here).
+   closeAllAyahGrids(); // Sure modalindeki açık ayet ızgaraları
++  if (modalEl === els.surahInfoModal) closeSurahInfoDetail(); // Sure Bilgisi hep ana içerikte açılsın, kaldığı linkte değil
+   if (modalEl === els.juzModal) switchJuzTab("juz"); // Cüz modalı hep "Cüz" sekmesinde açılsın
+   if (modalEl === els.ezberModal) {
+     switchEzberTab("dinle"); // Ezber modalı hep Dinle sekmesinde açılsın
+@@ -1793,6 +1798,89 @@ function openSurahInfo(surahNum) {
+   openModal(els.surahInfoModal);
+ }
+ 
++// Sure Bilgisi içeriğindeki <a href> hedefleri (js/surahinfo.js
++// parseInfoLink) QUL'un site-içi linkleri -- bu uygulamada karşılıkları
++// yok, o yüzden normal link gibi takip edilirse 404 veriyordu (bkz.
++// parseInfoLink'in başındaki yorum). Onun yerine tıklamayı burada
++// yakalayıp modal içinde, geri gidilebilir bir alt-görünümde
++// (#surah-info-detail) karşılıyoruz: #surah-info-body ile #surah-info-detail
++// aynı modal içinde iki kardeş panel, sadece biri her zaman [hidden] --
++// "geri" ana içeriği YENİDEN KURMUYOR, sadece tekrar gösteriyor, o yüzden
++// kullanıcının orada bıraktığı kaydırma konumu (ve açık akordeon
++// bölümleri) olduğu gibi duruyor.
++let surahInfoDetailRequestId = 0;
++
++function showSurahInfoDetail(bodyHTML) {
++  els.surahInfoDetailBody.innerHTML = bodyHTML;
++  els.surahInfoBody.hidden = true;
++  els.surahInfoDetail.hidden = false;
++}
++
++function closeSurahInfoDetail() {
++  surahInfoDetailRequestId++; // olası bir loadMealData().then() devamını geçersiz kılar (aşağıdaki openSurahInfoLink'e bkz.)
++  els.surahInfoDetail.hidden = true;
++  els.surahInfoBody.hidden = false;
++}
++
++function surahInfoDetailSurahHTML(surahNum) {
++  const meta = state.surahs[String(surahNum)];
++  const label = meta ? `${surahNum}. ${meta.nameTurkish} Sûresi` : `${surahNum}. Sûre`;
++  return `
++    <div class="info-detail-surah">
++      <div class="info-detail-surah-label">${escapeHtml(label)}</div>
++      <button type="button" class="info-detail-goto-btn" data-goto-surah="${surahNum}">Mushaf'a Sureye Git</button>
++    </div>`;
++}
++
++// ayahStart===ayahEnd için tek ayet, farklıysa aralık -- ikisi de (ve
++// dipnot linkleri de, parseInfoLink'te aynı "ayah" şekline indirgendiği
++// için) buradan geçiyor: aralıktaki HER ayet kendi Elmalılı meali + kendi
++// "git" butonuyla ayrı ayrı listeleniyor.
++function surahInfoDetailAyahHTML(surah, ayahStart, ayahEnd) {
++  const data = getCachedMealData();
++  const meta = state.surahs[String(surah)];
++  let html = "";
++  for (let a = ayahStart; a <= ayahEnd; a++) {
++    const ref = meta ? `${meta.nameTurkish} ${a}` : `${surah}:${a}`;
++    html += `
++      <div class="info-detail-ayah">
++        <div class="info-detail-ayah-ref">${escapeHtml(ref)}</div>
++        ${renderMealHTML(getMealText(data, surah, a))}
++        <div class="info-detail-ayah-actions">
++          <button type="button" class="info-detail-goto-btn" data-goto-surah="${surah}" data-goto-ayah="${a}">Mushaf'ta Ayete Git</button>
++        </div>
++      </div>`;
++  }
++  return html;
++}
++
++function openSurahInfoLink(target) {
++  if (target.type === "surah") {
++    showSurahInfoDetail(surahInfoDetailSurahHTML(target.surah));
++    return;
++  }
++  const requestId = ++surahInfoDetailRequestId;
++  const render = () => {
++    // kullanıcı geri gitmiş ya da bu arada başka bir linke tıklamışsa
++    // (closeSurahInfoDetail / bir sonraki openSurahInfoLink çağrısı
++    // requestId'yi zaten ilerletmiş olur), bu artık bayat -- ekranı
++    // güncelleme.
++    if (surahInfoDetailRequestId !== requestId) return;
++    showSurahInfoDetail(surahInfoDetailAyahHTML(target.surah, target.ayahStart, target.ayahEnd));
++  };
++  if (isMealDataReady()) {
++    render();
++  } else {
++    showSurahInfoDetail(WORD_MEAL_LOADING_HTML);
++    loadMealData()
++      .then(render)
++      .catch(() => {
++        if (surahInfoDetailRequestId !== requestId) return;
++        els.surahInfoDetailBody.innerHTML = `<p class="word-meal-loading">Yüklenemedi, lütfen tekrar deneyin.</p>`;
++      });
++  }
++}
++
+ function setupSurahInfoModal() {
+   // Akordeon bölümlerinin açık/kapalı durumu ayrıca state'te tutulmuyor --
+   // sadece kendi .info-section-panel'inin sınıfında; modal her açıldığında
+@@ -1800,10 +1888,29 @@ function setupSurahInfoModal() {
+   // bıraktığı bölümler otomatik olarak sıfırlanmış oluyor.
+   els.surahInfoBody.addEventListener("click", (e) => {
+     const toggle = e.target.closest(".info-section-toggle");
+-    if (!toggle) return;
+-    const panel = toggle.nextElementSibling;
+-    const open = panel.classList.toggle("open");
+-    toggle.setAttribute("aria-expanded", open ? "true" : "false");
++    if (toggle) {
++      const panel = toggle.nextElementSibling;
++      const open = panel.classList.toggle("open");
++      toggle.setAttribute("aria-expanded", open ? "true" : "false");
++      return;
++    }
++    const link = e.target.closest("a[href]");
++    if (!link) return;
++    e.preventDefault();
++    const target = parseInfoLink(link.getAttribute("href"));
++    if (target) openSurahInfoLink(target);
++  });
++
++  els.surahInfoDetailBack.addEventListener("click", closeSurahInfoDetail);
++
++  els.surahInfoDetail.addEventListener("click", (e) => {
++    const btn = e.target.closest(".info-detail-goto-btn");
++    if (!btn) return;
++    const surah = parseInt(btn.dataset.gotoSurah, 10);
++    const ayah = btn.dataset.gotoAyah ? parseInt(btn.dataset.gotoAyah, 10) : null;
++    if (ayah) goToAyah(surah, ayah);
++    else goToSurah(surah);
++    closeModal(els.surahInfoModal);
+   });
+ }
+ 
+diff --git a/js/surahinfo.js b/js/surahinfo.js
+index 7a42d29..c51d247 100644
+--- a/js/surahinfo.js
++++ b/js/surahinfo.js
+@@ -83,3 +83,47 @@ export function splitInfoSections(html) {
+   }
+   return { intro, sections };
+ }
++
++// .text/.short_text's <a href="..."> targets are QUL's own site-internal
++// links, preserved as-is by the translation (see this file's header
++// comment) -- this app has no route for any of them, so following one as
++// a normal link 404s (in a new tab when the source markup also carries
++// target="_blank", in the SAME tab -- navigating away from the app
++// entirely -- when it doesn't; both happen in the current data). app.js
++// intercepts every click in the info body instead and routes it through
++// here.
++//
++// Three href shapes appear, all handled by one regex:
++//   /{surah}                          bare surah reference (rare: 5 of
++//                                      the 446 links currently in
++//                                      surah-info-tr.json)
++//   /{surah}/{ayah}[-{ayahEnd}]       a single ayah, or a range
++//   /{surah}:{ayah}[-{ayahEnd}]?...   a footnote reference -- QUL's deep
++//                                      link into a specific OTHER
++//                                      translation/tafsir's footnote
++//                                      numbering (the ?font=&translations=
++//                                      query selects which one). This app
++//                                      doesn't have that source, so the
++//                                      footnote's own number can't be
++//                                      shown -- but the ayah(s) it's
++//                                      attached to can, so this collapses
++//                                      to the same "ayah" shape as the
++//                                      line above once the query string is
++//                                      dropped.
++// Every href currently in the data matches one of these; anything that
++// doesn't (or a surah/ayah number of 0) returns null and app.js leaves
++// the click as a no-op rather than guessing.
++const LINK_RE = /^\/?(\d+)(?:[/:](\d+)(?:-(\d+))?)?/;
++
++export function parseInfoLink(href) {
++  if (!href) return null;
++  const m = LINK_RE.exec(href);
++  if (!m) return null;
++  const surah = parseInt(m[1], 10);
++  if (!surah) return null;
++  if (!m[2]) return { type: "surah", surah };
++  const ayahStart = parseInt(m[2], 10);
++  const ayahEnd = m[3] ? parseInt(m[3], 10) : ayahStart;
++  if (!ayahStart || ayahEnd < ayahStart) return null;
++  return { type: "ayah", surah, ayahStart, ayahEnd };
++}
+diff --git a/test/surah_info_links_test.mjs b/test/surah_info_links_test.mjs
+new file mode 100644
+index 0000000..3d32852
+--- /dev/null
++++ b/test/surah_info_links_test.mjs
+@@ -0,0 +1,85 @@
++// Regression check for js/surahinfo.js's parseInfoLink -- see that
++// function's own header comment for the three href shapes it handles
++// (bare surah / ayah-or-range / footnote). Two parts: direct unit checks
++// for each shape (including the edge cases -- missing leading slash,
++// footnote query string, garbage input), then a sweep over every <a
++// href="..."> actually present in data/surah-info-tr.json to make sure
++// none of the 114 surahs' real content has drifted onto a shape this
++// doesn't cover.
++//
++// Pure Node, no deps (surahinfo.js itself has none outside
++// loadSurahInfoData's fetch(), which this never calls) -- just:
++//   node surah_info_links_test.mjs
++import fs from "fs";
++import path from "path";
++import { fileURLToPath } from "url";
++import { parseInfoLink } from "../js/surahinfo.js";
++
++const HERE = path.dirname(fileURLToPath(import.meta.url));
++const DATA_FILE = path.join(HERE, "..", "data", "surah-info-tr.json");
++
++let failures = 0;
++function check(name, cond) {
++  if (!cond) {
++    failures++;
++    console.error(`FAIL: ${name}`);
++  }
++}
++
++// -- unit checks: one per href shape, plus the edge cases -----------------
++check("bare surah -> type surah", (() => {
++  const r = parseInfoLink("/2");
++  return !!r && r.type === "surah" && r.surah === 2;
++})());
++check("single ayah -> ayahStart === ayahEnd", (() => {
++  const r = parseInfoLink("/6/139");
++  return !!r && r.type === "ayah" && r.surah === 6 && r.ayahStart === 139 && r.ayahEnd === 139;
++})());
++check("ayah range", (() => {
++  const r = parseInfoLink("/4/136-175");
++  return !!r && r.type === "ayah" && r.surah === 4 && r.ayahStart === 136 && r.ayahEnd === 175;
++})());
++check("footnote (colon + query) -> collapses to single ayah, query dropped", (() => {
++  const r = parseInfoLink("/44:5?font=v2&translations=95");
++  return !!r && r.type === "ayah" && r.surah === 44 && r.ayahStart === 5 && r.ayahEnd === 5;
++})());
++check("footnote range (colon + dash + query)", (() => {
++  const r = parseInfoLink("/29:10-11?font=v2&translations=95");
++  return !!r && r.type === "ayah" && r.surah === 29 && r.ayahStart === 10 && r.ayahEnd === 11;
++})());
++check("missing leading slash tolerated (3 real links in the data do this)", (() => {
++  const r = parseInfoLink("2/40-120");
++  return !!r && r.type === "ayah" && r.surah === 2 && r.ayahStart === 40 && r.ayahEnd === 120;
++})());
++check("empty href rejected", parseInfoLink("") === null);
++check("surah 0 rejected", parseInfoLink("/0") === null);
++check("non-numeric rejected", parseInfoLink("#read-more") === null);
++
++// -- every real link in the current data must parse to something ----------
++// Same attribute-scan approach used to validate parseInfoLink's regex
++// against the live data before writing it (handles both quoted and
++// unquoted href="..." / href=... -- both appear in the source).
++const data = JSON.parse(fs.readFileSync(DATA_FILE, "utf-8"));
++const aTagRe = /<a\s+([^>]*)>/g;
++const hrefRe = /href=["']?([^"'\s>]+)["']?/;
++let total = 0;
++for (const [surahNum, entry] of Object.entries(data)) {
++  for (const field of ["text", "short_text"]) {
++    const html = entry[field] || "";
++    for (const tagMatch of html.matchAll(aTagRe)) {
++      const hrefMatch = hrefRe.exec(tagMatch[1]);
++      if (!hrefMatch) continue;
++      total++;
++      const href = hrefMatch[1];
++      check(`surah ${surahNum} ${field} link parses: ${href}`, parseInfoLink(href) !== null);
++    }
++  }
++}
++console.log(`checked ${total} real links from surah-info-tr.json`);
++
++if (failures) {
++  console.error(`${failures} check(s) failed`);
++  process.exit(1);
++} else {
++  console.log("all checks passed");
++}

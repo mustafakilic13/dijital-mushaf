@@ -83,3 +83,47 @@ export function splitInfoSections(html) {
   }
   return { intro, sections };
 }
+
+// .text/.short_text's <a href="..."> targets are QUL's own site-internal
+// links, preserved as-is by the translation (see this file's header
+// comment) -- this app has no route for any of them, so following one as
+// a normal link 404s (in a new tab when the source markup also carries
+// target="_blank", in the SAME tab -- navigating away from the app
+// entirely -- when it doesn't; both happen in the current data). app.js
+// intercepts every click in the info body instead and routes it through
+// here.
+//
+// Three href shapes appear, all handled by one regex:
+//   /{surah}                          bare surah reference (rare: 5 of
+//                                      the 446 links currently in
+//                                      surah-info-tr.json)
+//   /{surah}/{ayah}[-{ayahEnd}]       a single ayah, or a range
+//   /{surah}:{ayah}[-{ayahEnd}]?...   a footnote reference -- QUL's deep
+//                                      link into a specific OTHER
+//                                      translation/tafsir's footnote
+//                                      numbering (the ?font=&translations=
+//                                      query selects which one). This app
+//                                      doesn't have that source, so the
+//                                      footnote's own number can't be
+//                                      shown -- but the ayah(s) it's
+//                                      attached to can, so this collapses
+//                                      to the same "ayah" shape as the
+//                                      line above once the query string is
+//                                      dropped.
+// Every href currently in the data matches one of these; anything that
+// doesn't (or a surah/ayah number of 0) returns null and app.js leaves
+// the click as a no-op rather than guessing.
+const LINK_RE = /^\/?(\d+)(?:[/:](\d+)(?:-(\d+))?)?/;
+
+export function parseInfoLink(href) {
+  if (!href) return null;
+  const m = LINK_RE.exec(href);
+  if (!m) return null;
+  const surah = parseInt(m[1], 10);
+  if (!surah) return null;
+  if (!m[2]) return { type: "surah", surah };
+  const ayahStart = parseInt(m[2], 10);
+  const ayahEnd = m[3] ? parseInt(m[3], 10) : ayahStart;
+  if (!ayahStart || ayahEnd < ayahStart) return null;
+  return { type: "ayah", surah, ayahStart, ayahEnd };
+}

@@ -23,6 +23,7 @@ import {
   loadSurahInfoData,
   getSurahInfoEntry,
   splitInfoSections,
+  parseInfoLink,
 } from "./surahinfo.js";
 
 const state = {
@@ -177,6 +178,9 @@ const els = {
   surahInfoModal: document.getElementById("surah-info-modal"),
   surahInfoTitle: document.getElementById("surah-info-modal-title"),
   surahInfoBody: document.getElementById("surah-info-body"),
+  surahInfoDetail: document.getElementById("surah-info-detail"),
+  surahInfoDetailBack: document.getElementById("surah-info-detail-back"),
+  surahInfoDetailBody: document.getElementById("surah-info-detail-body"),
 };
 
 // Sizes the page to fill the reader's available WIDTH ("Page Width" mode,
@@ -661,6 +665,7 @@ function closeModal(modalEl) {
   // closed the modal (backdrop, X, Escape, or picking an item, all of
   // which funnel through here).
   closeAllAyahGrids(); // Sure modalindeki açık ayet ızgaraları
+  if (modalEl === els.surahInfoModal) closeSurahInfoDetail(); // Sure Bilgisi hep ana içerikte açılsın, kaldığı linkte değil
   if (modalEl === els.juzModal) switchJuzTab("juz"); // Cüz modalı hep "Cüz" sekmesinde açılsın
   if (modalEl === els.ezberModal) {
     switchEzberTab("dinle"); // Ezber modalı hep Dinle sekmesinde açılsın
@@ -1793,6 +1798,89 @@ function openSurahInfo(surahNum) {
   openModal(els.surahInfoModal);
 }
 
+// Sure Bilgisi içeriğindeki <a href> hedefleri (js/surahinfo.js
+// parseInfoLink) QUL'un site-içi linkleri -- bu uygulamada karşılıkları
+// yok, o yüzden normal link gibi takip edilirse 404 veriyordu (bkz.
+// parseInfoLink'in başındaki yorum). Onun yerine tıklamayı burada
+// yakalayıp modal içinde, geri gidilebilir bir alt-görünümde
+// (#surah-info-detail) karşılıyoruz: #surah-info-body ile #surah-info-detail
+// aynı modal içinde iki kardeş panel, sadece biri her zaman [hidden] --
+// "geri" ana içeriği YENİDEN KURMUYOR, sadece tekrar gösteriyor, o yüzden
+// kullanıcının orada bıraktığı kaydırma konumu (ve açık akordeon
+// bölümleri) olduğu gibi duruyor.
+let surahInfoDetailRequestId = 0;
+
+function showSurahInfoDetail(bodyHTML) {
+  els.surahInfoDetailBody.innerHTML = bodyHTML;
+  els.surahInfoBody.hidden = true;
+  els.surahInfoDetail.hidden = false;
+}
+
+function closeSurahInfoDetail() {
+  surahInfoDetailRequestId++; // olası bir loadMealData().then() devamını geçersiz kılar (aşağıdaki openSurahInfoLink'e bkz.)
+  els.surahInfoDetail.hidden = true;
+  els.surahInfoBody.hidden = false;
+}
+
+function surahInfoDetailSurahHTML(surahNum) {
+  const meta = state.surahs[String(surahNum)];
+  const label = meta ? `${surahNum}. ${meta.nameTurkish} Sûresi` : `${surahNum}. Sûre`;
+  return `
+    <div class="info-detail-surah">
+      <div class="info-detail-surah-label">${escapeHtml(label)}</div>
+      <button type="button" class="info-detail-goto-btn" data-goto-surah="${surahNum}">Mushaf'a Sureye Git</button>
+    </div>`;
+}
+
+// ayahStart===ayahEnd için tek ayet, farklıysa aralık -- ikisi de (ve
+// dipnot linkleri de, parseInfoLink'te aynı "ayah" şekline indirgendiği
+// için) buradan geçiyor: aralıktaki HER ayet kendi Elmalılı meali + kendi
+// "git" butonuyla ayrı ayrı listeleniyor.
+function surahInfoDetailAyahHTML(surah, ayahStart, ayahEnd) {
+  const data = getCachedMealData();
+  const meta = state.surahs[String(surah)];
+  let html = "";
+  for (let a = ayahStart; a <= ayahEnd; a++) {
+    const ref = meta ? `${meta.nameTurkish} ${a}` : `${surah}:${a}`;
+    html += `
+      <div class="info-detail-ayah">
+        <div class="info-detail-ayah-ref">${escapeHtml(ref)}</div>
+        ${renderMealHTML(getMealText(data, surah, a))}
+        <div class="info-detail-ayah-actions">
+          <button type="button" class="info-detail-goto-btn" data-goto-surah="${surah}" data-goto-ayah="${a}">Mushaf'ta Ayete Git</button>
+        </div>
+      </div>`;
+  }
+  return html;
+}
+
+function openSurahInfoLink(target) {
+  if (target.type === "surah") {
+    showSurahInfoDetail(surahInfoDetailSurahHTML(target.surah));
+    return;
+  }
+  const requestId = ++surahInfoDetailRequestId;
+  const render = () => {
+    // kullanıcı geri gitmiş ya da bu arada başka bir linke tıklamışsa
+    // (closeSurahInfoDetail / bir sonraki openSurahInfoLink çağrısı
+    // requestId'yi zaten ilerletmiş olur), bu artık bayat -- ekranı
+    // güncelleme.
+    if (surahInfoDetailRequestId !== requestId) return;
+    showSurahInfoDetail(surahInfoDetailAyahHTML(target.surah, target.ayahStart, target.ayahEnd));
+  };
+  if (isMealDataReady()) {
+    render();
+  } else {
+    showSurahInfoDetail(WORD_MEAL_LOADING_HTML);
+    loadMealData()
+      .then(render)
+      .catch(() => {
+        if (surahInfoDetailRequestId !== requestId) return;
+        els.surahInfoDetailBody.innerHTML = `<p class="word-meal-loading">Yüklenemedi, lütfen tekrar deneyin.</p>`;
+      });
+  }
+}
+
 function setupSurahInfoModal() {
   // Akordeon bölümlerinin açık/kapalı durumu ayrıca state'te tutulmuyor --
   // sadece kendi .info-section-panel'inin sınıfında; modal her açıldığında
@@ -1800,10 +1888,29 @@ function setupSurahInfoModal() {
   // bıraktığı bölümler otomatik olarak sıfırlanmış oluyor.
   els.surahInfoBody.addEventListener("click", (e) => {
     const toggle = e.target.closest(".info-section-toggle");
-    if (!toggle) return;
-    const panel = toggle.nextElementSibling;
-    const open = panel.classList.toggle("open");
-    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    if (toggle) {
+      const panel = toggle.nextElementSibling;
+      const open = panel.classList.toggle("open");
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      return;
+    }
+    const link = e.target.closest("a[href]");
+    if (!link) return;
+    e.preventDefault();
+    const target = parseInfoLink(link.getAttribute("href"));
+    if (target) openSurahInfoLink(target);
+  });
+
+  els.surahInfoDetailBack.addEventListener("click", closeSurahInfoDetail);
+
+  els.surahInfoDetail.addEventListener("click", (e) => {
+    const btn = e.target.closest(".info-detail-goto-btn");
+    if (!btn) return;
+    const surah = parseInt(btn.dataset.gotoSurah, 10);
+    const ayah = btn.dataset.gotoAyah ? parseInt(btn.dataset.gotoAyah, 10) : null;
+    if (ayah) goToAyah(surah, ayah);
+    else goToSurah(surah);
+    closeModal(els.surahInfoModal);
   });
 }
 
