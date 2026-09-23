@@ -157,6 +157,20 @@ bu yüzden `cutY` her iki tarafa da tam bitişik olamıyor; ortalarını alarak
 her iki komşu satırın da harekelerinin panelin arkasında kalma riskini
 en aza indiriyor (`js/app.js`, `openWordMeal`).
 
+Dokunulan ayet bir surenin sayfadaki son ayetiyse, "alttaki satır" aslında
+bir sonraki surenin başlık afişi olabilir — düz bir metin satırı değil,
+kendi payına düşen boşluğu (`GAP_BEFORE_HEADER`/`GAP_AFTER_HEADER`, bkz.
+`js/render.js`) olan, genelde bir satırdan belirgin biçimde daha uzun bir
+öge. `nextSeg` (bir sonraki gerçek metin satırı) o zaman görünüşte
+olduğundan çok daha aşağıda kalabiliyor, ikisi arasına ortalama alan eski
+formül de kesimi afişin ortasına ya da tamamen ötesine düşürüp *bir
+sonraki* surenin başlığını panelin üstünde bırakabiliyordu. `computeLayout`
+artık sayfadaki her başlığın üst kenarını da (`surahHeaderTopYs`) döndürüyor;
+`lastSeg` ile `nextSeg` arasında böyle bir başlık varsa `openWordMeal`
+`nextSeg`'i tamamen görmezden gelip sayfanın son ayeti durumundaymış gibi
+davranıyor — kesim sadece dokunulan satırın kendisini temizliyor, başlık
+(ve ondan sonraki her şey) bütünüyle alt dilimde kalıyor.
+
 Açılma/kapanma animasyonu CSS Grid'in `grid-template-rows: 0fr` → `1fr`
 tekniğiyle yapılıyor (`css/style.css`, `.word-meal-panel`) — JS ile
 yükseklik ölçmeye gerek kalmadan, içerik ister kısa bir ayet ister 2:282

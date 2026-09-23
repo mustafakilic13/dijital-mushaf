@@ -538,8 +538,9 @@ export class LineRenderer {
 // Needs each header's real bbox up front (from headerDataBySurah) since its
 // height depends on it -- that's why app.js fetches header JSON before
 // calling renderPage rather than after.
-function computeLayout(pageLines, headerDataBySurah) {
+export function computeLayout(pageLines, headerDataBySurah) {
   const positions = [];
+  const surahHeaderTopYs = []; // every header's own top edge on this page, in placement order -- see this function's return doc and openWordMeal's cutY calc in app.js for why these need to be exposed separately from `positions` (which renderPage/LineRenderer consume internally to actually draw each line, but never hands back to the caller)
   let cursorY = TOP_MARGIN; // baseline (text) or bottom-edge (header) of the most recently placed line
   let prevWasHeader = false;
 
@@ -553,6 +554,7 @@ function computeLayout(pageLines, headerDataBySurah) {
       const centerY = topY + height / 2;
       cursorY = topY + height;
       positions.push({ type: "s", centerY, scale });
+      surahHeaderTopYs.push(topY);
     } else {
       cursorY = i === 0 ? cursorY : cursorY + (prevWasHeader ? GAP_AFTER_HEADER : INTERLINE);
       positions.push({ type: line.t, baselineY: cursorY });
@@ -560,7 +562,7 @@ function computeLayout(pageLines, headerDataBySurah) {
     prevWasHeader = line.t === "s";
   });
 
-  return { positions, bottomY: cursorY };
+  return { positions, bottomY: cursorY, surahHeaderTopYs };
 }
 
 // Renders a full page (array of line objects from mushaf.json) into a new
@@ -578,8 +580,13 @@ function computeLayout(pageLines, headerDataBySurah) {
 // re-pathing every line on every selection change.
 // `isAltRuku(surah,ayah) -> boolean`, if given, colours that ayah's
 // end-of-ayah number with the alternating-ruku colour (see renderMushafLine).
+// Also returns `surahHeaderTopYs`, the top-edge Y of every surah-header line
+// on the page in placement order -- app.js's openWordMeal needs it to keep
+// the word-meal panel's page-slice cut from landing inside (or past) a
+// header banner when the tapped ayah is a surah's last, see the comment
+// there.
 export function renderPage(lineRenderer, pageLines, headerDataBySurah, wordIdToAyah, isAltRuku) {
-  const { positions, bottomY } = computeLayout(pageLines, headerDataBySurah);
+  const { positions, bottomY, surahHeaderTopYs } = computeLayout(pageLines, headerDataBySurah);
   const totalHeight = bottomY + BOTTOM_MARGIN;
 
   const svg = document.createElementNS(SVG_NS, "svg");
@@ -627,5 +634,5 @@ export function renderPage(lineRenderer, pageLines, headerDataBySurah, wordIdToA
   coverLayer.setAttribute("class", "ezber-cover-layer");
   pageG.appendChild(coverLayer);
 
-  return { svg, totalHeight, segments, wordSegments, unitSegments };
+  return { svg, totalHeight, segments, wordSegments, unitSegments, surahHeaderTopYs };
 }

@@ -51,6 +51,7 @@ const state = {
   currentPageSegments: [], // [{surah,ayah,baselineY,xMin,xMax}, ...] for the displayed page
   currentPageWordSegments: [], // same idea, one entry per WORD instead of per ayah-run: [{wordId,baselineY,xMin,xMax}, ...]
   currentPageUnitSegments: [], // same idea again, one entry per LETTER UNIT: [{wordId,unitIndex,baselineY,xMin,xMax}, ...] -- Ezber -> Yaz mode only (see render.js's splitIntoUnits)
+  currentPageSurahHeaderTopYs: [], // top-edge Y of every surah-header line on the displayed page, in placement order -- see openWordMeal's cutY calc
   currentTotalHeight: 28900, // updated per-page once rendered; used to size the container
   pageCache: new Map(), // pageNumber -> {svg, totalHeight, segments, wordSegments}
   headerCache: new Map(), // surahNumber -> parsed header glyph JSON
@@ -1070,9 +1071,9 @@ async function buildPage(pageNumber) {
     })
   );
 
-  const { svg, totalHeight, segments, wordSegments, unitSegments } = renderPage(state.lineRenderer, lines, headerDataBySurah, wordIdToAyah, isAltRuku);
+  const { svg, totalHeight, segments, wordSegments, unitSegments, surahHeaderTopYs } = renderPage(state.lineRenderer, lines, headerDataBySurah, wordIdToAyah, isAltRuku);
 
-  const entry = { svg, totalHeight, segments, wordSegments, unitSegments };
+  const entry = { svg, totalHeight, segments, wordSegments, unitSegments, surahHeaderTopYs };
   state.pageCache.set(pageNumber, entry);
   if (state.pageCache.size > 12) {
     const oldestKey = state.pageCache.keys().next().value;
@@ -1160,7 +1161,7 @@ async function showPage(pageNumber, opts = {}) {
   state.wordMeal.cutY = null;
   state.wordMeal.tafsirActive = null;
 
-  const { svg, totalHeight, segments, wordSegments, unitSegments } = await buildPage(pageNumber);
+  const { svg, totalHeight, segments, wordSegments, unitSegments, surahHeaderTopYs } = await buildPage(pageNumber);
 
   // if the user already navigated further while this was loading, don't
   // clobber the newer page with a stale one
@@ -1172,6 +1173,7 @@ async function showPage(pageNumber, opts = {}) {
   state.currentPageSegments = segments;
   state.currentPageWordSegments = wordSegments;
   state.currentPageUnitSegments = unitSegments;
+  state.currentPageSurahHeaderTopYs = surahHeaderTopYs;
   state.currentTotalHeight = totalHeight;
   // buildPage returns the SAME cached svg element on repeat visits (e.g.
   // re-selecting an ayah on the page already on screen) -- mountClosedPage
@@ -1632,11 +1634,28 @@ async function openWordMeal(ayah) {
   const HIGHLIGHT_ABOVE_BASELINE = 1350; // matches updateAyahHighlight's rect y-offset
   const HIGHLIGHT_HEIGHT = 1900; // matches updateAyahHighlight's rect height
   const aboveClearEdge = lastSeg.baselineY + (HIGHLIGHT_HEIGHT - HIGHLIGHT_ABOVE_BASELINE); // bottom of the line-above's diacritic zone
-  // no next line (last ayah on the page) -- nothing to split against, just
-  // clear the line above and let the page's own BOTTOM_MARGIN handle the rest.
-  const cutY = nextSeg
-    ? (aboveClearEdge + (nextSeg.baselineY - HIGHLIGHT_ABOVE_BASELINE)) / 2
-    : aboveClearEdge;
+  // A surah-header banner (plus its own Bismillah) between this line and
+  // nextSeg -- i.e. the tapped ayah is a surah's last on the page -- isn't
+  // "the line below" in any useful sense for the midpoint formula below: it
+  // has its own spacing (GAP_BEFORE_HEADER/GAP_AFTER_HEADER, see render.js),
+  // usually taller than a text line, and nextSeg can end up several lines
+  // further down than it looks. Splitting against nextSeg regardless used to
+  // let the cut land anywhere from mid-banner to past it, putting the NEXT
+  // surah's header above the panel instead of below it (where it belongs --
+  // it comes after the tapped ayah). Once any header intervenes there's
+  // nothing meaningful below to split against -- same as the
+  // last-ayah-on-the-page case -- so the header (and everything after it)
+  // is left entirely to the bottom slice.
+  const headerBetween = state.currentPageSurahHeaderTopYs.some(
+    (topY) => topY > lastSeg.baselineY && (!nextSeg || topY < nextSeg.baselineY)
+  );
+  // no next line to split against (last ayah on the page, or a surah header
+  // sits before it) -- just clear the line above and let the page's own
+  // BOTTOM_MARGIN (or the header's own top margin) handle the rest.
+  const cutY =
+    nextSeg && !headerBetween
+      ? (aboveClearEdge + (nextSeg.baselineY - HIGHLIGHT_ABOVE_BASELINE)) / 2
+      : aboveClearEdge;
 
   const target = { surah: ayah.surah, ayah: ayah.ayah };
   state.wordMeal.open = true;
