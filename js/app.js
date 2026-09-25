@@ -6,6 +6,7 @@ import {
   getCachedWordMealData,
   buildWordMealCards,
   renderWordMealCardsHTML,
+  MARKER as AYAH_END_MARKER,
 } from "./wordmeal.js";
 import { loadMealData, isMealDataReady, getCachedMealData, getMealText, renderMealHTML } from "./meal.js";
 import {
@@ -25,6 +26,14 @@ import {
   splitInfoSections,
   parseInfoLink,
 } from "./surahinfo.js";
+import {
+  isTopicsDataReady,
+  loadTopicsData,
+  getTopicsIndex,
+  parseAyahsField,
+  parseRelatedTopicsField,
+  topicCategoryLabels,
+} from "./topics.js";
 
 const state = {
   lineRenderer: null,
@@ -95,6 +104,21 @@ const state = {
     bottomSvg: null, // a *clone* of the page's <svg> (moved into bottomInnerEl), while open
     tafsirActive: null, // tafsir source id ("saadi", ...) currently shown in the Tefsir section, or null if collapsed
     tafsirRequestId: 0, // bumped on every tab click; guards onTafsirTabClick's delayed continuation against a rapid second click landing first
+  },
+
+  // "Konu Fihristi" modal (js/topics.js's data, see openTopicsModal /
+  // pushTopicsModalTopic / popTopicsModalTopic / renderTopicsModalView).
+  // stack is an ordered list of topic_ids -- stack[stack.length-1] is the
+  // one currently shown; clicking a parent/related/child chip (or a
+  // <topic data-id> link inside a description) pushes onto it, the
+  // header's back button pops it, so the SAME modal can be browsed
+  // arbitrarily deep (topic -> its parent -> THAT topic's own parent ->
+  // ...) with "back" always returning exactly one step -- unlike the Sure
+  // Bilgisi modal's #surah-info-detail (a single fixed "detail" sibling
+  // panel), every level here is the same view type, so one array plus a
+  // full re-render on each push/pop is enough; no second DOM panel needed.
+  topicsModal: {
+    stack: [],
   },
 
   // Ezber -> Oku/Yaz's shared "study session" state -- null while neither
@@ -182,6 +206,11 @@ const els = {
   surahInfoDetail: document.getElementById("surah-info-detail"),
   surahInfoDetailBack: document.getElementById("surah-info-detail-back"),
   surahInfoDetailBody: document.getElementById("surah-info-detail-body"),
+
+  topicsModal: document.getElementById("topics-modal"),
+  topicsModalTitle: document.getElementById("topics-modal-title"),
+  topicsModalBack: document.getElementById("topics-modal-back"),
+  topicsModalBody: document.getElementById("topics-modal-body"),
 };
 
 // Sizes the page to fill the reader's available WIDTH ("Page Width" mode,
@@ -667,6 +696,7 @@ function closeModal(modalEl) {
   // which funnel through here).
   closeAllAyahGrids(); // Sure modalindeki açık ayet ızgaraları
   if (modalEl === els.surahInfoModal) closeSurahInfoDetail(); // Sure Bilgisi hep ana içerikte açılsın, kaldığı linkte değil
+  if (modalEl === els.topicsModal) resetTopicsModal(); // Konu Fihristi hep kök konudan açılsın, kaldığı alt konuda değil
   if (modalEl === els.juzModal) switchJuzTab("juz"); // Cüz modalı hep "Cüz" sekmesinde açılsın
   if (modalEl === els.ezberModal) {
     switchEzberTab("dinle"); // Ezber modalı hep Dinle sekmesinde açılsın
@@ -698,7 +728,7 @@ function closeModal(modalEl) {
 }
 
 function closeAllModals() {
-  [els.surahModal, els.juzModal, els.pageModal, els.ezberModal, els.surahInfoModal].forEach(closeModal);
+  [els.surahModal, els.juzModal, els.pageModal, els.ezberModal, els.surahInfoModal, els.topicsModal].forEach(closeModal);
 }
 
 function setupModals() {
@@ -1375,18 +1405,86 @@ function ayahRawWords(surah, ayah) {
   return out;
 }
 
+// Plain Arabic text for `surah`:`ayah`, from data/mushaf.json's own word
+// text (already plain Unicode -- see wordmeal.js's header note) rather
+// than any glyph/shaping layer. Unlike ayahRawWords above (which only
+// reads state.currentPage), this looks the ayah's OWN page up via
+// ayahBounds, so it works for any ayah in the Qur'an, not just ones
+// currently on screen -- state.mushaf is loaded in full at startup (see
+// main()), so every page is already available regardless of which one is
+// showing. Used by the Konu Fihristi modal's ayah list
+// (topicAyahListHTML); everywhere else in the app, an ayah's Arabic is
+// drawn as SVG glyphs on the mushaf page itself, not as plain HTML text.
+function ayahArabicText(surah, ayah) {
+  const bounds = ayahBounds(surah, ayah);
+  if (!bounds) return "";
+  const [page, firstWordId, lastWordId] = bounds;
+  const lines = state.mushaf.pages[page - 1];
+  if (!lines) return "";
+  const words = [];
+  for (const line of lines) {
+    if (!line.w) continue;
+    for (const w of line.w) {
+      if (w.i >= firstWordId && w.i <= lastWordId && !w.t.startsWith(AYAH_END_MARKER)) words.push(w.t);
+    }
+  }
+  return words.join(" ");
+}
+
 function wordMealRefLabel(ayah) {
   const info = state.surahs[String(ayah.surah)];
   const name = info ? info.nameTurkish : ayah.surah;
   return `${name} ${ayah.ayah}`;
 }
 
+// Konu Fihristi tags for one ayah, as the panel's very first section (see
+// ayahPanelBodyHTML) -- "" (no section at all) when the ayah has none, or
+// when data/topics-tr.json hasn't finished loading yet (openWordMeal
+// re-renders the whole body once it has, same as it already does for
+// kelime meali/meal).
+//
+// The SAME display name can legitimately belong to more than one
+// topic_id -- QUL's own taxonomy has, for instance, both a "General" AND
+// a "Thematic" entry named "Abdest", both tagged to 5:6 -- roughly 1 in 4
+// tagged ayahs hits this at least once. Shown as one tag per NAME
+// (picking the lowest topic_id when several share a name) rather than one
+// per record, so a single ayah -- some carry 40+ topics -- doesn't repeat
+// the same word several times in a row; the dropped duplicate is still
+// just a click away, through whichever chip's own parent/related/child
+// links happen to reach it.
+function ayahTopicsRowHTML(surah, ayah) {
+  const index = getTopicsIndex();
+  if (!index) return "";
+  const ids = index.byAyah.get(`${surah}:${ayah}`) || [];
+  if (!ids.length) return "";
+
+  const byName = new Map();
+  for (const id of ids) {
+    const t = index.byId.get(id);
+    if (!t) continue;
+    const existing = byName.get(t.name);
+    if (!existing || t.topic_id < existing.topic_id) byName.set(t.name, t);
+  }
+  const tags = [...byName.values()].sort((a, b) => a.name.localeCompare(b.name, "tr"));
+  if (!tags.length) return "";
+
+  const chipsHTML = tags
+    .map((t) => `<button type="button" class="topic-chip" data-id="${t.topic_id}">${escapeHtml(t.name)}</button>`)
+    .join("");
+  return `
+    <div class="wm-section">
+      <div class="wm-section-label">Konular</div>
+      <div class="topic-chip-row">${chipsHTML}</div>
+    </div>`;
+}
+
 // The panel's full body: each translation type gets its own labelled
-// .wm-section, stacked in the order requested -- kelime meal, meal, then
-// Tefsir's two source buttons + their shared (collapsed by default)
-// content area, see onTafsirTabClick. A section is only as good as the
-// data it had cached when this ran, so callers should only use this once
-// the relevant loadXData() calls have settled -- see openWordMeal.
+// .wm-section, stacked in the order requested -- Konu Fihristi tags (when
+// the ayah has any) first, then kelime meal, meal, then Tefsir's two
+// source buttons + their shared (collapsed by default) content area, see
+// onTafsirTabClick. A section is only as good as the data it had cached
+// when this ran, so callers should only use this once the relevant
+// loadXData() calls have settled -- see openWordMeal.
 function ayahPanelBodyHTML(ayah) {
   const rawWords = ayahRawWords(ayah.surah, ayah.ayah);
   const cards = buildWordMealCards(rawWords, getCachedWordMealData(), ayah.surah, ayah.ayah);
@@ -1396,7 +1494,7 @@ function ayahPanelBodyHTML(ayah) {
     .map((id) => `<button type="button" class="wm-tafsir-tab" data-tafsir-id="${escapeHtml(id)}">${escapeHtml(tafsirSourceLabel(id))}</button>`)
     .join("");
 
-  return `
+  return `${ayahTopicsRowHTML(ayah.surah, ayah.ayah)}
     <div class="wm-section">
       <div class="wm-section-label">Kelime Meali</div>
       ${renderWordMealCardsHTML(cards)}
@@ -1592,7 +1690,12 @@ function openWordMealStructure(bodyHTML, refText) {
   // for the life of this panel, so this keeps working across that swap.
   state.wordMeal.bodyEl.addEventListener("click", (e) => {
     const tabBtn = e.target.closest(".wm-tafsir-tab");
-    if (tabBtn) onTafsirTabClick(tabBtn.dataset.tafsirId);
+    if (tabBtn) {
+      onTafsirTabClick(tabBtn.dataset.tafsirId);
+      return;
+    }
+    const topicChip = e.target.closest(".topic-chip");
+    if (topicChip) openTopicsModal(parseInt(topicChip.getAttribute("data-id"), 10));
   });
 
   layoutPageContainer();
@@ -1664,7 +1767,7 @@ async function openWordMeal(ayah) {
   state.wordMeal.tafsirActive = null; // Tefsir starts collapsed each time the panel opens -- it's the biggest/priciest data source of the three, so it's fetched only once actually requested (see showTafsirContent)
 
   const refText = wordMealRefLabel(target);
-  const ready = isWordMealDataReady() && isMealDataReady();
+  const ready = isWordMealDataReady() && isMealDataReady() && isTopicsDataReady();
   openWordMealStructure(ready ? ayahPanelBodyHTML(target) : WORD_MEAL_LOADING_HTML, refText);
 
   if (!ready) {
@@ -1672,7 +1775,7 @@ async function openWordMeal(ayah) {
     // another, and don't let one failing (e.g. a single 404) blank out a
     // section whose own data loaded fine -- each renderer already falls
     // back to a plain "not available" message for data it doesn't have
-    const results = await Promise.allSettled([loadWordMealData(), loadMealData()]);
+    const results = await Promise.allSettled([loadWordMealData(), loadMealData(), loadTopicsData()]);
     results.forEach((r) => {
       if (r.status === "rejected") console.error(r.reason);
     });
@@ -1930,6 +2033,185 @@ function setupSurahInfoModal() {
     if (ayah) goToAyah(surah, ayah);
     else goToSurah(surah);
     closeModal(els.surahInfoModal);
+  });
+}
+
+// ---------------------------------------------------------------------
+// "Konu Fihristi" modalı: ayet detay panelindeki bir konu etiketine (bkz.
+// ayahTopicsRowHTML) ya da modal içindeki bir Ana Konu/İlişkili Konu/Alt
+// Konu çipine veya açıklama metni içindeki <topic data-id> bağlantısına
+// dokununca açılır/gezinir. Veri js/topics.js üzerinden, diğerleriyle aynı
+// tembel-yükle-ve-önbelleğe-al düzeninde geliyor (bkz. openWordMeal'daki
+// Promise.allSettled -- ilk ayet paneli açıldığında data/topics-tr.json
+// (~950KB) indirilir, sonraki açılışlarda önbellekten anında gelir).
+//
+// Modal tek bir görünüm TÜRÜ etrafında kurulu -- "bir konunun ayrıntısı"
+// -- Sure Bilgisi modalındaki #surah-info-body/#surah-info-detail gibi
+// İKİ FARKLI türde kardeş panel yok, çünkü her gezinme adımı (ana konu,
+// ilişkili konu, alt konu, açıklama içi bağlantı) hep AYNI türde bir
+// hedefe gidiyor. Bunun yerine state.topicsModal.stack bir topic_id
+// yığını tutuyor; her tıklama bir id daha PUSH ediyor, geri butonu POP
+// ediyor, renderTopicsModalView de her seferinde yığının TEPESİNDEKİ
+// konuyu #topics-modal-body'ye baştan basıyor -- böylece kaç adım
+// gidilirse gidilsin geri her zaman tam bir adım geri götürüyor.
+function topicChipsHTML(ids, index) {
+  return ids
+    .map((id) => index.byId.get(id))
+    .filter(Boolean)
+    .map((t) => `<button type="button" class="topic-chip" data-id="${t.topic_id}">${escapeHtml(t.name)}</button>`)
+    .join("");
+}
+
+function topicAyahRefLabel(surah, ayah) {
+  const info = state.surahs[String(surah)];
+  return info ? `${info.nameTurkish} ${ayah}` : `${surah}:${ayah}`;
+}
+
+// Bir konuya bağlı ayetlerin tamamı, alt alta -- her biri kendi Arapça
+// metni (ayahArabicText, sayfa bağımsız) + kendi meali (meal.js,
+// surah-info-detail'deki .info-detail-ayah düzeniyle birebir aynı) + kendi
+// "Mushaf'ta Ayete Git" butonuyla.
+function topicAyahListHTML(ayahList) {
+  const mealData = getCachedMealData();
+  return ayahList
+    .map(({ surah, ayah }) => {
+      const arabic = ayahArabicText(surah, ayah);
+      const arabicHTML = arabic ? `<p class="topic-ayah-arabic">${escapeHtml(arabic)}</p>` : "";
+      return `
+        <div class="info-detail-ayah">
+          <div class="info-detail-ayah-ref">${escapeHtml(topicAyahRefLabel(surah, ayah))}</div>
+          ${arabicHTML}
+          ${renderMealHTML(getMealText(mealData, surah, ayah))}
+          <div class="info-detail-ayah-actions">
+            <button type="button" class="info-detail-goto-btn" data-goto-surah="${surah}" data-goto-ayah="${ayah}">Mushaf'ta Ayete Git</button>
+          </div>
+        </div>`;
+    })
+    .join("");
+}
+
+// Bir konunun tam ayrıntı görünümü: Arapça adı, Ontoloji/Tematik/Genel
+// rozetleri, açıklama (varsa -- içindeki <topic data-id> bağlantıları ve
+// .ar span'ları css/style.css'te stilleniyor, tıklaması aşağıdaki
+// setupTopicsModal'daki genel [data-id] yakalayıcısından geçiyor), Ana
+// Konu (parent_id/thematic_parent_id/ontology_parent_id -- ÜÇÜ DE ayrı
+// ayrı gösterilir, tek bir kaydın birden fazlası dolu olabiliyor),
+// İlişkili Konular (related_topics), Alt Konular (childrenOf -- QUL'un
+// "Child Topics" listesinin karşılığı, kaynak veride ayrı bir alan değil,
+// diğer kayıtların KENDİ ana konu alanlarının tersinden çıkarılıyor --
+// bkz. topics.js buildTopicsIndex), en sonda o konuya bağlı ayetlerin
+// tamamı. İsim modal başlığına ayrıca yazılıyor (bkz.
+// renderTopicsModalView), burada tekrar edilmiyor.
+function topicDetailBodyHTML(topicId) {
+  const index = getTopicsIndex();
+  const t = index && index.byId.get(topicId);
+  if (!t) return `<p class="word-meal-loading">Konu bulunamadı.</p>`;
+
+  const arabicNameHTML = t.arabic_name ? `<div class="info-name-arabic">${escapeHtml(t.arabic_name)}</div>` : "";
+
+  const badgeClassFor = { Ontoloji: "ontology", Tematik: "thematic", Genel: "general" };
+  const badgesHTML = `<div class="topic-badges">${topicCategoryLabels(t)
+    .map((label) => `<span class="topic-badge topic-badge--${badgeClassFor[label]}">${label}</span>`)
+    .join("")}</div>`;
+
+  const descriptionHTML = t.description
+    ? `<div class="wm-section"><div class="wm-section-label">Açıklama</div><div class="topic-description">${t.description}</div></div>`
+    : "";
+
+  // Aynı id iki farklı ana-konu alanında birden görünmüyor (bkz.
+  // test/topics_test.mjs), ama yine de Set ile tekilleştirmek ucuz ve
+  // güvenli bir ek güvence.
+  const parentIds = [...new Set([t.thematic_parent_id, t.ontology_parent_id, t.parent_id].filter((id) => id != null))];
+  const parentHTML = parentIds.length
+    ? `<div class="wm-section"><div class="wm-section-label">Ana Konu</div><div class="topic-chip-row">${topicChipsHTML(parentIds, index)}</div></div>`
+    : "";
+
+  const relatedIds = parseRelatedTopicsField(t.related_topics);
+  const relatedHTML = relatedIds.length
+    ? `<div class="wm-section"><div class="wm-section-label">İlişkili Konular</div><div class="topic-chip-row">${topicChipsHTML(relatedIds, index)}</div></div>`
+    : "";
+
+  const childIds = index.childrenOf.get(topicId) || [];
+  const childHTML = childIds.length
+    ? `<div class="wm-section"><div class="wm-section-label">Alt Konular</div><div class="topic-chip-row">${topicChipsHTML(childIds, index)}</div></div>`
+    : "";
+
+  const ayahList = parseAyahsField(t.ayahs).sort((a, b) => a.surah - b.surah || a.ayah - b.ayah);
+  const ayahsHTML = `
+    <div class="wm-section">
+      <div class="wm-section-label">Ayetler${ayahList.length ? ` (${ayahList.length})` : ""}</div>
+      ${ayahList.length ? topicAyahListHTML(ayahList) : `<p class="word-meal-empty">Bu konuya bağlı ayet bulunamadı.</p>`}
+    </div>`;
+
+  return `${arabicNameHTML}${badgesHTML}${descriptionHTML}${parentHTML}${relatedHTML}${childHTML}${ayahsHTML}`;
+}
+
+// Yığının tepesindeki konuyu başlığa/gövdeye basar; geri butonu yalnızca
+// birden fazla adım gidilmişse görünür (kökten -- ayet panelindeki
+// etiketten açılan ilk konudan -- geri, modalı kapatmak demektir, o da
+// zaten X butonunda var).
+function renderTopicsModalView() {
+  const stack = state.topicsModal.stack;
+  const topicId = stack[stack.length - 1];
+  const index = getTopicsIndex();
+  const t = index && index.byId.get(topicId);
+  els.topicsModalTitle.textContent = t ? t.name : "Konu";
+  els.topicsModalBack.hidden = stack.length <= 1;
+  els.topicsModalBody.innerHTML = topicDetailBodyHTML(topicId);
+  els.topicsModalBody.scrollTop = 0;
+}
+
+// Ayet panelindeki bir konu etiketinden -- her zaman KÖKTEN (yığın
+// sıfırlanır) açılır. topics-tr.json bu noktada zaten yüklü olmak zorunda
+// -- etiketin kendisi ancak veri yüklendikten sonra render ediliyor (bkz.
+// ayahTopicsRowHTML), o yüzden burada ayrıca bir yükleniyor durumu yok.
+function openTopicsModal(topicId) {
+  state.topicsModal.stack = [topicId];
+  renderTopicsModalView();
+  openModal(els.topicsModal);
+}
+
+function pushTopicsModalTopic(topicId) {
+  state.topicsModal.stack.push(topicId);
+  renderTopicsModalView();
+}
+
+function popTopicsModalTopic() {
+  if (state.topicsModal.stack.length <= 1) return;
+  state.topicsModal.stack.pop();
+  renderTopicsModalView();
+}
+
+function resetTopicsModal() {
+  state.topicsModal.stack = [];
+}
+
+function setupTopicsModal() {
+  els.topicsModalBack.addEventListener("click", popTopicsModalTopic);
+
+  // Delegated: her renderTopicsModalView çağrısı #topics-modal-body'yi
+  // baştan basıyor, o yüzden butonlara tek tek dinleyici eklemenin bir
+  // anlamı yok -- openWordMealStructure'daki wm-tafsir-tab/topic-chip
+  // yakalayıcısıyla aynı gerekçe.
+  els.topicsModalBody.addEventListener("click", (e) => {
+    const gotoBtn = e.target.closest(".info-detail-goto-btn");
+    if (gotoBtn) {
+      const surah = parseInt(gotoBtn.dataset.gotoSurah, 10);
+      const ayah = parseInt(gotoBtn.dataset.gotoAyah, 10);
+      goToAyah(surah, ayah);
+      closeModal(els.topicsModal);
+      return;
+    }
+    // Ana Konu/İlişkili Konu/Alt Konu çipleri (.topic-chip, data-id) VE
+    // açıklama metni içindeki <topic data-id="X"> bağlantıları aynı
+    // öznitelikle geliyor (ikincisi QUL'un kendi veri şeması, buradaki
+    // çiplerin data-id'si de bilerek onunla eşleşecek şekilde seçildi --
+    // bkz. topicChipsHTML), o yüzden tek bir [data-id] yakalayıcısı
+    // ikisini de kapsıyor.
+    const nav = e.target.closest("[data-id]");
+    if (!nav) return;
+    const id = parseInt(nav.getAttribute("data-id"), 10);
+    if (Number.isInteger(id)) pushTopicsModalTopic(id);
   });
 }
 
@@ -2859,6 +3141,7 @@ async function main() {
     els.pageJumpSlider.max = mushaf.pagesCount;
     setupModals();
     setupSurahInfoModal();
+    setupTopicsModal();
     setupEzberModal();
     setupEzberYazKeyboard();
     setupNav();

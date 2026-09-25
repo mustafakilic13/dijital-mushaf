@@ -1032,6 +1032,123 @@ body {
   text-align: center;
 }
 
+/* ---------------------------------------------------------------------
+   Konu Fihristi: ayet detay panelindeki "Konular" etiket satırı (bkz.
+   js/app.js ayahTopicsRowHTML) ve bunlardan açılan #topics-modal (bkz.
+   openTopicsModal/setupTopicsModal). Modal, Sure Bilgisi'nin
+   .modal-sheet--info/.info-body'sini olduğu gibi kullanıyor; kendine
+   özgü olan yalnızca dört parça: başlıktaki geri butonu, tür rozetleri,
+   çip/etiket satırları, ve ayet listesindeki Arapça metin.
+   ------------------------------------------------------------------- */
+
+/* Başlıkta "geri" butonu + başlık aynı grupta, kapatma butonu
+   .modal-header'ın kendi justify-content:space-between'iyle sağda kalıyor
+   -- .modal-header'ın kendisine dokunmadan, diğer modalleri etkilemiyor. */
+.topics-modal-header-start {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.topics-modal-header-start h2 {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.topics-modal-header-start .info-detail-back { margin-left: -6px; }
+
+/* Bir konunun Ontoloji/Tematik/Genel rozetleri -- QUL'un tek "Type"
+   sütununun karşılığı; bir konu ikisini birden taşıyabildiği için
+   (thematic=1 VE ontology=1 aynı anda, 17 kayıtta) birden fazla rozet
+   aynı anda görünebilir. */
+.topic-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+.topic-badge {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #fff;
+}
+.topic-badge--thematic { background: var(--emerald); }
+.topic-badge--ontology { background: var(--gold); }
+.topic-badge--general { background: var(--ink-soft); }
+
+/* Açıklama metni -- topics-tr.json'un kendi (çevrilmiş) HTML'i, tafsir
+   içeriğiyle aynı "güvenilir, kaçışsız" muameleyi görüyor (bkz.
+   js/topics.js'in header yorumu). <topic data-id> başka bir konuya iç
+   bağlantı -- tıklaması setupTopicsModal'daki genel [data-id]
+   yakalayıcısından geçiyor; .ar, metin içine gömülü tekil Arapça
+   kelime/ifadeler (unicode-bidi:isolate, LTR cümle akışını bozmadan). */
+.topic-description {
+  font-family: var(--font-ui);
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: var(--ink);
+  direction: ltr;
+}
+.topic-description topic {
+  display: inline;
+  color: var(--gold);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--gold) 40%, transparent);
+  text-underline-offset: 2px;
+}
+.topic-description topic:hover { text-decoration-color: var(--gold); }
+.topic-description b { color: var(--emerald-deep); }
+.topic-description .ar {
+  font-family: var(--font-arabic);
+  font-size: 1.2em;
+  direction: rtl;
+  unicode-bidi: isolate;
+}
+
+/* Ana Konu / İlişkili Konular / Alt Konular çipleri, ve ayet panelindeki
+   "Konular" etiketleri -- ikisi de aynı görünüm, .wm-tafsir-tab'la aynı
+   hap biçimi (aktif durumu yok, bunlar sekme değil gezinme bağlantısı). */
+.topic-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.topic-chip {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--paper-edge);
+  background: #fff;
+  color: var(--emerald-deep);
+  cursor: pointer;
+}
+.topic-chip:hover { background: var(--paper-edge); }
+
+/* Konu Fihristi modalındaki ayet listesi .info-detail-ayah'ı (Sure
+   Bilgisi ile paylaşılıyor) aynen kullanıyor; tek eklenen kendi Arapça
+   metni -- mealin ÜSTÜNDE, mushaftaki okuma sırasıyla aynı düzende. */
+.topic-ayah-arabic {
+  font-family: var(--font-arabic);
+  font-size: 22px;
+  line-height: 1.9;
+  direction: rtl;
+  text-align: right;
+  color: var(--ink);
+  margin: 0 0 10px;
+}
+
 .nav-edge {
   position: absolute;
   top: 50%;

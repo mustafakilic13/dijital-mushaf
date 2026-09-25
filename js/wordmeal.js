@@ -21,7 +21,10 @@
 // position 1 (so there's always a card to fold into) and every used
 // position is within that ayah's real word count.
 
-const MARKER = "\u06dd"; // U+06DD ARABIC END OF AYAH, prefixes the ayah-ending glyph's text
+// U+06DD ARABIC END OF AYAH, prefixes the ayah-ending glyph's text. Also
+// used by app.js's ayahArabicText (Konu Fihristi's plain-text ayah
+// rendering) to strip the same marker outside this module's own cards.
+export const MARKER = "\u06dd";
 
 let cachedData = null;
 let dataPromise = null;

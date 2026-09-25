@@ -253,6 +253,84 @@ yazılıyor -- veri önceden HTML enjeksiyonuna karşı tarandı (yalnızca
 olay-işleyici özniteliği (`onclick` vb.) yok) ve kullanıcı girdisi
 içermiyor.
 
+## Konu Fihristi
+
+Ayet detay panelinin en üstünde (bkz. yukarısı), ayetin ait olduğu
+konular -- varsa -- küçük etiketler halinde listeleniyor (`js/app.js`,
+`ayahTopicsRowHTML`); birine dokunmak bir modal açıyor
+(`openTopicsModal`) -- konunun Arapça adı, Ontoloji/Tematik/Genel
+rozetleri, açıklaması, Ana Konu(ları), İlişkili Konular ve Alt Konular
+çipleri, en altta da o konuya bağlı ayetlerin tamamı (kendi Arapça metni
++ meali + "Mushaf'ta Ayete Git" butonuyla). Bir çipe (ya da açıklama
+metni içindeki bir iç bağlantıya) dokunmak modalı AYNI modal içinde
+başka bir konuya götürüyor -- Sure Bilgisi'nin
+`#surah-info-body`/`#surah-info-detail`'i gibi iki FARKLI türde kardeş
+paneli yok, çünkü her adım hep AYNI türde bir hedefe (bir konunun
+ayrıntısı) gidiyor. Bunun yerine `state.topicsModal.stack` bir
+`topic_id` yığını tutuyor: her tıklama bir id daha PUSH ediyor, geri
+butonu POP ediyor, `renderTopicsModalView` de her seferinde yığının
+tepesindeki konuyu baştan basıyor -- kaç adım gidilirse gidilsin geri her
+zaman tam bir adım geri götürüyor.
+
+İçerik `data/topics-tr.json`'dan geliyor -- QUL'un
+(qul.tarteel.ai/resources/ayah-topics) 2512 konuluk, ayet ayet
+eşleştirilmiş "Topics and Concepts" exportunun İslami terimlere uygun
+(terim sıklığı Saadi tefsiriyle karşılaştırılarak) Türkçe çevirisi, bu
+projede hazırlandı; ayet-konu eşlemesinin kendisi ve her sayısal/ilişkisel
+alan (`parent_id`, `thematic_parent_id`, `ontology_parent_id`,
+`related_topics`, `thematic`, `ontology`) QUL'un kendi exportundan
+değiştirilmeden geldi, yalnızca görünen metin (`name`, `arabic_name`,
+`description`) çevrildi. Kelime meali/meal gibi, ayet paneli ilk
+açıldığında bir kez çekilip önbelleğe alınıyor (~950KB, `js/topics.js`,
+`loadTopicsData`).
+
+Her konu üç ayrı ana-konu alanı birden taşıyabiliyor
+(`parent_id`/`thematic_parent_id`/`ontology_parent_id` -- 16 kayıtta
+`thematic_parent_id` VE `ontology_parent_id` birlikte dolu, 10 kayıtta
+`parent_id` bunlardan biriyle birlikte dolu), o yüzden modal ikisinden
+birini seçmek yerine dolu olanların HEPSİNİ "Ana Konu" olarak gösteriyor.
+"Alt Konular" (QUL'un kendi arayüzündeki "Child Topics") kaynak veride
+ayrı bir alan değil -- diğer kayıtların KENDİ ana-konu alanlarının
+tersinden çıkarılıyor (`js/topics.js`, `buildTopicsIndex`'in
+`childrenOf` indeksi). "İlişkili Konular" (`related_topics`) ayrı ve
+nadir (2512 konudan yalnızca 17'sinde dolu); açıklama metni içine gömülü
+`<topic data-id="X">...</topic>` iç bağlantıları (461 adet) da aynı
+gezinmeden geçiyor -- ayrı bir tıklama yolu değil,
+`setupTopicsModal`'daki tek bir genel `[data-id]` yakalayıcısı üçünü de
+(Ana Konu/İlişkili Konu/Alt Konu çipleri VE açıklama içi bağlantılar)
+kapsıyor.
+
+Aynı ayete aynı isimde birden fazla konu bağlı olabiliyor -- QUL'un
+taksonomisinde, mesela "Abdest" hem Genel hem Tematik ayrı birer kayıt,
+ikisi de 5:6'ya bağlı (etiketli ayetlerin yaklaşık dörtte birinde
+görülüyor); ayet panelindeki etiket satırı bunları isme göre
+tekilleştirip en düşük `topic_id`'yi gösteriyor -- kaybolan diğer kayıt
+yine de kendi ana/ilişkili/alt konu bağlantılarından bir tık ötede.
+
+Ayetlerin Arapça metni `data/mushaf.json`'un kendi (zaten düz Unicode --
+glif/şekillendirme katmanı DEĞİL, bkz. `js/wordmeal.js`'in header notu)
+kelime metninden, sayfa-bağımsız bir okumayla kuruluyor (`js/app.js`,
+`ayahArabicText`) -- ayetin KENDİ sayfasını `ayahBounds` ile bulup oradan
+okuyor, `ayahRawWords`'ün aksine yalnızca o anda açık sayfaya bağlı değil
+(zaten `state.mushaf` başlangıçta bütünüyle yükleniyor, bkz. yukarısı);
+uygulamanın başka hiçbir yerinde ayet metni düz HTML olarak değil, mushaf
+sayfasının kendi SVG glifleri olarak çiziliyor.
+
+`test/topics_test.mjs`, `js/topics.js`'in ayrıştırma/indeksleme
+fonksiyonlarını gerçek `data/topics-tr.json`'a karşı doğruluyor: her
+`parent_id`/`thematic_parent_id`/`ontology_parent_id`/`related_topics`
+referansı ve açıklama içindeki her `<topic data-id>` gerçek bir
+`topic_id`'ye çözülüyor, hiçbir kayıt kendi ana konusu değil, her
+`ayahs` girdisi geçerli bir sure:ayet çifti -- artı ayet panelindeki
+isme-göre-tekilleştirme mantığının (`ayahTopicsRowHTML`) aynalanmış bir
+kopyası, tüm etiketli ayetlere karşı doğrulanıyor.
+
+(Eski not, hâlâ açık: kuranmeali.com'dan izin gelirse, onların -- Süleyman
+Ateş Meali tabanlı -- fihristini QUL'unkine ek/ayrı bir seçenek olarak
+değerlendirmek; şimdilik tek kaynak QUL olduğu için `js/topics.js`
+tefsir/Sure Bilgisi'ndeki gibi bir `sources` sözlüğü değil, doğrudan
+`data/topics-tr.json`'a bakıyor.)
+
 ## Proje yapısı
 
 ```
@@ -265,7 +343,8 @@ js/wordmeal.js          Kelime meali: veri yükleme + kelime/çeviri gruplama ma
 js/meal.js               Meal: veri yükleme + render (kaynak: Elmalılı M. Hamdi Yazır)
 js/tafsir.js              Tefsir: kaynak kaydı + veri yükleme + ayet-grubu çözümleme
 js/surahinfo.js           Sure Bilgisi: veri yükleme + <h2> sınırlarından akordeon bölümleri
-js/app.js               Sayfa yükleme, önbellek, gezinme, modaller, ayet seçimi, ayet detay paneli
+js/topics.js              Konu Fihristi: veri yükleme + ayrıştırma/indeksleme (ayet, ana/alt/ilişkili konu)
+js/app.js               Sayfa yükleme, önbellek, gezinme, modaller, ayet seçimi, ayet detay paneli, konu fihristi
 data/mushaf.json         604 sayfa × satır × kelime (QUL'dan üretildi, ~3MB)
 data/surahs.json          Sure adları/metadata (Türkçe isim dahil) + başlık glyph'i
 data/surah-pages.json     Sure → başlangıç sayfası
@@ -276,6 +355,7 @@ data/word-meal.json          Kelime meali (Türkçe, QUL word-by-word export, ~1
 data/meal.json                Meal (Türkçe, Elmalılı M. Hamdi Yazır sadeleştirilmiş, ~1MB)
 data/tafsir-saadi.json         Tefsîr-i Sa'dî (QUL export, ayet-grubu yönlendirmeli, ~8.7MB)
 data/surah-info-tr.json        Sure Bilgisi (Türkçe, QUL surah-info exportundan çevrildi, 114 sure, ~950KB)
+data/topics-tr.json            Konu Fihristi (Türkçe, QUL ayah-topics exportundan çevrildi, 2512 konu, ~950KB)
 data/surah-headers/         Her sure için hazır SVG path verisi (114 dosya)
 fonts/                    DigitalKhattV2.woff2 (tarayıcıda gerçekten yüklenen tek font)
 vendor/                   hb.wasm, hb.js, hbjs.js (resmi harfbuzzjs, MIT) +
@@ -405,17 +485,6 @@ terimlere çeviren bir eşleme sözlüğü kurmak (~40 etiket + fiil bâbları).
 Bu, kelime meali/meal/tefsir'den çok daha büyük bir iş; hangi kaynaktan
 başlayacağımıza (muhtemelen corpus.quran.com -- daha köklü/belgeli) karar
 verip ilerleyeceğiz.
-
-### Kur'an Fihristi
-
-[QUL: Topics and Concepts in the Quran](https://qul.tarteel.ai/resources/ayah-topics)
--- 2512 konu, ayet ayet eşleştirilmiş, açık lisanslı. Tek eksiği başlıkların
-İngilizce olması. Plan: alt/üst başlıkları biz Türkçeye çevirip
-(`Ablution` → `Abdest` gibi), ayet-konu eşleştirmesinin kendisine
-dokunmadan üstüne koyacağız -- böylece hem açık kalır hem bizim
-katkımız (çeviri) net olur. kuranmeali.com'dan izin gelirse, onların
-(Süleyman Ateş Meali tabanlı) fihristini de ayrı/ek bir seçenek olarak
-değerlendiririz.
 
 ### El-Müfredât
 
