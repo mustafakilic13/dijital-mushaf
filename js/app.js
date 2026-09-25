@@ -1468,9 +1468,7 @@ function ayahTopicsRowHTML(surah, ayah) {
   const tags = [...byName.values()].sort((a, b) => a.name.localeCompare(b.name, "tr"));
   if (!tags.length) return "";
 
-  const chipsHTML = tags
-    .map((t) => `<button type="button" class="topic-chip" data-id="${t.topic_id}">${escapeHtml(t.name)}</button>`)
-    .join("");
+  const chipsHTML = tags.map(topicChipHTML).join("");
   return `
     <div class="wm-section">
       <div class="wm-section-label">Konular</div>
@@ -2054,11 +2052,20 @@ function setupSurahInfoModal() {
 // ediyor, renderTopicsModalView de her seferinde yığının TEPESİNDEKİ
 // konuyu #topics-modal-body'ye baştan basıyor -- böylece kaç adım
 // gidilirse gidilsin geri her zaman tam bir adım geri götürüyor.
+// Bir konu çipinin HTML'i -- adı + parantez içinde o konuya bağlı ayet
+// sayısı (182 konuda 0). Ana Konu/İlişkili Konu/Alt Konu çiplerinde
+// (topicChipsHTML) VE ayet panelindeki "Konular" etiketlerinde
+// (ayahTopicsRowHTML) aynı biçim kullanılıyor, tek bir yerden.
+function topicChipHTML(t) {
+  const count = parseAyahsField(t.ayahs).length;
+  return `<button type="button" class="topic-chip" data-id="${t.topic_id}">${escapeHtml(t.name)} (${count})</button>`;
+}
+
 function topicChipsHTML(ids, index) {
   return ids
     .map((id) => index.byId.get(id))
     .filter(Boolean)
-    .map((t) => `<button type="button" class="topic-chip" data-id="${t.topic_id}">${escapeHtml(t.name)}</button>`)
+    .map(topicChipHTML)
     .join("");
 }
 
