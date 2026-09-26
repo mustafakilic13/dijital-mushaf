@@ -13,7 +13,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { parseInfoLink } from "../js/surahinfo.js";
+import { parseInfoLink, splitInfoSections } from "../js/surahinfo.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DATA_FILE = path.join(HERE, "..", "data", "surah-info-tr.json");
@@ -76,6 +76,46 @@ for (const [surahNum, entry] of Object.entries(data)) {
   }
 }
 console.log(`checked ${total} real links from surah-info-tr.json`);
+
+// -- splitInfoSections: title extraction strips accidental nested markup
+// and invisible Unicode (the two real-data slips this was added for --
+// surah 22's stray leading "x", surah 101's stray <em> around a
+// zero-width character -- are fixed at the source now, but the stripping
+// itself is tested independently of that fix holding) -----------------
+check("plain title untouched", (() => {
+  const r = splitInfoSections("<h2>İsim</h2><p>body</p>");
+  return r.sections[0].title === "İsim";
+})());
+check("nested tag stripped from title", (() => {
+  const r = splitInfoSections("<h2><em>\ufeff</em>İsim</h2><p>body</p>");
+  return r.sections[0].title === "İsim";
+})());
+check("stray invisible character stripped even without a wrapping tag", (() => {
+  const r = splitInfoSections("<h2>\u200bİsim</h2><p>body</p>");
+  return r.sections[0].title === "İsim";
+})());
+check("leading/trailing whitespace left by stripping is trimmed", (() => {
+  const r = splitInfoSections("<h2>  İsim <b></b> </h2><p>body</p>");
+  return r.sections[0].title === "İsim";
+})());
+
+// Regression sweep: no <h2> title anywhere in the current data should
+// contain a tag or an invisible character -- guards against the surah
+// 22 / 101 slips (or a similar future paste artifact) silently coming
+// back.
+let dirtyTitles = 0;
+let titleCount = 0;
+for (const [surahNum, entry] of Object.entries(data)) {
+  const { sections } = splitInfoSections(entry.text);
+  for (const { title } of sections) {
+    titleCount++;
+    if (/[<>]/.test(title) || /[\u200b\u200c\u200d\ufeff\u2060]/.test(title)) {
+      dirtyTitles++;
+      console.error(`FAIL: dirty <h2> title in surah ${surahNum}: ${JSON.stringify(title)}`);
+    }
+  }
+}
+check(`no tag or invisible character survives in any of the ${titleCount} <h2> titles`, dirtyTitles === 0);
 
 if (failures) {
   console.error(`${failures} check(s) failed`);

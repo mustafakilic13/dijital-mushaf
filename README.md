@@ -121,12 +121,19 @@ yüzden info body'deki her tıklamayı yakalayıp (`e.preventDefault()`)
 `js/surahinfo.js` `parseInfoLink`'e yönlendiriyor: salt sure linki bir
 "Mushaf'a Sureye Git" teklifine (`goToSurah`), ayet/aralık/dipnot linkleri
 (dipnotun kendi numarası karşılıksız olduğu için bağlı olduğu ayete
-indirgenir) aralıktaki her ayetin Elmalılı meali + kendi "Mushaf'ta Ayete
-Git" butonuna (`goToAyah`) dönüşür — ikisi de `#surah-info-detail`
-alt-panelinde, `.ezber-surah-picker`'la aynı geri-gidilebilir düzende
-(bkz. `js/app.js`'teki `openSurahInfoLink`/`closeSurahInfoDetail`).
-`test/surah_info_links_test.mjs`, `parseInfoLink`'i güncel
-`surah-info-tr.json`'daki linklerin tamamına karşı doğruluyor.
+indirgenir) aralıktaki her ayetin kendi Arapça metni (`ayahArabicText`,
+Konu Fihristi'nin ayet listesiyle aynı, bkz. aşağısı) + Elmalılı meali +
+kendi "Mushaf'ta Ayete Git" butonuna (`goToAyah`) dönüşür — ikisi de
+`#surah-info-detail` alt-panelinde, `.ezber-surah-picker`'la aynı
+geri-gidilebilir düzende (bkz. `js/app.js`'teki
+`openSurahInfoLink`/`closeSurahInfoDetail`). `test/surah_info_links_test.mjs`,
+`parseInfoLink`'i güncel `surah-info-tr.json`'daki linklerin tamamına
+karşı doğruluyor; ayrıca `splitInfoSections`'ın `<h2>` başlığı metnini
+(akordeon sekmelerinin etiketi) olası gömülü etiketlerden ve görünmez
+Unicode karakterlerinden ayıklayan `cleanTitle` adımını da (2512 kayıttan
+2'sinde -- 22. ve 101. sure -- gerçekten karşılaşılmış, kaynağında da
+düzeltilmiş bir yapışma kalıntısı) hem birim testleriyle hem de güncel
+verideki 396 başlığın tamamına karşı bir taramayla doğruluyor.
 
 ## Ayet detay paneli (kelime meali, meal, tefsir)
 

@@ -1954,17 +1954,21 @@ function surahInfoDetailSurahHTML(surahNum) {
 
 // ayahStart===ayahEnd için tek ayet, farklıysa aralık -- ikisi de (ve
 // dipnot linkleri de, parseInfoLink'te aynı "ayah" şekline indirgendiği
-// için) buradan geçiyor: aralıktaki HER ayet kendi Elmalılı meali + kendi
-// "git" butonuyla ayrı ayrı listeleniyor.
+// için) buradan geçiyor: aralıktaki HER ayet kendi Arapça metni (bkz.
+// ayahArabicText -- Konu Fihristi'nin ayet listesiyle aynı) + kendi
+// Elmalılı meali + kendi "git" butonuyla ayrı ayrı listeleniyor.
 function surahInfoDetailAyahHTML(surah, ayahStart, ayahEnd) {
   const data = getCachedMealData();
   const meta = state.surahs[String(surah)];
   let html = "";
   for (let a = ayahStart; a <= ayahEnd; a++) {
     const ref = meta ? `${meta.nameTurkish} ${a}` : `${surah}:${a}`;
+    const arabic = ayahArabicText(surah, a);
+    const arabicHTML = arabic ? `<p class="ayah-arabic-text">${escapeHtml(arabic)}</p>` : "";
     html += `
       <div class="info-detail-ayah">
         <div class="info-detail-ayah-ref">${escapeHtml(ref)}</div>
+        ${arabicHTML}
         ${renderMealHTML(getMealText(data, surah, a))}
         <div class="info-detail-ayah-actions">
           <button type="button" class="info-detail-goto-btn" data-goto-surah="${surah}" data-goto-ayah="${a}">Mushaf'ta Ayete Git</button>
@@ -2083,7 +2087,7 @@ function topicAyahListHTML(ayahList) {
   return ayahList
     .map(({ surah, ayah }) => {
       const arabic = ayahArabicText(surah, ayah);
-      const arabicHTML = arabic ? `<p class="topic-ayah-arabic">${escapeHtml(arabic)}</p>` : "";
+      const arabicHTML = arabic ? `<p class="ayah-arabic-text">${escapeHtml(arabic)}</p>` : "";
       return `
         <div class="info-detail-ayah">
           <div class="info-detail-ayah-ref">${escapeHtml(topicAyahRefLabel(surah, ayah))}</div>

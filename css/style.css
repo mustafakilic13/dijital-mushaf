@@ -1136,10 +1136,11 @@ body {
 }
 .topic-chip:hover { background: var(--paper-edge); }
 
-/* Konu Fihristi modalındaki ayet listesi .info-detail-ayah'ı (Sure
-   Bilgisi ile paylaşılıyor) aynen kullanıyor; tek eklenen kendi Arapça
-   metni -- mealin ÜSTÜNDE, mushaftaki okuma sırasıyla aynı düzende. */
-.topic-ayah-arabic {
+/* Bir ayetin düz Arapça metni -- Konu Fihristi'nin ayet listesinde
+   (topicAyahListHTML) VE Sure Bilgisi'nin ayet/aralık/dipnot linklerinde
+   (surahInfoDetailAyahHTML) ortak: .info-detail-ayah'ın içinde, mealin
+   HEMEN ÜSTÜNDE, mushaftaki okuma sırasıyla aynı düzende. */
+.ayah-arabic-text {
   font-family: var(--font-arabic);
   font-size: 22px;
   line-height: 1.9;

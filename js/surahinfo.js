@@ -66,20 +66,37 @@ export function getSurahInfoEntry(data, surahNum) {
   return data[String(surahNum)] || null;
 }
 
+// A <h2> heading is supposed to be a short plain-text label (see
+// splitInfoSections below) -- true for every one of the 396 headings
+// currently in the data except two, both single-surah slips fixed at the
+// source (data/surah-info-tr.json surah 22 had a stray leading "x", surah
+// 101 had a stray empty <em> wrapping a zero-width character): app.js
+// escapes this text and drops it straight into an accordion button's
+// label, so if a nested tag ever leaked through unstripped, escapeHtml
+// would turn it into literal visible "<em>" text rather than an actual
+// italic run. cleanTitle strips both classes of accident so a future
+// instance of the same paste artifact degrades silently instead of
+// showing up as garbage on screen.
+const INVISIBLE_CHARS_RE = /[\u200b\u200c\u200d\ufeff\u2060]/g;
+
+function cleanTitle(title) {
+  return title.replace(/<[^>]*>/g, "").replace(INVISIBLE_CHARS_RE, "").trim();
+}
+
 // Splits one entry's .text into { intro, sections }: `intro` is whatever
 // (rarely any) markup sits before the first <h2>, as raw HTML; `sections`
 // is an ordered [{ title, bodyHTML }, ...] array, `title` as plain text
-// (the <h2> tag's own inner text -- these never carry nested markup in the
-// source) ready to escape, `bodyHTML` as raw HTML ready to render as-is,
-// same "trusted, pass through unescaped" treatment app.js's
-// tafsirContentHTML already gives tafsir-saadi.json's markup.
+// (the <h2> tag's own inner text, run through cleanTitle above) ready to
+// escape, `bodyHTML` as raw HTML ready to render as-is, same "trusted,
+// pass through unescaped" treatment app.js's tafsirContentHTML already
+// gives tafsir-saadi.json's markup.
 export function splitInfoSections(html) {
   if (!html) return { intro: "", sections: [] };
   const parts = html.split(/<h2>(.*?)<\/h2>/s);
   const intro = parts[0] || "";
   const sections = [];
   for (let i = 1; i < parts.length; i += 2) {
-    sections.push({ title: parts[i], bodyHTML: parts[i + 1] || "" });
+    sections.push({ title: cleanTitle(parts[i]), bodyHTML: parts[i + 1] || "" });
   }
   return { intro, sections };
 }
