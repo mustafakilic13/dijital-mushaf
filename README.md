@@ -338,6 +338,105 @@ değerlendirmek; şimdilik tek kaynak QUL olduğu için `js/topics.js`
 tefsir/Sure Bilgisi'ndeki gibi bir `sources` sözlüğü değil, doğrudan
 `data/topics-tr.json`'a bakıyor.)
 
+## Arama
+
+Alt çubuktaki **Arama** düğmesi bir bottom-sheet açar (bütün modaller gibi
+`.modal-sheet`, yalnızca daha uzun; ekran klavyesi açılınca sheet klavyenin
+üstüne oturur -- `visualViewport`, bkz. `syncViewport`). Kutu boşken **ilk
+ekran**: son aramalar (`localStorage`, `quran-reader-arama-recent-v1`, en
+fazla 10, yalnız bir sonuca tıklanınca ya da Enter'a basılınca yazılır) +
+popüler konu çipleri + ipucu. Yazdıkça (120 ms debounce) sonuçlar bölümlere
+ayrılır:
+
+- **Git** -- sorgu bir hedefe dönüşüyorsa: `2:255`, `2/255`, `2 255`,
+  `Bakara 255`, `bakara suresi 255. ayet`, `yasin suresi`, `36. sure`,
+  `cüz 30`, `sayfa 50`; yalnız `12` hem 12. sure hem 12. sayfa olarak
+  sunulur. Ayet numarası surenin ayet sayısını aşarsa ("2:300") sureye
+  gidilir ve "Bakara suresi 286 ayettir" denir. **Enter** ilk hedefe gider.
+- **Sureler** -- Türkçe / İngilizce transliterasyon / Arapça ad
+  eşleşmesi ("ihlas", "Ihlas", "İhlâs", "imran", "al baqarah" hepsi bulunur).
+- **Konular** -- Konu Fihristi'nde konu **adına** (ya da Arapça adına)
+  göre; açıklama metni aranmaz (gürültü). Aynı ad birden çok kayda aitse
+  en çok ayeti olan kayıt gösterilir (ayet panelindeki etiketler en küçük
+  id'yi seçiyor; aramada kullanıcı en kapsamlı kaydı bekler: "Tevbe" 5
+  değil 74 ayet). Satıra tıklayınca konu modalı açılır.
+- **Ayetler** -- meal (Elmalılı) içinde tam metin. Tüm terimler (VE);
+  hiçbir ayette hepsi yoksa en az birini içerenler ve bir not gösterilir.
+  Eşleşen kısım `<mark>` ile vurgulanır, uzun metin eşleşme çevresinden
+  kırpılır.
+- **Kelime meali** -- kelime kartlarında (`data/word-meal.json`) eşleşen
+  Arapça kelime + vurgulu karşılığı (ayet panelindeki `.wbw-*` kartlarıyla
+  aynı görünüm). Terimlerin **tamamı tek bir kelime karşılığında**
+  geçmeli ("sabır namaz" burada sonuç vermez -- o Ayetler'in işi); tam
+  kelime karşılıklar önce gelir.
+- **Arapça metin** -- sorguda Arap harfi varsa (ör. `الله`, harekesiz de
+  yazılsa) ayetin Arapça metninde; bu durumda Türkçe kaynaklar (meal,
+  kelime meali, tefsir) hiç aranmaz/yüklenmez. Sonuç satırı sağdan sola
+  (RTL) ve Arapça fontla gösterilir.
+- **Tefsir (Sa'dî)** -- Sa'dî tefsirinin düz metninde (HTML etiketleri
+  temizlenmiş) tam metin arama. Kaynak ~8 MB olduğu için varsayılan
+  **kapalı**: sonuçların altında "Sa'dî tefsirinde de ara (≈8 MB
+  indirilir)" düğmesi çıkar; tıklanınca indirilip (parça parça, arayüz
+  donmadan) dizinlenir ve o oturumda açık kalır -- yeniden aramak için
+  düğmeye tekrar basmak gerekmez. Yalnız Latin (Türkçe) terimlerle
+  aranır; yüklenemezse hata notu + düğme yeniden görünür, ama bir
+  sonraki farklı aramada SESSİZCE yeniden denenmez (yalnızca düğmeye
+  tekrar basılınca).
+
+Her bölüm önce kısa bir **önizleme** gösterir (Sureler 3, Konular 3,
+Ayetler 5, Kelime meali 3 satır); "Tümünü gör (N)" bölümü yerinde açar
+(25'er satır, "Daha fazla göster", "Daralt"). Yalnız tek bölüm varsa
+doğrudan açık gelir. Konular sırada Ayetler'den önce: satır sayısı az
+ve isabet oranı yüksek ("Sabır" araması için en iyi sonuç 87 ayetlik
+"Sabır" konusudur); Ayetler'in uzun listesi altta kalmasın.
+
+Veri yükleme: meal ve konular modal açılırken arka planda yüklenir (ilk
+yazışta bekletmesin, konu çipleri de buna bağlı); kelime meali (1,6 MB)
+**yalnızca ilk metin aramasında** yüklenir; Arapça metin dizini ağ
+kullanmaz (mushaf.json zaten bellekte) ve yalnızca ilk Arapça sorguda
+kurulur; tefsir (~8 MB) **yalnızca kullanıcı düğmeye basınca**. Hiçbiri
+"2:255" gibi hedef sorgularında indirilmez. Konular/Kelime meali ikincil
+kaynak: yüklenemezse o bölüm sessizce atlanır ve modal yeniden açılana
+kadar tekrar denenmez (çevrimdışıyken her tuşta boşuna istek atılmasın);
+meal (birincil) ve tefsir (kullanıcı istedi) yüklenemezse hata notu
+gösterilir -- meal sonraki yazışta otomatik yeniden denenir, tefsir
+yalnızca düğmeye tekrar basılınca (sessiz otomatik yeniden deneme yok).
+Bir kaynak geç yüklenince ekran, kullanıcının açtığı bölümler kapanmadan
+tazelenir. **Popüler konu çipleri** adı tam eşleşen konuyu doğrudan açar
+(konu verisi yüklenemezse aynı kelimeyi arama olarak çalıştırır).
+
+Kod iki katman: `js/search.js` **saf mantık** (DOM/fetch yok --
+normalleştirme, sorgu ayrıştırma, sure eşleştirme, dizinler [meal/kelime
+meali/Arapça metin/tefsir], vurgu, son aramalar), `js/arama.js` **arayüz**
+(DOM + olaylar; app.js'e bağımlı değil, gezinme/modal fonksiyonları ve
+veri yükleyiciler `setupArama`'ya parametre olarak geliyor).
+
+Normalleştirme (`fold`): Latin'de küçük harf, ı/İ/I hepsi `i`, ç ğ ö ş ü
+ve şapkalı â î û düz harfe iner, kesme işaretleri atılır; Arapça'da harekeler,
+tatvil, hançer elif ve Kur'an'a özgü işaretler atılır, elif çeşitleri `ا`,
+`ى/ئ` `ي`, `ؤ` `و`, `ة` `ه` olur; Arap-Hint/Fars rakamları ASCII'ye iner.
+Sorgu da dizindeki metin de aynı fonksiyondan geçtiği için "sukur",
+"şükür", "ŞÜKÜR" aynı sonucu verir.
+
+Türkçe ekleşmede kök değişir ("sabır" → "sabrı", "kalp" → "kalbi"); düz
+alt-dize araması bunu kaçırırdı ("sabır" 23 ayet, kök varyantlarıyla 90).
+`termVariants` iki güvenli kural uygular: (1) sert ünsüz yumuşaması
+(kalp→kalb, kitap→kitab, azap→azab; fiil çekimi -dık/-tik hariç), (2) ünlü
+düşmesi -- **kelime listesiyle**, genel bir desenle değil (genel desen
+ölçüldüğünde ölüm→"olm" = "olmak"ın 449 ayeti gibi 3-4 kat gürültü
+çıkardı). Ek biçimler yalnızca bir kelimenin **başında** aranır. Tek başına
+bağlaç/edatlar ("ve", "ile", "bir"...) çok terimli sorguda arama koşulu
+sayılmaz ("sabır ve namaz" mealdeki "sabırla, namazla"yı da bulur).
+
+Testler (`test/search_test.mjs` -- Node, bağımlılıksız; `test/arama_ui_test.mjs`
+-- jsdom, gerçek `index.html` + gerçek veri dosyalarıyla; app.js kablolamasını
+kaynak metin üzerinden de denetler):
+
+```bash
+cd test && npm install
+node search_test.mjs && node arama_ui_test.mjs
+```
+
 ## Proje yapısı
 
 ```
@@ -351,6 +450,8 @@ js/meal.js               Meal: veri yükleme + render (kaynak: Elmalılı M. Ham
 js/tafsir.js              Tefsir: kaynak kaydı + veri yükleme + ayet-grubu çözümleme
 js/surahinfo.js           Sure Bilgisi: veri yükleme + <h2> sınırlarından akordeon bölümleri
 js/topics.js              Konu Fihristi: veri yükleme + ayrıştırma/indeksleme (ayet, ana/alt/ilişkili konu)
+js/search.js               Arama: saf mantık (normalleştirme, sorgu ayrıştırma, dizin, vurgu, son aramalar)
+js/arama.js                 Arama modalı: arayüz + olaylar (bkz. "Arama")
 js/app.js               Sayfa yükleme, önbellek, gezinme, modaller, ayet seçimi, ayet detay paneli, konu fihristi
 data/mushaf.json         604 sayfa × satır × kelime (QUL'dan üretildi, ~3MB)
 data/surahs.json          Sure adları/metadata (Türkçe isim dahil) + başlık glyph'i
@@ -373,6 +474,8 @@ tools/raw-data/           Ham build girdileri (bkz. Veriyi güncellemek) + QCF_S
                           (sadece build_data.py'nin sure başlığı SVG'lerini üretmek için okuduğu
                           kaynak; tarayıcı hiç yüklemiyor, bkz. madde 5 yukarıda)
 test/full_corpus_test.mjs  604 sayfayı Node'da render edip doğrulayan test
+test/search_test.mjs        Arama saf mantığı (Node)
+test/arama_ui_test.mjs       Arama modalı arayüzü (jsdom)
 ```
 
 ## Çalıştırma
@@ -455,11 +558,14 @@ python3 tools/patch_word_meal.py
 
 ## Yapılacaklar
 
-Orijinal hedef listesinden kalanlar: **ezber**, **arama** (üçüncü madde olan
-**kelime vurgulu ses çalma** tamamlandı — bkz. `js/app.js`,
+Orijinal hedef listesinden kalanlar: **ezber** (**arama** tamamlandı — bkz.
+yukarıdaki "Arama" bölümü; üçüncü madde olan **kelime vurgulu ses çalma** da
+tamamlandı — bkz. `js/app.js`,
 `state.playback`/`syncHighlightLoop`/`updateWordHighlight`). Bunlara ek
-olarak üzerinde durduğumuz ama henüz karara bağlamadığımız üç konu var --
-kuranmeali.com'dan izin cevabı gelene kadar burada not olarak duruyorlar.
+olarak üzerinde durduğumuz ama henüz karara bağlamadığımız iki konu var.
+Kuranmeali.com verisi kullanılmama kararı kesinleşti (bkz. proje
+notları) — aşağıdaki ikisi de artık yalnızca QUL/bağımsız açık kaynaklar
+arasından seçim meselesi.
 
 ### Kelime tahlili
 
@@ -495,7 +601,9 @@ verip ilerleyeceğiz.
 
 ### El-Müfredât
 
-kuranmeali.com'a izin e-postası gönderildi, cevap bekleniyor. Cevap
-olumsuz ya da gelmezse: Arapça aslı (~1000 yıllık, kamu malı) bir açık
-kaynaktan (ör. Şamele kütüphanesi) çekip üstüne kendi/lisanslı bir
-Türkçe karşılık koymak ayrı, daha uzun bir proje olur.
+Kuranmeali.com'un elmufredat.sql'i (Ragıb el-İsfahânî'nin El-Müfredât'ı,
+Abdulbaki Güneş–Mehmet Yolcu çevirisi) kullanılmama kararı kesinleşti
+(bkz. proje notları) — kalan yol: Arapça aslını (~1000 yıllık, kamu malı)
+Şamele gibi açık bir kaynaktan çekip üstüne kendi/lisanslı bir Türkçe
+karşılık koymak. Bu, kelime meali/meal/tefsir'den çok daha büyük, ayrı
+bir proje olur; henüz başlanmadı.

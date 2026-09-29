@@ -1533,3 +1533,175 @@ select:focus-visible, input:focus-visible, button:focus-visible {
   text-align: center;
 }
 .yaz-hint-text[hidden] { display: none; }
+
+/* ---------------------------------------------------------------------
+   Arama modalı (alt çubuktaki Arama) -- js/arama.js
+   Bütün modaller gibi bir .modal-sheet, yalnızca daha uzun: dar ekranda
+   neredeyse tüm görünür alan. Ekran klavyesi açılınca sheet klavyenin
+   üstüne oturur ve yüksekliği görünür alana göre kısalır (--arama-kb /
+   --arama-vh'yi arama.js'teki syncViewport visualViewport'tan yazıyor).
+   ------------------------------------------------------------------- */
+.modal-sheet--arama { height: min(78vh, 640px); max-height: none; }
+@media (max-width: 639.98px) {
+  .modal-sheet--arama {
+    height: min(calc(var(--arama-vh, 100vh) - 12px), 760px);
+    bottom: var(--arama-kb, 0px);
+  }
+}
+.arama-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin: 4px 14px 4px;
+  padding: 0 6px 0 12px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 12px;
+  background: #fff;
+}
+.arama-form:focus-within {
+  border-color: var(--emerald);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--emerald) 16%, transparent);
+}
+.arama-form-icon { flex-shrink: 0; color: var(--ink-soft); }
+.arama-input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 16px; /* 16px'in altı iOS'ta odaklanınca sayfayı yakınlaştırır */
+  -webkit-appearance: none;
+  appearance: none;
+}
+.arama-input::placeholder { color: var(--ink-soft); opacity: 0.75; }
+.arama-input::-webkit-search-cancel-button,
+.arama-input::-webkit-search-decoration { -webkit-appearance: none; display: none; }
+.arama-clear {
+  display: flex;
+  padding: 8px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.arama-clear[hidden] { display: none; }
+.arama-clear:hover { background: var(--paper-edge); color: var(--ink); }
+.arama-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.arama-body { flex: 1 1 auto; min-height: 0; overscroll-behavior: contain; }
+
+.arama-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 12px 10px 4px;
+}
+.arama-section-title { margin: 0; font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+.arama-count { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.arama-link {
+  padding: 2px 4px;
+  border: none;
+  background: none;
+  color: var(--emerald);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.arama-link:hover { text-decoration: underline; }
+.arama-note, .arama-hint { margin: 6px 10px; font-size: 13px; line-height: 1.45; color: var(--ink-soft); }
+.arama-note--error { color: #9a2f22; }
+.arama-hint { margin-top: 16px; }
+.arama-empty { padding: 26px 10px 8px; text-align: center; }
+.arama-empty-title { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: var(--ink); }
+.arama-chips { padding: 4px 10px; }
+
+.arama-recent { display: flex; align-items: center; }
+.arama-recent-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.arama-recent-main svg { flex-shrink: 0; color: var(--ink-soft); }
+.arama-recent-main span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arama-recent-main:hover { background: var(--paper-edge); }
+.arama-recent-x {
+  display: flex;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.arama-recent-x:hover { background: var(--paper-edge); color: var(--ink); }
+
+.arama-jump { align-items: center; }
+.arama-jump-title { display: block; font-size: 14px; font-weight: 600; }
+.arama-jump-sub {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.arama-go { flex-shrink: 0; color: var(--ink-soft); }
+.arama-ayah { flex-direction: column; align-items: stretch; gap: 3px; }
+.arama-ayah-ref { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.arama-snippet { font-size: 14.5px; line-height: 1.5; }
+.arama-hit {
+  padding: 0 1px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--gold-soft) 38%, transparent);
+  color: inherit;
+}
+.arama-more {
+  display: block;
+  width: calc(100% - 20px);
+  margin: 8px 10px 0;
+  padding: 11px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--emerald-deep);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.arama-more:hover { background: var(--paper-edge); }
+.arama-wbw { direction: ltr; justify-content: flex-start; gap: 8px; margin-top: 2px; }
+.arama-wm-more { align-self: center; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.arama-wbw .wbw-tr .arama-hit { font-weight: 600; }
+
+.arama-snippet--ar {
+  font-family: var(--font-arabic);
+  font-size: 17px;
+  line-height: 1.7;
+}
+.arama-tafsir-btn { color: var(--ink-soft); }
+.arama-tafsir-size { font-weight: 400; opacity: 0.8; }

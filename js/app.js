@@ -9,6 +9,7 @@ import {
   MARKER as AYAH_END_MARKER,
 } from "./wordmeal.js";
 import { loadMealData, isMealDataReady, getCachedMealData, getMealText, renderMealHTML } from "./meal.js";
+import { setupArama } from "./arama.js";
 import {
   tafsirSourceIds,
   tafsirSourceLabel,
@@ -199,6 +200,7 @@ const els = {
   playBtn: document.getElementById("play-btn"),
   playBtnLabel: document.getElementById("play-btn-label"),
   aramaBtn: document.getElementById("arama-btn"),
+  aramaModal: document.getElementById("arama-modal"),
 
   surahInfoModal: document.getElementById("surah-info-modal"),
   surahInfoTitle: document.getElementById("surah-info-modal-title"),
@@ -728,7 +730,7 @@ function closeModal(modalEl) {
 }
 
 function closeAllModals() {
-  [els.surahModal, els.juzModal, els.pageModal, els.ezberModal, els.surahInfoModal, els.topicsModal].forEach(closeModal);
+  [els.surahModal, els.juzModal, els.pageModal, els.ezberModal, els.surahInfoModal, els.topicsModal, els.aramaModal].forEach(closeModal);
 }
 
 function setupModals() {
@@ -1429,6 +1431,24 @@ function ayahArabicText(surah, ayah) {
     }
   }
   return words.join(" ");
+}
+
+// ayahRawWords'ün "her sayfa" hâli: ayetin KENDİ sayfasını ayahBounds'la
+// bulur (o an gösterilen sayfaya bağlı değil). Arama modalının kelime meali
+// sonuçları, ekranda olmayan ayetlerin kelime kartlarını buradan kuruyor.
+function ayahRawWordsAnywhere(surah, ayah) {
+  const b = ayahBounds(surah, ayah);
+  if (!b) return [];
+  const lines = state.mushaf.pages[b[0] - 1];
+  if (!lines) return [];
+  const out = [];
+  for (const line of lines) {
+    if (!line.w) continue;
+    for (const w of line.w) {
+      if (w.i >= b[1] && w.i <= b[2]) out.push(w);
+    }
+  }
+  return out;
 }
 
 function wordMealRefLabel(ayah) {
@@ -3155,6 +3175,20 @@ async function main() {
     setupTopicsModal();
     setupEzberModal();
     setupEzberYazKeyboard();
+    setupArama({
+      modal: els.aramaModal,
+      openBtn: els.aramaBtn,
+      getSurahs: () => state.surahs,
+      openModal: (onOpen) => openModal(els.aramaModal, { onOpen }),
+      closeModal: () => closeModal(els.aramaModal),
+      nav: { goToAyah, goToSurah, goToJuz: goToJuzNum, goToPage, openTopic: openTopicsModal },
+      loadMealData,
+      loadWordMealData,
+      loadTopicsData,
+      ayahRawWords: ayahRawWordsAnywhere,
+      ayahArabicText,
+      loadTafsirData: () => loadTafsirData("saadi"),
+    });
     setupNav();
     setupWakeLock();
     setupPlayback();
