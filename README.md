@@ -437,10 +437,69 @@ cd test && npm install
 node search_test.mjs && node arama_ui_test.mjs
 ```
 
+## Erişilebilirlik
+
+**Sayfa/sure/ayet geçişi anonsu.** `#nav-announcer` (`body`'nin doğrudan
+altında, `role="status"` + `aria-live="polite"` + `aria-atomic="true"`,
+`.sr-only` ile görsel olarak gizli ama erişilebilirlik ağacında) tüm
+gezinmenin tek hunisi olan `showPage`'in sonunda `announceNavigation()`
+ile güncelleniyor -- `goToPage`/`goToSurah`/`goToAyah`/`goToJuz`/`goToHizb`/
+`goToRub`/`goToManzil`/sayfa okları, hepsi `showPage`'e çıktığı için tek
+bir yerden kapsanıyor. Anons metni: `"Sayfa N, <Sure Adı> Suresi, M. ayet"`.
+Önce bölge boşaltılıp **50ms gecikmeyle** asıl metin yazılıyor (`els.navAnnouncer.textContent = ""` sonra `setTimeout`) -- art arda aynı hedefe
+gidilirse (metin öncekiyle birebir aynı kalsa bile) yine gerçek bir DOM
+değişikliği garanti edilmiş oluyor, çünkü değişmeyen bir `aria-live`
+içeriğini bazı ekran okuyucular sessizce yok sayıyor.
+
+**Görünmez metin katmanı.** `js/render.js`'teki `addTextSelectionLayer`,
+her mushaf satırının gerçek/seçilebilir Unicode metnini bir
+`<foreignObject><div class="text-layer-line" dir="rtl">` ile (görünür
+glif'leri çizen SVG `<path>`'lerin üstüne, `color: transparent` ile --
+`display:none`/`visibility:hidden` DEĞİL) yerleştiriyor; PDF.js'in metin
+katmanı tekniğinin aynısı. Hiçbir yerde `aria-hidden` uygulanmıyor, üst
+SVG'de de `role="img"` yok (olsaydı içindeki gerçek metni tek bir resim
+gibi "yutabilirdi"). Yapısal olarak doğru.
+
+**Otomatik doğrulama, gerçek cihaz testinin YERİNE DEĞİL.**
+`test/erisilebilirlik_test.mjs`, yukarıdaki ikisini + genel ARIA
+etiketlerini hem kaynak metin üzerinden hem [axe-core](https://github.com/dequelabs/axe-core)
+ile jsdom'a monte edilmiş DOM üzerinde tarıyor (yalnızca yapısal/ARIA
+kuralları -- renk kontrastı gibi gerçek düzen/görünürlük gerektiren
+kurallar jsdom'da güvenilir olmadığından çalıştırılmıyor). Bu ortamda
+gerçek bir ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) ÇALIŞTIRILAMADI --
+bir GUI tarayıcı bile kurulamadı (Ubuntu 24.04'te chromium yalnızca snap
+paketi olarak dağıtılıyor ve bu sandbox'ta snapd çalışmıyor; Puppeteer'ın
+kendi indirdiği Chromium da ağ izin listesi dışındaki bir CDN'den
+geliyor). Yani buradaki testler yapısal bir ön-kontrol; gerçek bir cihazda
+doğrulama hâlâ gerekiyor (bkz. Yapılacaklar).
+
+## Çevrimdışı ses önbelleği
+
+`sw.js`, kayıt olduktan sonra her ayet sesi isteğini (`audio-cdn.tarteel.ai`
+-- bkz. `js/app.js`'teki `recitationAudioUrl`/`RECITERS`) yakalayıp
+**önbellek-önce** (cache-first) sunuyor: önbellekte varsa ağa hiç
+gidilmeden oradan, yoksa ağdan çekilip bir kopyası önbelleğe eklenerek.
+Ses dosyaları yayımlandıktan sonra değişmediği için bu hem çevrimdışı
+çalışmayı sağlıyor hem tekrar dinlemede veri harcamıyor. **Boyut/LRU
+sınırı YOK** -- açık bir tercih; önbellek yalnızca tarayıcının kendi
+(uygulama seviyesinden bağımsız) depolama kotası dolduğunda büyür durur.
+Başka hiçbir şeye (sayfa/CSS/JS/mushaf verisi) dokunmuyor -- yalnızca ses
+CDN'ine giden `GET` istekleri kapsamda, geri kalanı normal ağ davranışında
+kalıyor. `js/app.js`'in sonunda `registerServiceWorker()` ile (ana yükleme
+akışını bloklamayan, "fire and forget") kaydediliyor; desteklenmeyen bir
+tarayıcıda ya da kayıt başarısız olursa uygulama olağan (çevrimiçi,
+önbelleksiz) şekilde çalışmaya devam ediyor.
+
+`test/sw_test.mjs`, bir servis worker gerçek bir tarayıcı dışında
+çalışmadığından, `sw.js`'in kaynağını sahte `self`/`caches` ile bir
+`Function` içinde çalıştırıp `install`/`activate`/`fetch` olaylarını elle
+tetikliyor (Node'un yerleşik `fetch`/`Request`/`Response`'u kullanılıyor).
+
 ## Proje yapısı
 
 ```
 index.html            Uygulama kabuğu
+sw.js                   Servis worker -- ayet seslerini dinlendikçe önbelleğe alır (bkz. "Çevrimdışı ses önbelleği")
 serve.py               .wasm'ı doğru Content-Type ile sunan yerel geliştirme sunucusu
 css/style.css          Görünüm (kağıt/zümrüt paleti, bkz. aşağı)
 js/justify.js          Kaşide/gerdirme algoritması (DigitalKhatt'tan uyarlandı)
@@ -476,6 +535,8 @@ tools/raw-data/           Ham build girdileri (bkz. Veriyi güncellemek) + QCF_S
 test/full_corpus_test.mjs  604 sayfayı Node'da render edip doğrulayan test
 test/search_test.mjs        Arama saf mantığı (Node)
 test/arama_ui_test.mjs       Arama modalı arayüzü (jsdom)
+test/erisilebilirlik_test.mjs Anons bölgesi + axe-core yapısal tarama (jsdom)
+test/sw_test.mjs              Servis worker: sahte self/caches ile (Node)
 ```
 
 ## Çalıştırma
@@ -566,6 +627,27 @@ olarak üzerinde durduğumuz ama henüz karara bağlamadığımız iki konu var.
 Kuranmeali.com verisi kullanılmama kararı kesinleşti (bkz. proje
 notları) — aşağıdaki ikisi de artık yalnızca QUL/bağımsız açık kaynaklar
 arasından seçim meselesi.
+
+### Erişilebilirlik: gerçek cihaz/ekran okuyucu testi
+
+Yukarıdaki "Erişilebilirlik" bölümünde açıklanan otomatik/yapısal
+kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
+(iOS/Mac) testi hâlâ yapılmadı — bu ortamda mümkün değildi. Özellikle
+şu ikisi doğrulanmalı: (1) sayfa geçişinde `#nav-announcer`'ın anonsu
+gerçekten duyuluyor mu, (2) `foreignObject` içindeki metin katmanı
+gerçekten okunabiliyor mu (bilinen risk: bu desen tarayıcı+ekran-okuyucu
+kombinasyonlarında tutarsız olabiliyor).
+
+### PWA: app-shell önbelleği ve manifest
+
+Ses önbelleği tamamlandı (bkz. yukarıdaki "Çevrimdışı ses önbelleği").
+Kalan: sayfa/CSS/JS/mushaf verisi gibi app-shell'in kendisi hâlâ
+önbelleklenmiyor -- çevrimdışıyken uygulama hiç açılmıyor (yalnızca daha
+önce çalınmış ayet sesleri önbellekte olur, ama onları çalacak sayfa
+yüklenemez). Planlanan: `sw.js`'e app-shell için ayrı bir
+network-first/stale-while-revalidate rotası + `manifest.json` ("Ana ekrana
+ekle" için). Güncelleme tarafı zaten `skipWaiting()`/`clients.claim()` ile
+hazır (bkz. `sw.js`), yeni eklenecek rotalar da aynı ilkeyi izlemeli.
 
 ### Kelime tahlili
 

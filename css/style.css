@@ -1705,3 +1705,18 @@ select:focus-visible, input:focus-visible, button:focus-visible {
 }
 .arama-tafsir-btn { color: var(--ink-soft); }
 .arama-tafsir-size { font-weight: 400; opacity: 0.8; }
+
+/* Görsel olarak gizli ama ekran okuyucular için erişilebilir (WAI-ARIA'nın
+   standart "visually hidden" kalıbı) -- display:none/visibility:hidden
+   KULLANILMIYOR çünkü ikisi de erişilebilirlik ağacından da kaldırır. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

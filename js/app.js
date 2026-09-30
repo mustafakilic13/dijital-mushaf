@@ -201,6 +201,7 @@ const els = {
   playBtnLabel: document.getElementById("play-btn-label"),
   aramaBtn: document.getElementById("arama-btn"),
   aramaModal: document.getElementById("arama-modal"),
+  navAnnouncer: document.getElementById("nav-announcer"),
 
   surahInfoModal: document.getElementById("surah-info-modal"),
   surahInfoTitle: document.getElementById("surah-info-modal-title"),
@@ -1057,6 +1058,24 @@ function setupEzberModal() {
   });
 }
 
+// Sayfa/ayet her değiştiğinde (goToPage/goToSurah/goToAyah/goToJuz vb. --
+// hepsi showPage'e çıkıyor) #nav-announcer'a kısa bir anons yazar, ekran
+// okuyucu kullanıcısı "nereye gittim" diye mushaf metnini taramak zorunda
+// kalmasın. Önce boşaltıp KISA BİR GECİKMEYLE asıl metni yazıyoruz --
+// art arda AYNI sayfaya/sureye gidilirse (metin değişmeden kalırsa) birçok
+// ekran okuyucu değişmeyen bir aria-live içeriğini sessizce yok sayar;
+// önce boşaltmak her seferinde gerçek bir DOM değişikliği garantiler.
+function announceNavigation() {
+  const { surah, ayah } = state.selectedAyah;
+  const surahInfo = state.surahs[String(surah)];
+  const surahName = surahInfo ? surahInfo.nameTurkish : "";
+  const text = `Sayfa ${state.currentPage}, ${surahName} Suresi, ${ayah}. ayet`;
+  els.navAnnouncer.textContent = "";
+  setTimeout(() => {
+    els.navAnnouncer.textContent = text;
+  }, 50);
+}
+
 function updateTopbar() {
   const p = state.currentPage;
   els.pageBtnValue.textContent = p;
@@ -1219,6 +1238,7 @@ async function showPage(pageNumber, opts = {}) {
   // to change the ayah again a moment later.
   updateWordHighlight(svg, wordSegments, null);
   updateTopbar();
+  announceNavigation();
   syncAyahGridHighlight();
 
   if (!opts.skipHash) {
@@ -3203,4 +3223,17 @@ async function main() {
   }
 }
 
+// Ses dosyalarını (audio-cdn.tarteel.ai) çevrimdışı için dinlendikçe
+// önbelleğe almak üzere sw.js'i kaydeder -- bkz. o dosyanın başlık yorumu.
+// main()'in kritik yolunu bloklamasın diye ayrı ve "fire and forget";
+// desteklenmeyen bir tarayıcıda ya da kayıt başarısız olursa uygulama
+// olağan (çevrimiçi, önbelleksiz) şekilde çalışmaya devam eder.
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register("sw.js").catch((err) => {
+    console.warn("Servis worker kaydı başarısız (ses çevrimdışı önbelleklemesi devre dışı kalacak)", err);
+  });
+}
+
 main();
+registerServiceWorker();
