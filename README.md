@@ -473,33 +473,68 @@ kendi indirdiği Chromium da ağ izin listesi dışındaki bir CDN'den
 geliyor). Yani buradaki testler yapısal bir ön-kontrol; gerçek bir cihazda
 doğrulama hâlâ gerekiyor (bkz. Yapılacaklar).
 
-## Çevrimdışı ses önbelleği
+## PWA ve çevrimdışı önbellekleme
 
-`sw.js`, kayıt olduktan sonra her ayet sesi isteğini (`audio-cdn.tarteel.ai`
--- bkz. `js/app.js`'teki `recitationAudioUrl`/`RECITERS`) yakalayıp
-**önbellek-önce** (cache-first) sunuyor: önbellekte varsa ağa hiç
-gidilmeden oradan, yoksa ağdan çekilip bir kopyası önbelleğe eklenerek.
-Ses dosyaları yayımlandıktan sonra değişmediği için bu hem çevrimdışı
-çalışmayı sağlıyor hem tekrar dinlemede veri harcamıyor. **Boyut/LRU
-sınırı YOK** -- açık bir tercih; önbellek yalnızca tarayıcının kendi
-(uygulama seviyesinden bağımsız) depolama kotası dolduğunda büyür durur.
-Başka hiçbir şeye (sayfa/CSS/JS/mushaf verisi) dokunmuyor -- yalnızca ses
-CDN'ine giden `GET` istekleri kapsamda, geri kalanı normal ağ davranışında
-kalıyor. `js/app.js`'in sonunda `registerServiceWorker()` ile (ana yükleme
-akışını bloklamayan, "fire and forget") kaydediliyor; desteklenmeyen bir
-tarayıcıda ya da kayıt başarısız olursa uygulama olağan (çevrimiçi,
-önbelleksiz) şekilde çalışmaya devam ediyor.
+`sw.js` kayıt olduktan sonra üç ayrı önbellek/stratejiyle çalışıyor (bkz.
+dosyanın kendi başlık yorumu):
+
+- **Ses** (`dijital-mushaf-audio-v1`) -- her ayet sesi isteğini
+  (`audio-cdn.tarteel.ai`, bkz. `js/app.js`'teki
+  `recitationAudioUrl`/`RECITERS`) **önbellek-önce** sunuyor: önbellekte
+  varsa ağa hiç gidilmeden oradan, yoksa ağdan çekilip bir kopyası
+  önbelleğe eklenerek. **Boyut/LRU sınırı YOK** -- açık bir tercih;
+  önbellek yalnızca tarayıcının kendi (uygulama seviyesinden bağımsız)
+  depolama kotası dolduğunda büyür durur.
+- **Uygulama kabuğu** (`dijital-mushaf-shell-v1`: `index.html`, `css/`,
+  `js/*.js`, `vendor/*`, `fonts/DigitalKhattV2.woff2`) -- **ağ-önce**:
+  çevrimiçiyken her istek en güncel sürümü ağdan çeker (ve önbelleği
+  günceller), yalnızca ağ başarısız olursa (gerçekten çevrimdışı)
+  önbellekten döner. Bu, güncellemelerin kullanıcı hiçbir şey yapmadan
+  (yenile/banner falan olmadan) bir sonraki ziyarette otomatik
+  uygulanmasını sağlıyor -- `skipWaiting()`+`clients.claim()` ile
+  birlikte.
+- **Statik veri** (`dijital-mushaf-data-v1`: `data/*.json`) --
+  **önbellek-önce**, ses gibi sınırsız (veri yayımlandıktan sonra
+  değişmiyor). "Çekirdek okuma" verisi (mushaf, meal, sure/ayet/cüz vb.
+  gezinme tabloları -- tam liste `sw.js`'teki `PRECACHE_URLS`) **ilk
+  ziyarette önceden** indirilir ki uygulama baştan itibaren çevrimdışı
+  açılıp Arapça metni + Türkçe meali göstersin; kelime meali, Konu
+  Fihristi, sure bilgisi, Sa'dî tefsiri, ses-vurgu zamanlaması ve sure
+  başlığı SVG'leri gibi daha büyük/ikincil veriler **ilk kullanıldıklarında**
+  kendiliğinden önbelleğe giriyor (önceden indirilmiyor).
+
+`activate` olayında yalnızca BU UYGULAMAYA ait **eski sürüm** kabuk/veri
+önbellekleri siliniyor (`caches.keys()` + ad ön eki eşleşmesi) -- güncel
+sürümler, AUDIO_CACHE dahil, hiç dokunulmuyor; ses önbelleğinin sürüm
+adı hiç değişmediği sürece bu temizlik ona asla erişmiyor, yani
+"sınırsız/kalıcı" garantisi servis worker güncellemelerinde de geçerli
+kalıyor. `js/app.js`'in sonunda `registerServiceWorker()` ile (ana
+yükleme akışını bloklamayan, "fire and forget") kaydediliyor;
+desteklenmeyen bir tarayıcıda ya da kayıt başarısız olursa uygulama
+olağan (çevrimiçi, önbelleksiz) şekilde çalışmaya devam ediyor.
+
+**`manifest.json`** ("Ana ekrana ekle" / yüklenebilirlik için): isim,
+`start_url`/`scope: "."` (GH Pages'in hangi alt yolunda yayımlanırsa
+yayımlansın taşınabilir olsun diye göreli), `display: "standalone"`,
+uygulamanın kendi paleti (`theme_color`/`background_color`), ve
+`icons/` altında basit, soyut bir "açık sayfa" simgesi (192/512/maskable
+-- geçici bir simge; gerçek bir logo olursa `icons/*.png`'yi değiştirmek
+yeterli). `index.html`'e `<link rel="manifest">` + `<meta name="theme-color">`
++ `apple-touch-icon` olarak bağlandı.
 
 `test/sw_test.mjs`, bir servis worker gerçek bir tarayıcı dışında
 çalışmadığından, `sw.js`'in kaynağını sahte `self`/`caches` ile bir
 `Function` içinde çalıştırıp `install`/`activate`/`fetch` olaylarını elle
-tetikliyor (Node'un yerleşik `fetch`/`Request`/`Response`'u kullanılıyor).
+tetikliyor (Node'un yerleşik `fetch`/`Request`/`Response`'u kullanılıyor);
+`PRECACHE_URLS`'i de doğrudan `sw.js`'ten çıkarıp hem kritik dosyaların
+listede olduğunu hem ikincil/büyük verilerin OLMADIĞINI doğruluyor.
 
 ## Proje yapısı
 
 ```
 index.html            Uygulama kabuğu
-sw.js                   Servis worker -- ayet seslerini dinlendikçe önbelleğe alır (bkz. "Çevrimdışı ses önbelleği")
+sw.js                   Servis worker -- ses/kabuk/veri önbellekleme (bkz. "PWA ve çevrimdışı önbellekleme")
+manifest.json            PWA manifesti ("Ana ekrana ekle") + icons/ (192/512/maskable, geçici simge)
 serve.py               .wasm'ı doğru Content-Type ile sunan yerel geliştirme sunucusu
 css/style.css          Görünüm (kağıt/zümrüt paleti, bkz. aşağı)
 js/justify.js          Kaşide/gerdirme algoritması (DigitalKhatt'tan uyarlandı)
@@ -637,17 +672,6 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
 gerçekten duyuluyor mu, (2) `foreignObject` içindeki metin katmanı
 gerçekten okunabiliyor mu (bilinen risk: bu desen tarayıcı+ekran-okuyucu
 kombinasyonlarında tutarsız olabiliyor).
-
-### PWA: app-shell önbelleği ve manifest
-
-Ses önbelleği tamamlandı (bkz. yukarıdaki "Çevrimdışı ses önbelleği").
-Kalan: sayfa/CSS/JS/mushaf verisi gibi app-shell'in kendisi hâlâ
-önbelleklenmiyor -- çevrimdışıyken uygulama hiç açılmıyor (yalnızca daha
-önce çalınmış ayet sesleri önbellekte olur, ama onları çalacak sayfa
-yüklenemez). Planlanan: `sw.js`'e app-shell için ayrı bir
-network-first/stale-while-revalidate rotası + `manifest.json` ("Ana ekrana
-ekle" için). Güncelleme tarafı zaten `skipWaiting()`/`clients.claim()` ile
-hazır (bkz. `sw.js`), yeni eklenecek rotalar da aynı ilkeyi izlemeli.
 
 ### Kelime tahlili
 

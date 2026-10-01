@@ -16,7 +16,29 @@ import { fileURLToPath } from "url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
-const swSource = fs.readFileSync(path.join(ROOT, "sw.js"), "utf-8");
+const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
+const swSource = readText("sw.js");
+const html = readText("index.html");
+const SHELL_CACHE_NAME = "dijital-mushaf-shell-v1";
+const DATA_CACHE_NAME = "dijital-mushaf-data-v1";
+const AUDIO_CACHE_NAME = "dijital-mushaf-audio-v1";
+// Tüm PRECACHE_URLS'i elle kopyalamak yerine, sw.js'in KENDİ dizisini
+// kaynaktan çıkarıyoruz -- liste değişse bile test otomatik senkron kalır,
+// ayrıca birkaç KRİTİK dosyanın (meal, mushaf, uygulama girişi, HarfBuzz
+// wasm'ı, Quran fontu) listede olduğunu AYRICA doğruluyoruz (aşağıda).
+// Üst düzeydeki self.addEventListener(...) çağrıları GERÇEKTEN ÇALIŞIYOR
+// (yalnızca tanım değil), o yüzden self/caches/fetch için en az birer sahte
+// değer veriyoruz -- aksi hâlde "self is not defined" ile patlar.
+const PRECACHE_URLS = new Function(
+  "self", "caches", "fetch", "console",
+  `${swSource}\nreturn PRECACHE_URLS;`
+)(
+  { addEventListener() {}, skipWaiting() {}, clients: { claim: async () => {} }, location: { origin: "https://x" } },
+  { open: async () => ({ match: async () => {}, put: async () => {}, addAll: async () => {} }), keys: async () => [] },
+  async () => new Response(),
+  console
+);
+const PRECACHE_SAMPLE = PRECACHE_URLS; // install testinde tamamı kontrol ediliyor
 const appSource = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf-8");
 
 let failures = 0;
@@ -37,10 +59,11 @@ check(`sw.js: AUDIO_HOST, app.js'teki gerçek CDN host'uyla (${REAL_HOST}) bireb
 // yorumu "LRU tahliyesi UYGULANMIYOR" gibi bu kelimeleri zaten içeriyor --
 // asıl sorulması gereken KODUN içinde geçiyor mu.)
 const swCodeOnly = swSource.replace(/\/\/.*$/gm, "");
-check("sw.js KODUNDA (yorumlar hariç) boyut/LRU/tahliye mantığı YOK (cache.delete, keys().length, max_items vb. hiçbiri geçmiyor)", !/cache\.delete|caches\.delete|\.keys\(\)|max[_-]?items|max[_-]?age|LRU|evict/i.test(swCodeOnly));
+check("sw.js KODUNDA (yorumlar hariç) TEK TEK ÖĞE tahliyesi YOK: cache.delete(istek) hiç geçmiyor (caches.delete(adı) -- TÜM bir önbelleği silmek, eski SÜRÜM temizliği için -- ayrı ve meşru, aşağıda ayrıca test ediliyor)", !/\bcache\.delete\(/.test(swCodeOnly));
+check("sw.js KODUNDA boyut/LRU sınırı YOK (max_items vb. hiçbiri geçmiyor)", !/max[_-]?items|max[_-]?age|\bLRU\b|\bevict/i.test(swCodeOnly));
 
 // -- sahte ServiceWorkerGlobalScope kurulumu ------------------------------------------------------------
-function makeMockCaches() {
+function makeMockCaches(fetchRef) {
   const stores = new Map(); // cacheName -> Map(url -> Response)
   return {
     open: async (name) => {
@@ -51,16 +74,33 @@ function makeMockCaches() {
         put: async (req, res) => {
           bucket.set(typeof req === "string" ? req : req.url, res);
         },
+        // Gerçek Cache.addAll gibi: her url'i (test'in kontrollü fetch'iyle)
+        // çeker ve saklar; biri başarısız olursa TÜMÜ reddedilir (gerçek
+        // davranışla aynı -- eksik bir dosya "install" başarısız sayılmalı).
+        addAll: async (urls) => {
+          const pairs = await Promise.all(urls.map(async (u) => [u, await fetchRef(u)]));
+          for (const [u, res] of pairs) bucket.set(u, res);
+        },
       };
     },
     _bucketSizes: () => Object.fromEntries([...stores].map(([k, v]) => [k, v.size])),
+    _hasBucket: (name) => stores.has(name),
+    _setBucket: (name, map) => stores.set(name, map), // testte eski-sürüm önbelleği simüle etmek için
+    keys: async () => [...stores.keys()],
+    delete: async (name) => stores.delete(name),
   };
 }
 
 // self: addEventListener çağrılarını yakalayıp test'in elle tetikleyebileceği
 // bir kayda ({ install, activate, fetch }) yazan minik bir sahte hedef.
-function loadWorker({ fetchImpl }) {
+function loadWorker({ fetchImpl, clientsClaim } = {}) {
   const listeners = {};
+  const calls = { fetch: [] };
+  const fetch = async (req) => {
+    calls.fetch.push(typeof req === "string" ? req : req.url);
+    return fetchImpl(req);
+  };
+  const caches = makeMockCaches(fetch);
   const self = {
     addEventListener: (type, fn) => {
       listeners[type] = fn;
@@ -68,13 +108,8 @@ function loadWorker({ fetchImpl }) {
     skipWaiting: () => {
       self._skipWaitingCalled = true;
     },
-    clients: { claim: async () => {} },
-  };
-  const caches = makeMockCaches();
-  const calls = { fetch: [] };
-  const fetch = async (req) => {
-    calls.fetch.push(typeof req === "string" ? req : req.url);
-    return fetchImpl(req);
+    clients: { claim: clientsClaim || (async () => {}) },
+    location: { origin: "https://mustafakilic13.github.io" },
   };
   new Function("self", "caches", "fetch", "console", swSource)(self, caches, fetch, console);
   return { self, caches, listeners, calls };
@@ -95,10 +130,14 @@ function fetchEvent(request) {
 
 // -- install / activate ömür döngüsü -----------------------------------------------------------------------
 {
-  const { self, listeners } = loadWorker({ fetchImpl: async () => new Response("x") });
+  const { self, listeners, caches } = loadWorker({ fetchImpl: async () => new Response("x") });
   check("install/activate dinleyicileri kayıtlı", typeof listeners.install === "function" && typeof listeners.activate === "function");
-  listeners.install({});
+  let installWaited = null;
+  listeners.install({ waitUntil: (p) => (installWaited = p) });
   check("install: self.skipWaiting() çağrılıyor (yeni sürüm hemen devreye girsin)", self._skipWaitingCalled === true);
+  await installWaited;
+  const shell = await caches.open(SHELL_CACHE_NAME);
+  check("install: PRECACHE_URLS'in tamamı SHELL_CACHE'e yazıldı", (await Promise.all(PRECACHE_SAMPLE.map((u) => shell.match(u)))).every(Boolean));
   let claimed = false;
   self.clients.claim = async () => {
     claimed = true;
@@ -109,12 +148,12 @@ function fetchEvent(request) {
   check("activate: event.waitUntil içinde clients.claim() çağrılıyor (açık sekmeler de hemen kontrol altına alınsın)", claimed === true);
 }
 
-// -- fetch: yalnızca ses CDN'i, yalnızca GET ----------------------------------------------------------------
+// -- fetch: yalnızca ses CDN'i / aynı-köken data-shell, başka hiçbir şeye dokunmuyor ---------------------
 {
   const { listeners } = loadWorker({ fetchImpl: async () => new Response("audio-bytes") });
-  const other = fetchEvent(new Request("https://mustafakilic13.github.io/dijital-mushaf/data/meal.json"));
+  const other = fetchEvent(new Request("https://baska-bir-site.example/bir-kaynak.js"));
   listeners.fetch(other.event);
-  check("ses CDN'i DIŞINDAKİ istekler ele alınmıyor (respondWith çağrılmıyor -- normal ağ davranışında kalır)", other.result() === null);
+  check("tamamen İLGİSİZ bir üçüncü-taraf (ne ses CDN'i ne kendi kökenimiz) ele alınmıyor (respondWith çağrılmıyor -- normal ağ davranışında kalır)", other.result() === null);
 
   const post = fetchEvent(new Request("https://audio-cdn.tarteel.ai/quran/husaryMujawwad/001001.mp3", { method: "POST" }));
   listeners.fetch(post.event);
@@ -232,9 +271,119 @@ try {
   check("sw.js fetch()'e event.request'i AYNEN veriyor -- mode korunuyor ('no-cors' 'cors'a dönüşmüyor)", seenMode === "no-cors");
 }
 
+// -- PRECACHE_URLS: kritik dosyalar listede mi -----------------------------------------------------------
+for (const f of ["index.html", "js/app.js", "css/style.css", "data/mushaf.json", "data/meal.json", "vendor/hb.wasm", "fonts/DigitalKhattV2.woff2"]) {
+  check(`PRECACHE_URLS kritik dosyayı içeriyor: ${f}`, PRECACHE_URLS.includes(f));
+}
+check("PRECACHE_URLS ikincil/büyük verileri İÇERMİYOR (word-meal/konular/sure-bilgisi/tefsir/ses-zamanlama/sure-başlıkları -- bunlar İLK KULLANILDIĞINDA önbelleğe giriyor)", (() => {
+  const secondary = ["data/word-meal.json", "data/topics-tr.json", "data/surah-info-tr.json", "data/tafsir-saadi.json", "data/recitation-husary-mujawwad.json", "data/surah-headers/1.json"];
+  return secondary.every((f) => !PRECACHE_URLS.includes(f));
+})());
+
+// -- activate: ESKİ SÜRÜM kabuk/veri önbellekleri silinir, GÜNCEL olanlar (AUDIO dahil!) hiç dokunulmaz --------
+{
+  const { self, caches, listeners } = loadWorker({ fetchImpl: async () => new Response("x") });
+  // Önceki bir SW sürümünden kalmış gibi davranıyoruz: eski kabuk/veri + GÜNCEL ses önbelleği + bu
+  // uygulamaya AİT OLMAYAN bambaşka bir önbellek (başka bir servis worker'a ait olabilir).
+  caches._setBucket("dijital-mushaf-shell-v0", new Map([["eski-dosya.js", new Response("eski")]]));
+  caches._setBucket("dijital-mushaf-data-v0", new Map([["eski-veri.json", new Response("eski")]]));
+  caches._setBucket(AUDIO_CACHE_NAME, new Map([["https://audio-cdn.tarteel.ai/quran/husaryMujawwad/001001.mp3", new Response("kullanıcının-indirdiği-ses")]]));
+  caches._setBucket("baska-bir-uygulamanin-onbellegi", new Map([["x", new Response("x")]]));
+  let claimed = false;
+  self.clients.claim = async () => {
+    claimed = true;
+  };
+  let waited = null;
+  listeners.activate({ waitUntil: (p) => (waited = p) });
+  await waited;
+  check("activate: clients.claim() çağrıldı", claimed === true);
+  check("activate: ESKİ sürüm kabuk/veri önbellekleri silindi", !caches._hasBucket("dijital-mushaf-shell-v0") && !caches._hasBucket("dijital-mushaf-data-v0"));
+  check("activate: GÜNCEL ses önbelleği DOKUNULMADI -- kullanıcının indirdiği ses hâlâ orada (sınırsız/kalıcı garantisi SW güncellemelerinde de geçerli)", (await (await caches.open(AUDIO_CACHE_NAME)).match("https://audio-cdn.tarteel.ai/quran/husaryMujawwad/001001.mp3")) !== undefined);
+  check("activate: bu UYGULAMAYA AİT OLMAYAN başka bir önbelleğe dokunulmadı", caches._hasBucket("baska-bir-uygulamanin-onbellegi"));
+}
+
+// -- fetch: aynı-kökenli data/*.json -> DATA_CACHE'te önbellek-önce ------------------------------------------
+{
+  const url = "https://mustafakilic13.github.io/dijital-mushaf/data/word-meal.json";
+  const { listeners, calls, caches } = loadWorker({ fetchImpl: async () => new Response("kelime-meali-govdesi") });
+  const e1 = fetchEvent(new Request(url));
+  listeners.fetch(e1.event);
+  check("aynı-kökenli /data/ isteği ele alınıyor", e1.result() !== null);
+  await e1.result();
+  const e2 = fetchEvent(new Request(url));
+  listeners.fetch(e2.event);
+  const res2 = await e2.result();
+  check("ikinci istek DATA_CACHE'ten geliyor, ağa ikinci kez gidilmiyor", calls.fetch.length === 1 && (await res2.clone().text()) === "kelime-meali-govdesi");
+  check("DATA_CACHE kullanılıyor (AUDIO_CACHE değil)", (await (await caches.open(DATA_CACHE_NAME)).match(url)) !== undefined);
+}
+
+// -- fetch: uygulama kabuğu -- ÇEVRİMİÇİYKEN her zaman ağdan (otomatik güncelleme), + önbelleğe yazılır -------
+{
+  const url = "https://mustafakilic13.github.io/dijital-mushaf/js/app.js";
+  let version = "v1";
+  const { listeners, calls, caches } = loadWorker({ fetchImpl: async () => new Response(`kabuk-icerigi-${version}`) });
+  const e1 = fetchEvent(new Request(url));
+  listeners.fetch(e1.event);
+  const res1 = await e1.result();
+  check("ilk istek ağdan geldi, 'v1' içerik", (await res1.clone().text()) === "kabuk-icerigi-v1");
+  version = "v2"; // sunucuda yeni bir sürüm yayımlandı
+  const e2 = fetchEvent(new Request(url));
+  listeners.fetch(e2.event);
+  const res2 = await e2.result();
+  check("ÇEVRİMİÇİYKEN ikinci istek de ağa gidiyor -- önbellekteki eski sürüme değil, YENİ 'v2'ye dönüyor (otomatik güncelleme)", calls.fetch.length === 2 && (await res2.clone().text()) === "kabuk-icerigi-v2");
+  check("yeni yanıt da SHELL_CACHE'e yazıldı (çevrimdışı yedek için)", (await (await caches.open(SHELL_CACHE_NAME)).match(url)).clone !== undefined);
+}
+{
+  // Çevrimdışı: ağ başarısız olursa önbellekteki (daha önce başarıyla alınmış) sürüm dönüyor.
+  const url = "https://mustafakilic13.github.io/dijital-mushaf/css/style.css";
+  let online = true;
+  const { listeners } = loadWorker({ fetchImpl: async () => (online ? new Response("css-icerigi") : Promise.reject(new TypeError("Failed to fetch"))) });
+  const e1 = fetchEvent(new Request(url));
+  listeners.fetch(e1.event);
+  await e1.result();
+  online = false;
+  const e2 = fetchEvent(new Request(url));
+  listeners.fetch(e2.event);
+  const res2 = await e2.result();
+  check("çevrimdışıyken (ağ hatası) önceden önbelleklenmiş kabuk dosyası yine de dönüyor", (await res2.clone().text()) === "css-icerigi");
+}
+{
+  // Çevrimdışı VE hiç önbellekte yok (daha önce hiç açılmamış bir dosya) -- gerçek bir hata, sessizce yutulmuyor.
+  const url = "https://mustafakilic13.github.io/dijital-mushaf/js/hic-acilmamis.js";
+  const { listeners } = loadWorker({ fetchImpl: async () => Promise.reject(new TypeError("Failed to fetch")) });
+  const e = fetchEvent(new Request(url));
+  listeners.fetch(e.event);
+  let threw = false;
+  try {
+    await e.result();
+  } catch {
+    threw = true;
+  }
+  check("çevrimdışı + önbellekte yok -> gerçek hata ileri sürülüyor (sessizce boş yanıt değil)", threw);
+}
+
+// -- manifest.json + index.html bağlantıları ----------------------------------------------------------------
+{
+  const manifest = JSON.parse(readText("manifest.json"));
+  check("manifest: name/short_name dolu", !!manifest.name && !!manifest.short_name);
+  check("manifest: start_url + scope tanımlı (göreli -- GH Pages alt-yol bağımsız)", manifest.start_url === "." && manifest.scope === ".");
+  check("manifest: display standalone", manifest.display === "standalone");
+  check("manifest: theme_color/background_color geçerli hex", /^#[0-9a-f]{6}$/i.test(manifest.theme_color) && /^#[0-9a-f]{6}$/i.test(manifest.background_color));
+  check("manifest: en az 192x192 ve 512x512 'any' ikon + bir 'maskable' ikon var", manifest.icons.some((i) => i.sizes === "192x192" && i.purpose === "any") && manifest.icons.some((i) => i.sizes === "512x512" && i.purpose === "any") && manifest.icons.some((i) => i.purpose === "maskable"));
+  check("manifest'teki TÜM ikon dosyaları gerçekten var", manifest.icons.every((i) => fs.existsSync(path.join(ROOT, i.src))));
+}
+check("index.html: manifest bağlı", /<link rel="manifest" href="manifest\.json" \/>/.test(html));
+check("index.html: theme-color meta'sı manifest'tekiyle aynı", (() => {
+  const manifest = JSON.parse(readText("manifest.json"));
+  const m = /<meta name="theme-color" content="(#[0-9a-f]{6})" \/>/i.exec(html);
+  return !!m && m[1].toLowerCase() === manifest.theme_color.toLowerCase();
+})());
+
 if (failures) {
   console.error(`\n${failures} check(s) failed.`);
   process.exit(1);
 } else {
-  console.log("All checks passed (sw.js: install/activate, yalnız ses-CDN+GET filtresi, cache-first, opak yanıt, hata dayanıklılığı, hafız ayrımı, sınır/LRU yokluğu, CDN host senkronu).");
+  console.log(
+    "All checks passed (sw.js: install precache + skipWaiting, activate temizliği (AUDIO_CACHE dahil GÜNCEL önbellekler dokunulmaz), ses-CDN+GET filtresi, ses/veri cache-first-forever, kabuk network-first+offline-fallback, opak yanıt, hata dayanıklılığı, hafız ayrımı, sınır/LRU yokluğu, CDN host senkronu)."
+  );
 }
