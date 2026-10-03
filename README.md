@@ -501,7 +501,24 @@ dosyanın kendi başlık yorumu):
   açılıp Arapça metni + Türkçe meali göstersin; kelime meali, Konu
   Fihristi, sure bilgisi, Sa'dî tefsiri, ses-vurgu zamanlaması ve sure
   başlığı SVG'leri gibi daha büyük/ikincil veriler **ilk kullanıldıklarında**
-  kendiliğinden önbelleğe giriyor (önceden indirilmiyor).
+  kendiliğinden önbelleğe giriyor (önceden indirilmiyor) -- **tek istisna
+  sure başlıkları**: aşağıya bkz.
+
+**Sure başlıkları ayrıca ısıtılıyor.** `data/surah-headers/1..114.json`
+(toplam 9+ MB) kasıtlı olarak `PRECACHE_URLS`'te değil -- ilk kurulumu
+ağırlaştırmasın diye. Ama bunun ilk hâli bir eksiklik yaratıyordu:
+çevrimiçiyken hiç GÖRÜLMEYEN bir surenin başlığı (o sureye gidilip
+`fetchHeaderGlyph` çalışmadan) hiç önbellekte olmuyor, çevrimdışı o
+sayfanın başlığı eksik görünüyordu (sayfanın geri kalanı yine render
+oluyordu -- `buildPage`'teki `try/catch` zaten tek bir başlık hatasını
+yutup diğer surelerle devam ediyor). Çözüm: `activate`'te, `clients.claim()`u
+GECİKTİRMEYEN AYRI bir arka plan görevi (`warmUpSurahHeaders`) 114
+başlığın hepsini küçük bir eşzamanlılık sınırıyla (4 istek birden) tek
+tek ısıtıyor; zaten önbellekte olanlar atlanıyor, biri başarısız olursa
+diğerleri durmuyor (sayfa o sureye gerçekten gidildiğinde normal fetch
+handler zaten yeniden dener). Sonuç: ilk ziyareti hafif tutmaya devam
+ederken, kurulumdan birkaç dakika içinde TÜM sure başlıkları da
+çevrimdışı kullanılabilir hâle geliyor.
 
 `activate` olayında yalnızca BU UYGULAMAYA ait **eski sürüm** kabuk/veri
 önbellekleri siliniyor (`caches.keys()` + ad ön eki eşleşmesi) -- güncel

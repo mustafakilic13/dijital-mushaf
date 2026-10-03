@@ -29,9 +29,9 @@ const AUDIO_CACHE_NAME = "dijital-mushaf-audio-v1";
 // Üst düzeydeki self.addEventListener(...) çağrıları GERÇEKTEN ÇALIŞIYOR
 // (yalnızca tanım değil), o yüzden self/caches/fetch için en az birer sahte
 // değer veriyoruz -- aksi hâlde "self is not defined" ile patlar.
-const PRECACHE_URLS = new Function(
+const [PRECACHE_URLS, SURAH_HEADER_URLS] = new Function(
   "self", "caches", "fetch", "console",
-  `${swSource}\nreturn PRECACHE_URLS;`
+  `${swSource}\nreturn [PRECACHE_URLS, SURAH_HEADER_URLS];`
 )(
   { addEventListener() {}, skipWaiting() {}, clients: { claim: async () => {} }, location: { origin: "https://x" } },
   { open: async () => ({ match: async () => {}, put: async () => {}, addAll: async () => {} }), keys: async () => [] },
@@ -39,6 +39,7 @@ const PRECACHE_URLS = new Function(
   console
 );
 const PRECACHE_SAMPLE = PRECACHE_URLS; // install testinde tamamı kontrol ediliyor
+check("SURAH_HEADER_URLS tam 114 (Kur'an'daki sure sayısı)", SURAH_HEADER_URLS.length === 114 && SURAH_HEADER_URLS[0] === "data/surah-headers/1.json" && SURAH_HEADER_URLS[113] === "data/surah-headers/114.json");
 const appSource = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf-8");
 
 let failures = 0;
@@ -115,6 +116,14 @@ function loadWorker({ fetchImpl, clientsClaim } = {}) {
   return { self, caches, listeners, calls };
 }
 
+// activate artık BİRDEN ÇOK event.waitUntil() çağırıyor (clients.claim+temizlik VE
+// ayrı olarak sure başlığı ısıtması, bkz. sw.js) -- tek bir değişkene atamak
+// SONUNCUYU ezer; hepsini toplayıp Promise.all ile birlikte bekliyoruz.
+function collectWaitUntil() {
+  const all = [];
+  return { waitUntil: (p) => all.push(p), all: () => Promise.all(all) };
+}
+
 function fetchEvent(request) {
   let responded = null;
   return {
@@ -142,9 +151,9 @@ function fetchEvent(request) {
   self.clients.claim = async () => {
     claimed = true;
   };
-  let waited = null;
-  listeners.activate({ waitUntil: (p) => (waited = p) });
-  await waited;
+  const act = collectWaitUntil();
+  listeners.activate(act);
+  await act.all();
   check("activate: event.waitUntil içinde clients.claim() çağrılıyor (açık sekmeler de hemen kontrol altına alınsın)", claimed === true);
 }
 
@@ -293,13 +302,94 @@ check("PRECACHE_URLS ikincil/büyük verileri İÇERMİYOR (word-meal/konular/su
   self.clients.claim = async () => {
     claimed = true;
   };
-  let waited = null;
-  listeners.activate({ waitUntil: (p) => (waited = p) });
-  await waited;
+  const act = collectWaitUntil();
+  listeners.activate(act);
+  await act.all();
   check("activate: clients.claim() çağrıldı", claimed === true);
   check("activate: ESKİ sürüm kabuk/veri önbellekleri silindi", !caches._hasBucket("dijital-mushaf-shell-v0") && !caches._hasBucket("dijital-mushaf-data-v0"));
   check("activate: GÜNCEL ses önbelleği DOKUNULMADI -- kullanıcının indirdiği ses hâlâ orada (sınırsız/kalıcı garantisi SW güncellemelerinde de geçerli)", (await (await caches.open(AUDIO_CACHE_NAME)).match("https://audio-cdn.tarteel.ai/quran/husaryMujawwad/001001.mp3")) !== undefined);
   check("activate: bu UYGULAMAYA AİT OLMAYAN başka bir önbelleğe dokunulmadı", caches._hasBucket("baska-bir-uygulamanin-onbellegi"));
+}
+
+// -- activate: sure başlıklarının TAMAMI arka planda ısıtılıyor (114'ü de), ama clients.claim'i GECİKTİRMEDEN --
+// Bu, kullanıcının bildirdiği gerçek hata için: "çevrimiçiyken görüntülenen
+// sure başlıkları hariç diğerleri çevrimdışıyken görünmüyor" -- surah-headers
+// PRECACHE_URLS'te değil (9+ MB, ilk kurulumu ağırlaştırmasın diye), bu yüzden
+// activate'te arka planda ayrıca ısıtılıyor; bkz. sw.js'teki warmUpSurahHeaders.
+{
+  const requested = [];
+  let claimResolved = false;
+  const { listeners, caches } = loadWorker({
+    fetchImpl: async (req) => {
+      requested.push(req);
+      return new Response(`baslik-${req}`);
+    },
+    clientsClaim: async () => {
+      claimResolved = true;
+    },
+  });
+  const act = collectWaitUntil();
+  listeners.activate(act);
+  await act.all();
+  check("activate sonunda (tüm waitUntil'ler bitince) clients.claim de tamamlanmış", claimResolved === true);
+  check("114 sure başlığının TAMAMI istendi", SURAH_HEADER_URLS.every((u) => requested.includes(u)) && requested.filter((u) => u.startsWith("data/surah-headers/")).length === 114);
+  const cache = await caches.open(DATA_CACHE_NAME);
+  const first = await cache.match("data/surah-headers/1.json");
+  const last = await cache.match("data/surah-headers/114.json");
+  check("hem ilk hem son sure başlığı DATA_CACHE'e yazıldı (örnekleme)", !!first && !!last && (await first.clone().text()) === "baslik-data/surah-headers/1.json");
+}
+{
+  // Bir sure zaten çevrimiçiyken görülüp önbelleğe girmişse (normal fetch
+  // handler'dan), ısıtma onu YENİDEN İSTEMEMELİ -- gereksiz ağ kullanmasın.
+  const requested = [];
+  const { listeners, caches } = loadWorker({ fetchImpl: async (req) => { requested.push(req); return new Response("x"); } });
+  const dataCache = await caches.open(DATA_CACHE_NAME);
+  await dataCache.put("data/surah-headers/36.json", new Response("onceden-gorulmus-yasin"));
+  const act = collectWaitUntil();
+  listeners.activate(act);
+  await act.all();
+  check("önceden önbellekte olan bir sure başlığı yeniden istenmiyor", !requested.includes("data/surah-headers/36.json"));
+  check("...ama önbellekteki içeriği KORUNUYOR (üzerine yazılmadı)", (await (await dataCache.match("data/surah-headers/36.json")).clone().text()) === "onceden-gorulmus-yasin");
+}
+// try/catch: bu senaryo başarısız olursa (ör. sw.js'teki koruma kaldırılırsa
+// act.all() REDDEDİLİR) tek başına bir hata olarak işaretlensin, geri kalan
+// senaryoları çökertip listenin devamını gizlemesin (bkz. tefsir'in aynı
+// desenli hata-dayanıklılığı testi, yukarıda).
+try {
+  // Isıtma SIRASINDA bir/birkaç sure başlığı ağ hatası verirse diğerleri
+  // yine de tamamlanmalı (tek noktanın başarısızlığı kritik değil -- bkz. yorum).
+  const { listeners, caches } = loadWorker({
+    fetchImpl: async (req) => (req.includes("surah-headers/7.json") ? Promise.reject(new TypeError("ağ hatası")) : new Response("ok")),
+  });
+  const act = collectWaitUntil();
+  listeners.activate(act);
+  await act.all(); // çökmemeli
+  const cache = await caches.open(DATA_CACHE_NAME);
+  const failed = await cache.match("data/surah-headers/7.json");
+  const okOne = await cache.match("data/surah-headers/8.json");
+  check("bir sure başlığı başarısız olsa bile ısıtma ÇÖKMÜYOR ve diğerleri tamamlanıyor", !failed && !!okOne);
+} catch (err) {
+  check(`bir sure başlığı başarısız olsa bile ısıtma ÇÖKMÜYOR ve diğerleri tamamlanıyor -- act.all() REDDEDİLDİ: ${err.message}`, false);
+}
+{
+  // Eşzamanlılık makul şekilde sınırlı: hiçbir anda WARM_UP_CONCURRENCY'den
+  // (sw.js'te 4) fazla sure başlığı isteği aynı anda uçuşmuyor -- bant
+  // genişliğini tek seferde boğmasın.
+  let inFlight = 0;
+  let maxInFlight = 0;
+  const { listeners } = loadWorker({
+    fetchImpl: async () => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 2));
+      inFlight--;
+      return new Response("x");
+    },
+  });
+  const act = collectWaitUntil();
+  listeners.activate(act);
+  await act.all();
+  check(`eşzamanlılık sınırlı (gözlenen en yüksek anlık istek: ${maxInFlight}, beklenen <= 4)`, maxInFlight > 0 && maxInFlight <= 4);
 }
 
 // -- fetch: aynı-kökenli data/*.json -> DATA_CACHE'te önbellek-önce ------------------------------------------

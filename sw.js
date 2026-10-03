@@ -80,7 +80,48 @@ self.addEventListener("install", (event) => {
   );
 });
 
+// Sure başlığı SVG'leri (data/surah-headers/1.json..114.json, bkz. js/app.js
+// fetchHeaderGlyph) PRECACHE_URLS'te YOK -- hepsi birlikte 9+ MB, ilk kurulumu
+// gereksiz ağırlaştırmasın diye. Ama bunun bedeli: çevrimiçiyken hiç
+// GÖRÜLMEYEN bir surenin başlığı, o sureye gidilmeden çevrimdışı kalınırsa
+// hiç önbellekte olmuyordu -- sayfa o noktada başlıksız/eksik görünüyordu.
+// Çözüm: activate'te, SW'nin kontrolü devralmasını (clients.claim) GECİKTİRMEDEN
+// -- bkz. aşağıdaki AYRI event.waitUntil -- arka planda hepsini tek tek
+// ısıtıyoruz. Küçük bir eşzamanlılık sınırıyla (bant genişliğini tek seferde
+// boğmasın) ve biri başarısız olursa diğerlerini durdurmadan (sayfa gerçekten
+// o sureye gidildiğinde zaten normal fetch handler'dan -- cacheFirstForever/
+// DATA_CACHE -- önbelleğe girer; bu yalnızca bir iyileştirme, tek bir
+// noktanın başarısızlığı kritik değil). self.skipWaiting() sayesinde bu her
+// SAYFA AÇILIŞINDA değil, yalnızca SW ilk kurulduğunda/güncellendiğinde bir
+// kez çalışır -- önceki bir çalışmadan zaten önbellekte olanlar atlanır.
+const SURAH_HEADER_COUNT = 114;
+const SURAH_HEADER_URLS = Array.from({ length: SURAH_HEADER_COUNT }, (_, i) => `data/surah-headers/${i + 1}.json`);
+const WARM_UP_CONCURRENCY = 4;
+
+async function warmUpSurahHeaders() {
+  const cache = await caches.open(DATA_CACHE);
+  let next = 0;
+  async function worker() {
+    while (next < SURAH_HEADER_URLS.length) {
+      const url = SURAH_HEADER_URLS[next++];
+      if (await cache.match(url)) continue; // önceki bir kurulumdan/ziyaretten zaten var
+      try {
+        const response = await fetch(url);
+        if (response.ok) await cache.put(url, response);
+      } catch (err) {
+        console.warn("[sw] sure başlığı önceden ısıtılamadı", url, err);
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: WARM_UP_CONCURRENCY }, worker));
+}
+
 self.addEventListener("activate", (event) => {
+  // clients.claim + eski sürüm temizliği, ısıtmadan AYRI bir waitUntil'de:
+  // ikisi de aynı anda (paralel) başlar, biri diğerini GECİKTİRMEZ -- yalnızca
+  // bu "temel" iş bittiğinde kendi waitUntil'i ayrıca settle olur, kodu
+  // "asıl aktivasyon görevleri" / "arka plan iyileştirmesi" olarak ayrı
+  // okunabilir tutuyor.
   event.waitUntil(
     Promise.all([
       self.clients.claim(),
@@ -98,6 +139,11 @@ self.addEventListener("activate", (event) => {
       ),
     ])
   );
+  // AYRI bir waitUntil: yukarıdakinin sonucunu beklemeden hemen başlar;
+  // yalnızca bu sürerken worker'ın erken sonlandırılmasını önlüyor (bkz.
+  // warmUpSurahHeaders'ın üstündeki yorum) -- event.waitUntil'in DIŞINDA
+  // bırakılsaydı tarayıcı worker'ı işi bitmeden sonlandırabilirdi.
+  event.waitUntil(warmUpSurahHeaders());
 });
 
 self.addEventListener("fetch", (event) => {
