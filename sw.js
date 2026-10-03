@@ -5,12 +5,14 @@
 //     recitationAudioUrl/RECITERS. Önbellek-önce, DİNLENDİKÇE, SINIRSIZ:
 //     kullanıcının açık tercihi, boyut/LRU tahliyesi UYGULANMIYOR.
 //  2. UYGULAMA KABUĞU (SHELL_CACHE, aynı-kökenli HTML/CSS/JS/vendor/font) --
-//     PRECACHE_URLS install'da önceden indirilir; fetch'te AĞ-ÖNCE: çevrimiçiyken
+//     PRECACHE_URLS'in data/ dışındaki kısmı (+ "./", yani scope kökü: manifest
+//     start_url'ü) install'da önceden indirilir; fetch'te AĞ-ÖNCE: çevrimiçiyken
 //     her zaman en güncel sürüm (otomatik güncelleme -- bkz. skipWaiting/
 //     clients.claim aşağıda), çevrimdışıyken önbellekten.
 //  3. STATİK VERİ (DATA_CACHE, aynı-kökenli data/*.json) -- PRECACHE_URLS'teki
 //     "çekirdek okuma" verisi (mushaf/meal/sure-ayet listeleri/gezinme
-//     tabloları) önceden, geri kalanı (kelime meali, konular, sure bilgisi,
+//     tabloları) install'da doğrudan DATA_CACHE'e (fetch handler yalnızca orayı
+//     okur) önceden, geri kalanı (kelime meali, konular, sure bilgisi,
 //     tefsir, ses-vurgu zamanlaması, sure başlıkları) İLK KULLANILDIĞINDA;
 //     ikisi de sonra önbellek-önce (veri yayımlandıktan sonra değişmiyor).
 //
@@ -41,6 +43,11 @@ const AUDIO_HOST = "audio-cdn.tarteel.ai";
 // -- onlar data/ için de geçerli "ilk kullanıldığında önbelleğe al" kuralına
 // göre DATA_CACHE'e kendiliğinden giriyor (bkz. fetch handler).
 const PRECACHE_URLS = [
+  // Scope kökü (manifest "start_url": "." / ana ekrandan açılış): dizin URL'si,
+  // "index.html"den FARKLI bir önbellek anahtarı -- Cache API dizin çözümlemesi
+  // yapmaz. Bunu önceden indirmezsek, kurulumdan sonra SW denetiminde hiç
+  // çevrimiçi açılış olmadan çevrimdışı açılış başarısız olurdu.
+  "./",
   "index.html",
   "css/style.css",
   "js/app.js",
@@ -72,11 +79,22 @@ const PRECACHE_URLS = [
   "data/surah-pages.json",
 ];
 
+// PRECACHE_URLS iki hedefe bölünür: data/* -> DATA_CACHE, geri kalanı -> SHELL_CACHE.
+// Neden: fetch handler'ı /data/ isteklerini YALNIZCA DATA_CACHE'te arıyor
+// (cacheFirstForever(request, DATA_CACHE)); hepsi SHELL_CACHE'e yazılırsa çekirdek
+// veri orada duruyor ama hiç okunmuyordu. İlk ziyarette sayfanın kendi başlangıç
+// veri istekleri de SW henüz devralmadığı için ona uğramaz -- yani DATA_CACHE'e
+// başka türlü hiç girmez ve kurulumdan hemen sonraki çevrimdışı açılışta eksik kalırdı.
+const isDataUrl = (url) => url.startsWith("data/");
+
 self.addEventListener("install", (event) => {
   // Yeni sürüm, sekmeler kapanmayı beklemeden hemen devreye girsin.
   self.skipWaiting();
   event.waitUntil(
-    caches.open(SHELL_CACHE).then((cache) => cache.addAll(PRECACHE_URLS))
+    Promise.all([
+      caches.open(SHELL_CACHE).then((cache) => cache.addAll(PRECACHE_URLS.filter((u) => !isDataUrl(u)))),
+      caches.open(DATA_CACHE).then((cache) => cache.addAll(PRECACHE_URLS.filter(isDataUrl))),
+    ])
   );
 });
 
@@ -202,7 +220,10 @@ async function cacheFirstForever(request, cacheName) {
 // (varsa daha önceki hâlinin üzerine) önbelleğe yazılır -- çevrimiçiyken bu
 // sayede her zaman en güncel sürüm kullanılır. Ağ başarısız olursa (gerçekten
 // çevrimdışı) önbellekten dönülür; o da yoksa (ör. daha önce hiç açılmamış
-// bir dosya) hata ileri sürülür.
+// bir dosya) hata ileri sürülür. İstisna: sayfa GEZİNTİSİ (request.mode ===
+// "navigate") için tam eşleşme yoksa -- ör. URL'de bir sorgu dizesi
+// (`?utm_...`) varsa -- uygulama kabuğu (index.html) dönülür: tek sayfalık bir
+// uygulama, hangi gezinti URL'si olursa olsun aynı kabuğu açar.
 async function networkFirstShell(request) {
   const cache = await caches.open(SHELL_CACHE);
   try {
@@ -218,6 +239,10 @@ async function networkFirstShell(request) {
   } catch (err) {
     const cached = await cache.match(request);
     if (cached) return cached;
+    if (request.mode === "navigate") {
+      const shell = await cache.match("index.html");
+      if (shell) return shell;
+    }
     throw err;
   }
 }

@@ -492,13 +492,20 @@ dosyanın kendi başlık yorumu):
   önbellekten döner. Bu, güncellemelerin kullanıcı hiçbir şey yapmadan
   (yenile/banner falan olmadan) bir sonraki ziyarette otomatik
   uygulanmasını sağlıyor -- `skipWaiting()`+`clients.claim()` ile
-  birlikte.
+  birlikte. Scope kökü (`"./"`, yani manifest `start_url`'ü) de
+  `install`'da önceden indirilir: dizin URL'si `index.html`den FARKLI bir
+  önbellek anahtarı olduğundan, bunsuz "ana ekrandan ilk açılış"
+  çevrimdışıyken başarısız olurdu. Ayrıca çevrimdışıyken bir sayfa
+  gezintisi için tam eşleşme yoksa (ör. URL'de sorgu dizesi) `index.html`
+  kabuğu dönülür.
 - **Statik veri** (`dijital-mushaf-data-v1`: `data/*.json`) --
   **önbellek-önce**, ses gibi sınırsız (veri yayımlandıktan sonra
   değişmiyor). "Çekirdek okuma" verisi (mushaf, meal, sure/ayet/cüz vb.
   gezinme tabloları -- tam liste `sw.js`'teki `PRECACHE_URLS`) **ilk
-  ziyarette önceden** indirilir ki uygulama baştan itibaren çevrimdışı
-  açılıp Arapça metni + Türkçe meali göstersin; kelime meali, Konu
+  ziyarette önceden** indirilir (`install` bunları doğrudan
+  `DATA_CACHE`'e yazar -- `/data/` istekleri yalnızca orada aranır) ki
+  uygulama baştan itibaren çevrimdışı açılıp Arapça metni + Türkçe
+  meali göstersin; kelime meali, Konu
   Fihristi, sure bilgisi, Sa'dî tefsiri, ses-vurgu zamanlaması ve sure
   başlığı SVG'leri gibi daha büyük/ikincil veriler **ilk kullanıldıklarında**
   kendiliğinden önbelleğe giriyor (önceden indirilmiyor) -- **tek istisna
@@ -544,7 +551,11 @@ yeterli). `index.html`'e `<link rel="manifest">` + `<meta name="theme-color">`
 `Function` içinde çalıştırıp `install`/`activate`/`fetch` olaylarını elle
 tetikliyor (Node'un yerleşik `fetch`/`Request`/`Response`'u kullanılıyor);
 `PRECACHE_URLS`'i de doğrudan `sw.js`'ten çıkarıp hem kritik dosyaların
-listede olduğunu hem ikincil/büyük verilerin OLMADIĞINI doğruluyor.
+listede olduğunu hem ikincil/büyük verilerin OLMADIĞINI doğruluyor. Sahte
+`caches`, gerçek Cache API gibi göreli URL'leri `sw.js`'in adresine göre
+mutlak URL'ye çözüyor; böylece "kurulumdan hemen sonra, hiç çevrimiçi
+açılış olmadan çevrimdışı" senaryosu (`PRECACHE_URLS`'in her biri + dizin
+URL'si + gezinti fallback'i) da sınanıyor.
 
 ## Proje yapısı
 

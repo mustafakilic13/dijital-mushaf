@@ -22,6 +22,15 @@ const html = readText("index.html");
 const SHELL_CACHE_NAME = "dijital-mushaf-shell-v1";
 const DATA_CACHE_NAME = "dijital-mushaf-data-v1";
 const AUDIO_CACHE_NAME = "dijital-mushaf-audio-v1";
+// Gerçek Cache API, göreli bir URL'yi (ör. cache.addAll(["data/mushaf.json"]))
+// servis worker'ın KENDİ adresine göre mutlak URL'ye çözer; sahte önbellek de
+// aynısını yapmalı -- aksi hâlde "göreli anahtarla yazıldı, mutlak istekle
+// aranıyor" uyuşmazlığı testlerde görünmez kalır (install'ın çekirdek veriyi
+// yanlış önbelleğe yazması tam olarak böyle gözden kaçmıştı).
+const SW_URL = "https://mustafakilic13.github.io/dijital-mushaf/sw.js";
+const SCOPE_URL = new URL(".", SW_URL).href; // https://mustafakilic13.github.io/dijital-mushaf/
+const absUrl = (u) => (typeof u === "string" ? new URL(u, SW_URL).href : u.url);
+const isData = (u) => u.startsWith("data/");
 // Tüm PRECACHE_URLS'i elle kopyalamak yerine, sw.js'in KENDİ dizisini
 // kaynaktan çıkarıyoruz -- liste değişse bile test otomatik senkron kalır,
 // ayrıca birkaç KRİTİK dosyanın (meal, mushaf, uygulama girişi, HarfBuzz
@@ -71,16 +80,16 @@ function makeMockCaches(fetchRef) {
       if (!stores.has(name)) stores.set(name, new Map());
       const bucket = stores.get(name);
       return {
-        match: async (req) => bucket.get(typeof req === "string" ? req : req.url),
+        match: async (req) => bucket.get(absUrl(req)),
         put: async (req, res) => {
-          bucket.set(typeof req === "string" ? req : req.url, res);
+          bucket.set(absUrl(req), res);
         },
         // Gerçek Cache.addAll gibi: her url'i (test'in kontrollü fetch'iyle)
         // çeker ve saklar; biri başarısız olursa TÜMÜ reddedilir (gerçek
         // davranışla aynı -- eksik bir dosya "install" başarısız sayılmalı).
         addAll: async (urls) => {
           const pairs = await Promise.all(urls.map(async (u) => [u, await fetchRef(u)]));
-          for (const [u, res] of pairs) bucket.set(u, res);
+          for (const [u, res] of pairs) bucket.set(absUrl(u), res);
         },
       };
     },
@@ -146,7 +155,13 @@ function fetchEvent(request) {
   check("install: self.skipWaiting() çağrılıyor (yeni sürüm hemen devreye girsin)", self._skipWaitingCalled === true);
   await installWaited;
   const shell = await caches.open(SHELL_CACHE_NAME);
-  check("install: PRECACHE_URLS'in tamamı SHELL_CACHE'e yazıldı", (await Promise.all(PRECACHE_SAMPLE.map((u) => shell.match(u)))).every(Boolean));
+  const dataCache = await caches.open(DATA_CACHE_NAME);
+  const shellUrls = PRECACHE_SAMPLE.filter((u) => !isData(u));
+  const dataUrls = PRECACHE_SAMPLE.filter(isData);
+  check("install: PRECACHE_URLS hem kabuk (data/ dışı) hem veri (data/) dosyası içeriyor (aşağıdaki 'tamamı' kontrolleri boş kümede sessizce geçmesin)", shellUrls.length > 0 && dataUrls.length > 0);
+  check("install: kabuk dosyaları (PRECACHE_URLS'te data/ dışındakilerin tamamı, './' scope kökü dahil) SHELL_CACHE'e yazıldı", (await Promise.all(shellUrls.map((u) => shell.match(u)))).every(Boolean));
+  check("install: çekirdek veri (PRECACHE_URLS'teki data/*) DATA_CACHE'e yazıldı -- fetch handler /data/ isteklerini yalnızca orada arıyor", (await Promise.all(dataUrls.map((u) => dataCache.match(u)))).every(Boolean));
+  check("install: çekirdek veri SHELL_CACHE'te ayrıca (hiç okunmayacak bir çift kopya olarak) TUTULMUYOR", (await Promise.all(dataUrls.map((u) => shell.match(u)))).every((r) => r === undefined));
   let claimed = false;
   self.clients.claim = async () => {
     claimed = true;
@@ -281,7 +296,8 @@ try {
 }
 
 // -- PRECACHE_URLS: kritik dosyalar listede mi -----------------------------------------------------------
-for (const f of ["index.html", "js/app.js", "css/style.css", "data/mushaf.json", "data/meal.json", "vendor/hb.wasm", "fonts/DigitalKhattV2.woff2"]) {
+// ("./" = scope kökü, yani manifest start_url'ü: dizin URL'si "index.html"den FARKLI bir önbellek anahtarı.)
+for (const f of ["./", "index.html", "js/app.js", "css/style.css", "data/mushaf.json", "data/meal.json", "vendor/hb.wasm", "fonts/DigitalKhattV2.woff2"]) {
   check(`PRECACHE_URLS kritik dosyayı içeriyor: ${f}`, PRECACHE_URLS.includes(f));
 }
 check("PRECACHE_URLS ikincil/büyük verileri İÇERMİYOR (word-meal/konular/sure-bilgisi/tefsir/ses-zamanlama/sure-başlıkları -- bunlar İLK KULLANILDIĞINDA önbelleğe giriyor)", (() => {
@@ -452,6 +468,72 @@ try {
   check("çevrimdışı + önbellekte yok -> gerçek hata ileri sürülüyor (sessizce boş yanıt değil)", threw);
 }
 
+// -- install'dan HEMEN sonra (SW denetiminde hiç çevrimiçi sayfa açılışı olmadan) çevrimdışı --------------------
+// Gerçek akış: ilk ziyarette sayfa SW'siz yüklenir (kendi veri istekleri SW'den
+// geçmez), SW arkada kurulur; kullanıcı HİÇ yeniden çevrimiçi açmadan ağı
+// kaybederse (ör. ana ekrana ekleyip yola çıkmak) PRECACHE_URLS'teki HER ŞEY yine
+// de çevrimdışı servis edilebilmeli. Regresyon: eskiden tüm PRECACHE_URLS
+// (data/*.json dahil) SHELL_CACHE'e yazılıyor, /data/ istekleri ise yalnızca
+// DATA_CACHE'e bakıyordu -> çekirdek veri çevrimdışı hiç dönmüyordu; dizin
+// URL'si de ("." -- manifest start_url'ü) "index.html"den FARKLI bir anahtar
+// olduğundan önbellekte yoktu.
+{
+  let online = true;
+  const { listeners } = loadWorker({
+    fetchImpl: async (req) => {
+      if (!online) throw new TypeError("Failed to fetch");
+      return new Response("govde:" + absUrl(req));
+    },
+  });
+  let installWaited = null;
+  listeners.install({ waitUntil: (p) => (installWaited = p) });
+  await installWaited;
+  const act = collectWaitUntil();
+  listeners.activate(act);
+  await act.all();
+  online = false; // install+activate bitti; sayfa HİÇ SW denetiminde çevrimiçi açılmadı
+
+  const unavailable = [];
+  for (const u of PRECACHE_URLS) {
+    const abs = absUrl(u);
+    const e = fetchEvent(new Request(abs));
+    listeners.fetch(e.event);
+    try {
+      const res = await e.result();
+      if ((await res.clone().text()) !== "govde:" + abs) unavailable.push(`${u} (yanlış gövde)`);
+    } catch {
+      unavailable.push(u);
+    }
+  }
+  check(`install'dan sonra, hiç çevrimiçi açılış olmadan: PRECACHE_URLS'in HER BİRİ çevrimdışı servis ediliyor${unavailable.length ? ` -- ERİŞİLEMEYEN: ${unavailable.join(", ")}` : ""}`, unavailable.length === 0);
+
+  // Yukarıdaki döngü PRECACHE_URLS'teki "./"u da kapsıyor; ama adıyla da dursun: manifest start_url'ü bu.
+  const start = fetchEvent(new Request(SCOPE_URL));
+  listeners.fetch(start.event);
+  const startRes = await start.result().catch(() => null);
+  check("çevrimdışı + dizin URL'si (manifest start_url '.') -> önbellekten dönüyor (scope kökü 'index.html'den farklı bir anahtar)", !!startRes && (await startRes.clone().text()) === "govde:" + SCOPE_URL);
+
+  // Sayfa gezintisi + tam eşleşme yok (URL'de sorgu dizesi) -> kabuk (index.html) fallback'i.
+  // Node'un Request'i mode:"navigate"i kuramadığından (undici reddediyor) istek
+  // nesnesi elle kuruluyor; sw.js yalnızca method/url/mode okuyup nesneyi
+  // fetch()/cache.match()'e geçiriyor.
+  const nav = fetchEvent({ url: SCOPE_URL + "?utm_source=paylasim", method: "GET", mode: "navigate" });
+  listeners.fetch(nav.event);
+  const navRes = await nav.result().catch(() => null);
+  check("çevrimdışı + sayfa gezintisi + tam eşleşme yok (URL'de sorgu dizesi) -> index.html kabuğu dönüyor", !!navRes && (await navRes.clone().text()) === "govde:" + absUrl("index.html"));
+
+  // Fallback yalnızca GEZİNTİ için: başka bir istekte (ör. hiç açılmamış bir .js) gerçek hata ileri sürülmeli.
+  const nonNav = fetchEvent(new Request(SCOPE_URL + "js/hic-acilmamis.js"));
+  listeners.fetch(nonNav.event);
+  let nonNavThrew = false;
+  try {
+    await nonNav.result();
+  } catch {
+    nonNavThrew = true;
+  }
+  check("fallback yalnızca gezinti için: gezinti-dışı + önbellekte yok -> gerçek hata hâlâ ileri sürülüyor (index.html'e sessizce düşmüyor)", nonNavThrew);
+}
+
 // -- manifest.json + index.html bağlantıları ----------------------------------------------------------------
 {
   const manifest = JSON.parse(readText("manifest.json"));
@@ -474,6 +556,6 @@ if (failures) {
   process.exit(1);
 } else {
   console.log(
-    "All checks passed (sw.js: install precache + skipWaiting, activate temizliği (AUDIO_CACHE dahil GÜNCEL önbellekler dokunulmaz), ses-CDN+GET filtresi, ses/veri cache-first-forever, kabuk network-first+offline-fallback, opak yanıt, hata dayanıklılığı, hafız ayrımı, sınır/LRU yokluğu, CDN host senkronu)."
+    "All checks passed (sw.js: install precache (kabuk -> SHELL_CACHE, çekirdek veri -> DATA_CACHE, './' scope kökü) + skipWaiting, install'dan hemen sonra çevrimdışı açılış (PRECACHE_URLS'in her biri + dizin URL'si + gezinti fallback'i), activate temizliği (AUDIO_CACHE dahil GÜNCEL önbellekler dokunulmaz), ses-CDN+GET filtresi, ses/veri cache-first-forever, kabuk network-first+offline-fallback, opak yanıt, hata dayanıklılığı, hafız ayrımı, sınır/LRU yokluğu, CDN host senkronu)."
   );
 }
