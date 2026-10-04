@@ -6,7 +6,12 @@
 // aria-hidden YOK, üst SVG'de role="img" YOK) hem kaynak metin üzerinden
 // hem jsdom'a monte edilip axe-core ile taranarak; (3) statik index.html
 // kabuğunun (topbar/bottombar/modaller/nav-announcer) axe-core ile genel
-// bir ARIA/etiket taraması.
+// bir ARIA/etiket taraması; (4) canlı bölge KAPSAMI: #page-container canlı
+// bölge DEĞİL (sayfa başına ~1200 karakter Arapça metin katmanını "eklenen
+// içerik" diye okutuyordu), statik kabukta yalnızca #nav-announcer + arama
+// durumu canlı, panelin kendi içeriği için canlı bölge yalnızca
+// .word-meal-body'de, panel açılış/kapanış anonsları ve aynı pencerede gelen
+// anonsların birleşmesi.
 //
 // ÖNEMLİ SINIR: axe-core burada jsdom üzerinde çalışıyor -- gerçek bir
 // tarayıcının erişilebilirlik ağacını DEĞİL, yalnızca DOM/ARIA yapısını
@@ -14,8 +19,9 @@
 // GÖRSEL kurallar jsdom'da güvenilir değil, o yüzden burada çalıştırılmıyor).
 // Bu da gerçek bir NVDA/JAWS/VoiceOver/TalkBack testinin YERİNİ TUTMAZ --
 // yalnızca yapısal bir ön-kontrol. app.js Node'da import edilemediği için
-// (HarfBuzz/WASM açılışı, bkz. juz_subdivisions_test.mjs) announceNavigation
-// kaynak metninden çıkarılıp sahte state/els ile çalıştırılıyor, aynı
+// (HarfBuzz/WASM açılışı, bkz. juz_subdivisions_test.mjs) announce /
+// announceNavigation bloğu (app.js'te <announce> işaretleri arasında) kaynak
+// metninden çıkarılıp sahte state/els ile çalıştırılıyor, aynı
 // arama_ui_test.mjs'teki ayahRawWordsAnywhere kontrolü gibi.
 import fs from "fs";
 import path from "path";
@@ -97,13 +103,29 @@ check(".sr-only CSS: standart 'visually hidden' kalıbı (position:absolute + cl
   return !!m && /position:\s*absolute/.test(m[1]) && /clip:/.test(m[1]) && /width:\s*1px/.test(m[1]);
 })());
 
-// -- announceNavigation() -- kaynak metinden çıkarılıp sahte state/els ile ------------------------------
-const FN_MATCH = /function announceNavigation\(\) \{[\s\S]*?\n\}\n/.exec(appSource);
-check("app.js: announceNavigation fonksiyonu bulundu", !!FN_MATCH);
+// -- Canlı bölge KAPSAMI (index.html) ---------------------------------------------------------------------
+// #page-container eskiden aria-live="polite" taşıyordu: sayfa her değiştiğinde yeniden kurulan SVG'nin
+// görünmez metin katmanı (~1200 karakter Arapça) "eklenen içerik" sayılıp okutuluyor, 37 karakterlik gerçek
+// anons onun yanında kayboluyordu (ayet paneli açılıp kapanırken de sayfa metni yeniden okunuyordu).
+{
+  const d = new JSDOM(html).window.document;
+  const LIVE = '[aria-live]:not([aria-live="off"]),[role="status"],[role="alert"],[role="log"]';
+  const pc = d.getElementById("page-container");
+  check("#page-container var", !!pc);
+  check("#page-container: aria-live YOK", !pc.hasAttribute("aria-live"));
+  check("#page-container: canlı rol (status/alert/log) YOK ve canlı bir atanın içinde de değil", !pc.closest(LIVE));
+  const liveIds = [...d.querySelectorAll(LIVE)].map((e) => e.id || e.className);
+  check(`statik kabukta canlı bölgeler YALNIZCA #nav-announcer ve arama durumu (bulunan: ${liveIds.join(", ")})`, liveIds.length === 2 && liveIds.includes("nav-announcer") && liveIds.includes("arama-status"));
+}
+
+// -- announce()/announceNavigation() -- app.js'teki <announce> bloğu kaynak metinden çıkarılıp sahte state/els ile --
+const ANNOUNCE_BLOCK = /\/\/ <announce>([\s\S]*?)\/\/ <\/announce>/.exec(appSource);
+check("app.js: <announce> ... </announce> bloğu (announce + announceNavigation) bulundu", !!ANNOUNCE_BLOCK);
 function makeAnnounce(state) {
   const els = { navAnnouncer: { textContent: "" } };
-  const fn = new Function("state", "els", `${FN_MATCH[0]}\nreturn announceNavigation;`)(state, els);
-  return { fn, els };
+  // Blok kendi modül-düzeyi durumunu (bekleyen anonslar + zamanlayıcı) taşıdığından her çağrıda TAZE bir örnek kuruluyor.
+  const api = new Function("state", "els", `${ANNOUNCE_BLOCK[1]}\nreturn { announce, announceNavigation };`)(state, els);
+  return { fn: api.announceNavigation, announce: api.announce, els };
 }
 {
   const { fn, els } = makeAnnounce({ currentPage: 46, selectedAyah: { surah: 2, ayah: 142 }, surahs });
@@ -140,6 +162,39 @@ function makeAnnounce(state) {
   await sleep(120);
   check("olmayan sure numarasında ÇÖKMÜYOR, boş ada düşüyor", els.navAnnouncer.textContent === "Sayfa 1,  Suresi, 1. ayet");
 }
+{
+  // Bir ayete dokununca AYNI senkron turda hem showPage'in "nav" anonsu hem panelin "panel" anonsu gelir:
+  // ikincisi birincinin yerine yazılıp biri hiç duyulmamalı -- TEK metinde, geliş sırasıyla birleşmeli.
+  const { fn, announce, els } = makeAnnounce({ currentPage: 51, selectedAyah: { surah: 3, ayah: 13 }, surahs });
+  fn();
+  announce("Âl-i İmrân 13 detayı açıldı", "panel");
+  check("birleşik anonsta da yazma gecikmeli (bölge hemen boş)", els.navAnnouncer.textContent === "");
+  await sleep(120);
+  check("aynı pencerede gelen nav + panel anonsları TEK metinde, geliş sırasıyla birleşiyor", els.navAnnouncer.textContent === `Sayfa 51, ${surahs["3"].nameTurkish} Suresi, 13. ayet. Âl-i İmrân 13 detayı açıldı`);
+}
+{
+  // Tuşa basılı tutarak sayfa çevirme: art arda "nav" anonsları -- yalnızca SONUNCUSU söylenmeli, birikmemeli.
+  const st = { currentPage: 10, selectedAyah: { surah: 2, ayah: 1 }, surahs };
+  const { fn, els } = makeAnnounce(st);
+  fn();
+  st.currentPage = 11;
+  fn();
+  st.currentPage = 12;
+  fn();
+  await sleep(120);
+  check("art arda sayfa çevirmede yalnızca SON nav anonsu söyleniyor (birikmiyor)", els.navAnnouncer.textContent === `Sayfa 12, ${surahs["2"].nameTurkish} Suresi, 1. ayet`);
+}
+{
+  // Bekleyen yazma gerçekleştikten SONRA gelen anons yeni bir tur açar; öncekini taşımaz.
+  const { announce, els } = makeAnnounce({ currentPage: 1, selectedAyah: { surah: 1, ayah: 1 }, surahs });
+  announce("birinci", "a");
+  await sleep(120);
+  check("tek anons: gecikme sonrası metin yazıldı", els.navAnnouncer.textContent === "birinci");
+  announce("ikinci", "b");
+  check("yeni tur ÖNCE bölgeyi boşaltıyor", els.navAnnouncer.textContent === "");
+  await sleep(120);
+  check("yeni tur yalnızca YENİ metni taşıyor (öncekinin artığı sızmıyor)", els.navAnnouncer.textContent === "ikinci");
+}
 
 // -- showPage tüm gezinmenin tek huni'si + her çağrıdan sonra anons ediyor ------------------------------
 check("showPage: updateTopbar()'dan hemen sonra announceNavigation() çağrılıyor", /updateTopbar\(\);\s*\n\s*announceNavigation\(\);/.test(appSource));
@@ -154,6 +209,21 @@ for (const [name, re] of [
   check(`${name} → showPage'e çıkıyor (dolayısıyla anons da kapsıyor)`, re.test(appSource));
 }
 check("goToUnitNum da showPage'e çıkıyor (goToJuz/Hizb/Rub/Manzil'in ortak yolu)", /function goToUnitNum\([\s\S]{0,300}showPage\(/.test(appSource));
+
+// -- ayet paneli: canlı bölge yalnızca GÖVDEDE + açılış/kapanış anonsu ---------------------------------------
+// #page-container artık canlı değil; panelin KENDİ dinamik içeriği (kelime meali/meal ilk kez yüklenince gövdenin
+// yeniden yazılması, tefsir sekmesine basınca içeriğin gelmesi) için duyuru yeri .word-meal-body. Tefsir sekmesi
+// düğmeleri aria-expanded/aria-pressed taşımadığından içeriğin geldiğini bildiren tek şey bu bölge.
+{
+  const openFn = /function openWordMealStructure\([\s\S]*?\n\}\n/.exec(appSource);
+  const closeFn = /function closeWordMeal\(\) \{[\s\S]*?\n\}\n/.exec(appSource);
+  check("app.js: openWordMealStructure ve closeWordMeal bulundu", !!openFn && !!closeFn);
+  check("openWordMealStructure: panel GÖVDESİ (.word-meal-body) kendi canlı bölgesi (aria-live=polite)", /state\.wordMeal\.bodyEl\.setAttribute\("aria-live", "polite"\)/.test(openFn[0]));
+  check("openWordMealStructure: panel açılışı #nav-announcer üzerinden duyuruluyor ('<ref> detayı açıldı')", /announce\(`\$\{refText\} detayı açıldı`, "panel"\)/.test(openFn[0]));
+  check("closeWordMeal: panel kapanışı #nav-announcer üzerinden duyuruluyor ('Ayet detayı kapatıldı')", /announce\("Ayet detayı kapatıldı", "panel"\)/.test(closeFn[0]));
+  check("app.js hiçbir yerde #page-container'a aria-live atamıyor (sayfa metni yeniden okutulmasın)", !/pageContainer\.setAttribute\(\s*["']aria-live["']/.test(appSource));
+  check("canlı bölge panelin sayfa dilimlerine (üst/alt, metin katmanı taşıyan) VERİLMİYOR", !/(topEl|bottomOuterEl|bottomInnerEl|panelEl)\.setAttribute\(\s*["']aria-live["']/.test(appSource));
+}
 
 // -- js/render.js: metin katmanı yapısı kaynak üzerinden -------------------------------------------------
 check("render.js: addTextSelectionLayer hiçbir yerde aria-hidden UYGULAMIYOR", !/addTextSelectionLayer[\s\S]{0,900}aria-hidden/.test(renderSource));
@@ -217,6 +287,6 @@ if (failures) {
   process.exit(1);
 } else {
   console.log(
-    "All checks passed (nav-announcer yapısı + gecikmeli/tekrar-anons mantığı, showPage huni kontrolü, metin katmanının aria-hiding'siz yapısı, axe-core yapısal tarama). NOT: bunlar otomatik/yapısal kontroller -- gerçek bir ekran okuyucu testinin yerini tutmaz."
+    "All checks passed (nav-announcer yapısı + gecikmeli/tekrar-anons/birleşik-anons mantığı, canlı bölge kapsamı (#page-container canlı değil, panel gövdesi canlı, panel açılış/kapanış anonsu), showPage huni kontrolü, metin katmanının aria-hiding'siz yapısı, axe-core yapısal tarama). NOT: bunlar otomatik/yapısal kontroller -- gerçek bir ekran okuyucu testinin yerini tutmaz."
   );
 }

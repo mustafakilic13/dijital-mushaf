@@ -1058,23 +1058,52 @@ function setupEzberModal() {
   });
 }
 
-// Sayfa/ayet her değiştiğinde (goToPage/goToSurah/goToAyah/goToJuz vb. --
-// hepsi showPage'e çıkıyor) #nav-announcer'a kısa bir anons yazar, ekran
+// Ekran okuyucu anonsları için TEK canlı bölge: #nav-announcer. Sayfa/ayet her
+// değiştiğinde (goToPage/goToSurah/goToAyah/goToJuz vb. -- hepsi showPage'e
+// çıkıyor) ve ayet paneli açılıp kapanınca buraya kısa bir anons yazılır; ekran
 // okuyucu kullanıcısı "nereye gittim" diye mushaf metnini taramak zorunda
-// kalmasın. Önce boşaltıp KISA BİR GECİKMEYLE asıl metni yazıyoruz --
-// art arda AYNI sayfaya/sureye gidilirse (metin değişmeden kalırsa) birçok
-// ekran okuyucu değişmeyen bir aria-live içeriğini sessizce yok sayar;
-// önce boşaltmak her seferinde gerçek bir DOM değişikliği garantiler.
+// kalmasın.
+//
+// #page-container'ın KENDİSİ canlı bölge DEĞİL (bkz. index.html). Eskiden
+// aria-live="polite" taşıyordu; ama sayfa her değiştiğinde yeniden kurulan SVG'nin
+// görünmez metin katmanı (sayfa başına ~1200 karakter Arapça) "eklenen içerik"
+// sayılıp baştan sona okutuluyor, 37 karakterlik gerçek anons onun yanında
+// kayboluyordu; ayet paneli açılıp kapanırken de sayfa metni (üst + alt dilim)
+// yeniden okunuyordu. Panelin KENDİ dinamik içeriği için canlı bölge artık yalnızca
+// panel gövdesinde (bkz. openWordMealStructure).
+//
+// Önce boşaltıp KISA BİR GECİKMEYLE asıl metni yazıyoruz -- art arda AYNI
+// sayfaya/sureye gidilirse (metin değişmeden kalırsa) birçok ekran okuyucu
+// değişmeyen bir aria-live içeriğini sessizce yok sayar; önce boşaltmak her
+// seferinde gerçek bir DOM değişikliği garantiler.
+//
+// Aynı ~50 ms penceresinde gelen FARKLI anonslar (bir ayete dokununca hem "Sayfa
+// N, ... ayet" hem "... detayı açıldı") tek metinde birleşir -- yoksa ikincisi
+// birincinin yerine yazılır ve biri hiç duyulmaz. Aynı `key` ile gelen yeni anons
+// bekleyen eskisinin YERİNE geçer (tuşa basılı tutarak sayfa çevirirken yalnızca
+// sonuncusu söylenir). test/erisilebilirlik_test.mjs bu bloğu iki işaret
+// arasından çıkarıp Node'da çalıştırıyor -- işaretleri silmeyin.
+// <announce>
+const pendingAnnouncements = new Map();
+let announceTimer = null;
+function announce(text, key) {
+  pendingAnnouncements.set(key, text);
+  if (announceTimer !== null) return; // zaten planlı bir yazma var; bu anons da onunla birlikte gidecek
+  els.navAnnouncer.textContent = "";
+  announceTimer = setTimeout(() => {
+    els.navAnnouncer.textContent = [...pendingAnnouncements.values()].join(". ");
+    pendingAnnouncements.clear();
+    announceTimer = null;
+  }, 50);
+}
+
 function announceNavigation() {
   const { surah, ayah } = state.selectedAyah;
   const surahInfo = state.surahs[String(surah)];
   const surahName = surahInfo ? surahInfo.nameTurkish : "";
-  const text = `Sayfa ${state.currentPage}, ${surahName} Suresi, ${ayah}. ayet`;
-  els.navAnnouncer.textContent = "";
-  setTimeout(() => {
-    els.navAnnouncer.textContent = text;
-  }, 50);
+  announce(`Sayfa ${state.currentPage}, ${surahName} Suresi, ${ayah}. ayet`, "nav");
 }
+// </announce>
 
 function updateTopbar() {
   const p = state.currentPage;
@@ -1712,6 +1741,12 @@ function openWordMealStructure(bodyHTML, refText) {
 
   state.wordMeal.panelEl = panelEl;
   state.wordMeal.bodyEl = innerEl.querySelector(".word-meal-body");
+  // Panelin KENDİ dinamik içeriği (kelime meali/meal ilk kez yüklenince gövdenin
+  // yeniden yazılması, tefsir sekmesine basınca içeriğin gelmesi) burada duyurulur.
+  // Sekme düğmeleri aria-expanded/aria-pressed taşımadığından içeriğin geldiğini
+  // bildiren tek şey bu bölge. Canlı bölge yalnızca GÖVDE: sayfa metni dilimleri
+  // (üst + alt) bunun dışında, yani sayfa metni okutulmuyor.
+  state.wordMeal.bodyEl.setAttribute("aria-live", "polite");
   state.wordMeal.topEl = topEl;
   state.wordMeal.topSvg = svg;
   state.wordMeal.bottomOuterEl = bottomOuterEl;
@@ -1737,6 +1772,7 @@ function openWordMealStructure(bodyHTML, refText) {
   });
 
   layoutPageContainer();
+  announce(`${refText} detayı açıldı`, "panel");
 
   // next frame, so the panel's initial (collapsed) grid-row size isn't
   // collapsed into the same paint as its open size, same reasoning as
@@ -1831,6 +1867,7 @@ async function openWordMeal(ayah) {
 // robustness pattern as closeModal.
 function closeWordMeal() {
   if (!state.wordMeal.open) return;
+  announce("Ayet detayı kapatıldı", "panel");
   const panelEl = state.wordMeal.panelEl;
   state.wordMeal.open = false;
   state.wordMeal.ayah = null;

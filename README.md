@@ -451,6 +451,28 @@ gidilirse (metin öncekiyle birebir aynı kalsa bile) yine gerçek bir DOM
 değişikliği garanti edilmiş oluyor, çünkü değişmeyen bir `aria-live`
 içeriğini bazı ekran okuyucular sessizce yok sayıyor.
 
+Aynı bölge **ayet panelinin açılışını ve kapanışını** da duyuruyor
+(`"<Sure> <ayet> detayı açıldı"` / `"Ayet detayı kapatıldı"`). Aynı ~50 ms
+penceresinde gelen anonslar (bir ayete dokununca hem sayfa/ayet hem panel
+anonsu) **tek metinde birleşiyor** -- yoksa ikincisi birincinin yerine
+yazılır ve biri hiç duyulmazdı; aynı anahtarla gelen yeni anons bekleyenin
+yerine geçiyor (tuşa basılı tutarak sayfa çevirirken yalnızca sonuncusu
+söylenir). Mantık `js/app.js`'te `<announce>` işaretleri arasında;
+`test/erisilebilirlik_test.mjs` o bloğu çıkarıp Node'da çalıştırıyor.
+
+**`#page-container` canlı bölge DEĞİL.** Eskiden `aria-live="polite"`
+taşıyordu; ama sayfa her değiştiğinde yeniden kurulan SVG'nin görünmez
+metin katmanı (sayfa başına ~1200 karakter Arapça) "eklenen içerik"
+sayılıp baştan sona okutuluyor, 37 karakterlik gerçek anons onun yanında
+kayboluyordu; ayet paneli açılıp kapanırken de sayfa metni (üst + alt
+dilim) yeniden okunuyordu. Başsız bir Chromium'da DOM düzeyinde ölçüldü:
+sayfa çevirmede canlı bölgelere eklenen metin 1192 → 37 karakter, paneli
+kapatmada 1155 → 21. Panelin **kendi** dinamik içeriği -- kelime meali/meal
+ilk kez yüklenince gövdenin yeniden yazılması, tefsir sekmesine basınca
+içeriğin gelmesi (sekme düğmeleri `aria-expanded`/`aria-pressed` taşımıyor,
+içeriğin geldiğini bildiren tek şey canlı bölge) -- için canlı bölge artık
+yalnızca `.word-meal-body` üzerinde.
+
 **Görünmez metin katmanı.** `js/render.js`'teki `addTextSelectionLayer`,
 her mushaf satırının gerçek/seçilebilir Unicode metnini bir
 `<foreignObject><div class="text-layer-line" dir="rtl">` ile (görünür
@@ -471,7 +493,10 @@ bir GUI tarayıcı bile kurulamadı (Ubuntu 24.04'te chromium yalnızca snap
 paketi olarak dağıtılıyor ve bu sandbox'ta snapd çalışmıyor; Puppeteer'ın
 kendi indirdiği Chromium da ağ izin listesi dışındaki bir CDN'den
 geliyor). Yani buradaki testler yapısal bir ön-kontrol; gerçek bir cihazda
-doğrulama hâlâ gerekiyor (bkz. Yapılacaklar).
+doğrulama hâlâ gerekiyor (bkz. Yapılacaklar). (Sonradan başka bir ortamda
+başsız Chromium ile DOM/erişilebilirlik-ağacı düzeyinde canlı bölge ölçümü
+yapıldı -- yukarıdaki `#page-container` paragrafı --, ama gerçek ekran
+okuyucu yine yok.)
 
 ## PWA ve çevrimdışı önbellekleme
 
@@ -696,10 +721,24 @@ arasından seçim meselesi.
 Yukarıdaki "Erişilebilirlik" bölümünde açıklanan otomatik/yapısal
 kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
 (iOS/Mac) testi hâlâ yapılmadı — bu ortamda mümkün değildi. Özellikle
-şu ikisi doğrulanmalı: (1) sayfa geçişinde `#nav-announcer`'ın anonsu
-gerçekten duyuluyor mu, (2) `foreignObject` içindeki metin katmanı
-gerçekten okunabiliyor mu (bilinen risk: bu desen tarayıcı+ekran-okuyucu
-kombinasyonlarında tutarsız olabiliyor).
+şu noktalar doğrulanmalı:
+
+1. Sayfa geçişinde `#nav-announcer`'ın anonsu ("Sayfa N, <Sure> Suresi,
+   M. ayet") duyuluyor mu, ve sayfanın Arapça metni **kendiliğinden
+   okunmuyor** mu (`#page-container` artık canlı bölge değil -- beklenen bu).
+2. `foreignObject` içindeki metin katmanı gezinilerek okunabiliyor mu
+   (bilinen risk: bu desen tarayıcı+ekran-okuyucu kombinasyonlarında
+   tutarsız olabiliyor) ve Arapça metin Arapça sesle mi okunuyor (metin
+   katmanı satırlarında `lang` yok, belge dili `tr`).
+3. Bir ayete dokununca/Enter'a basınca "<Sure> <ayet> detayı açıldı"
+   duyuluyor mu; panel gövdesinin ilk içeriği en fazla bir kez okunuyor mu
+   (yeni eklenen bir canlı bölgenin ilk içeriğini bazı ekran okuyucular
+   okur, bazıları okumaz).
+4. Tefsir sekmesine basınca tefsir metni okunuyor mu.
+5. Kapat düğmesine/Esc'ye basınca "Ayet detayı kapatıldı" duyuluyor mu.
+
+Beklenenden farklı çıkarsa canlı bölge değişikliği tek commit'tir, geri
+alınabilir.
 
 ### Kelime tahlili
 
