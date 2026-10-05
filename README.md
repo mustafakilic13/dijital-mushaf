@@ -482,6 +482,35 @@ katmanı tekniğinin aynısı. Hiçbir yerde `aria-hidden` uygulanmıyor, üst
 SVG'de de `role="img"` yok (olsaydı içindeki gerçek metni tek bir resim
 gibi "yutabilirdi"). Yapısal olarak doğru.
 
+**Arapça metin parçalarının dili (`lang="ar"`).** Belge dili `tr`
+(`<html lang="tr">`); ekran okuyucunun/TTS'in sesi `lang`e göre seçildiği
+için işaretsiz Arapça metin Türkçe sesle okunmaya çalışılır (WCAG 3.1.2,
+Dil Parçaları). Şunlar `lang="ar"` taşıyor: metin katmanı satırları
+(`render.js`), üst çubuktaki Arapça sure adı, Oynat düğmesinin etiketi, 29
+Arapça klavye tuşu (💡 İpucu tuşu hariç: aria-label'ı Türkçe), sure/cüz/
+hizb/rub/menzil/arama listelerindeki ve sure bilgisi/konu modallarındaki
+Arapça adlar, ayet metinleri, kelime kartları ve konu açıklamalarındaki
+satır içi Arapça parçalar (bunlar veriden `<span class="ar">` olarak
+geldiği için çizim anında `markArabicSpans` ekliyor, veri dosyası
+değişmedi). Oynat düğmesinin etiketi hem Arapça ibare hem Türkçe durum
+metni ("Yükleniyor…") taşıdığından metin ve dil tek yerden, birlikte
+yazılıyor (`setPlayLabel`). `test/erisilebilirlik_test.mjs`, işaretlenecek
+yerleri elle yazılmış bir listeden değil CSS'ten türetiyor: `--font-arabic`
+kullanan her sınıfın taşındığı her etiket `lang="ar"` içermiyorsa test
+kırılıyor; yani ileride eklenecek yeni bir Arapça öğe de yakalanır. Başsız
+Chromium'da 14 arayüz durumunun (açılış, sure/cüz modalları, sure bilgisi,
+ayet paneli, konu modalı, arama, ezber) her birinde DOM'da 610-791 Arapça
+metin düğümü vardı ve durumlar boyunca taranan toplam 9.567 kaydın 9.554'ü
+dilsizdi (yalnızca arama modalındaki 13'ü işaretliydi); şimdi hepsi
+tarayıcının kendi `:lang(ar)` eşleşmesinde Arapça. Ekran
+görüntüleri ve metin katmanı satırlarının ölçüleri değişmedi. Kapsam dışı:
+Sa'dî tefsiri metinlerinin içindeki seyrek Arapça alıntılar (verideki ~12
+bin dizenin 99'unda Arapça harf var) hâlâ işaretsiz -- satır içi HTML'in
+içinden ayıklamak daha büyük bir iş. Bilinen başka bir eksik: Oynat
+düğmesinin erişilebilir adı yalnızca o Arapça ibare (`aria-label` yok); ad
+artık Arapça sesle okunur ama düğmenin ne yaptığını Türkçe söyleyen bir ad
+yok.
+
 **Otomatik doğrulama, gerçek cihaz testinin YERİNE DEĞİL.**
 `test/erisilebilirlik_test.mjs`, yukarıdaki ikisini + genel ARIA
 etiketlerini hem kaynak metin üzerinden hem [axe-core](https://github.com/dequelabs/axe-core)
@@ -729,7 +758,12 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
 2. `foreignObject` içindeki metin katmanı gezinilerek okunabiliyor mu
    (bilinen risk: bu desen tarayıcı+ekran-okuyucu kombinasyonlarında
    tutarsız olabiliyor) ve Arapça metin Arapça sesle mi okunuyor (metin
-   katmanı satırlarında `lang` yok, belge dili `tr`).
+   katmanı satırları artık `lang="ar"` taşıyor, belge dili `tr`; ama bunun
+   işe yaraması için cihazda bir Arapça ses yüklü ve ekran okuyucunun
+   otomatik dil değiştirme seçeneği açık olmalı -- NVDA'da Konuşma
+   ayarlarında, VoiceOver/TalkBack'te ses paketlerinde bakılacak). Aynı
+   kontrolü üst çubuktaki Arapça sure adında, Oynat düğmesinde ve sure
+   listesinde de yap.
 3. Bir ayete dokununca/Enter'a basınca "<Sure> <ayet> detayı açıldı"
    duyuluyor mu; panel gövdesinin ilk içeriği en fazla bir kez okunuyor mu
    (yeni eklenen bir canlı bölgenin ilk içeriğini bazı ekran okuyucular
@@ -737,8 +771,8 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
 4. Tefsir sekmesine basınca tefsir metni okunuyor mu.
 5. Kapat düğmesine/Esc'ye basınca "Ayet detayı kapatıldı" duyuluyor mu.
 
-Beklenenden farklı çıkarsa canlı bölge değişikliği tek commit'tir, geri
-alınabilir.
+Beklenenden farklı çıkarsa canlı bölge değişikliği ve dil işaretleri ayrı
+ayrı tek commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 

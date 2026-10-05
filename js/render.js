@@ -314,6 +314,11 @@ export class LineRenderer {
     div.style.fontSize = `${fontSize}px`;
     div.style.transform = `scaleX(${scaleX})`;
     div.dir = "rtl";
+    // Belge dili `tr` (index.html); bu satırlar ise Arapça. Ekran okuyucunun/TTS'in
+    // sesini `lang` belirlediğinden işaretlenmezse Arapça metin Türkçe sesle
+    // okunmaya çalışılır (WCAG 3.1.2, Dil Parçaları). Yalnızca erişilebilirlik
+    // ağacını etkiler; görünüm değişmez (metin zaten color:transparent).
+    div.lang = "ar";
     div.textContent = lineText;
     fo.appendChild(div);
     pageG.appendChild(fo);

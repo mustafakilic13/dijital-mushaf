@@ -19,6 +19,7 @@ import {
   parseRelatedTopicsField,
   topicCategoryLabels,
   buildTopicsIndex,
+  markArabicSpans,
 } from "../js/topics.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -194,6 +195,46 @@ for (const [, topicIds] of index.byAyah) {
   if (tags.some((t) => !ids.has(t.topic_id))) dedupIssues++;
 }
 check(`ayah-tag dedup never grows the list or drops a valid id, across all ${index.byAyah.size} tagged ayahs`, dedupIssues === 0);
+
+// -- markArabicSpans (WCAG 3.1.2: satır içi Arapça parçalar lang="ar" almalı) ---------------------------
+// Açıklamalardaki Arapça metin veriden <span class="ar"> olarak geliyor; yardımcı yalnızca TAM bu kalıbı
+// eşliyor. Bu yüzden aşağıda verideki HER <span>'in tam bu kalıpta olduğu ve Arapça harflerin başka
+// yerde kalmadığı doğrulanıyor -- ileride farklı nitelikli bir span ya da işaretsiz Arapça gelirse burada kırılır.
+check('markArabicSpans: boş/null -> ""', markArabicSpans("") === "" && markArabicSpans(null) === "" && markArabicSpans(undefined) === "");
+check("markArabicSpans: tek parça", markArabicSpans('a <span class="ar">ب</span> b') === 'a <span class="ar" lang="ar">ب</span> b');
+check(
+  "markArabicSpans: birden çok parça, <b> ve <topic> ile iç içe; metne başka dokunuş yok",
+  markArabicSpans('<b>x</b> <span class="ar">أ</span> <topic data-id="3">t</topic> <span class="ar">ب</span>') ===
+    '<b>x</b> <span class="ar" lang="ar">أ</span> <topic data-id="3">t</topic> <span class="ar" lang="ar">ب</span>'
+);
+check("markArabicSpans: Arapça içermeyen metne dokunmuyor", markArabicSpans("<b>x</b> düz metin") === "<b>x</b> düz metin");
+check('markArabicSpans: iki kez uygulamak sonucu değiştirmiyor (lang="ar" ikilenmiyor)', (() => {
+  const once = markArabicSpans('<span class="ar">ب</span>');
+  return markArabicSpans(once) === once && (once.match(/lang=/g) || []).length === 1;
+})());
+{
+  const ARABIC_LETTER_RE = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
+  let spanTotal = 0;
+  let arSpanTotal = 0;
+  let unmarked = 0;
+  let markedTotal = 0;
+  let strayArabic = 0;
+  for (const rec of data) {
+    const d = rec.description || "";
+    spanTotal += (d.match(/<span\b/g) || []).length;
+    arSpanTotal += (d.match(/<span class="ar">/g) || []).length;
+    const marked = markArabicSpans(d);
+    if (/<span class="ar">/.test(marked)) unmarked++;
+    markedTotal += (marked.match(/<span class="ar" lang="ar">/g) || []).length;
+    // .ar span'larının DIŞINDA Arapça harf var mı? (U+06E9 secde işareti harf değil, bir simge)
+    const outside = d.replace(/<span class="ar">[\s\S]*?<\/span>/g, "").replace(/۩/g, "");
+    if (ARABIC_LETTER_RE.test(outside)) strayArabic++;
+  }
+  check(`verideki her <span> tam '<span class="ar">' kalıbında (${spanTotal} span, ${arSpanTotal} kalıp)`, spanTotal > 0 && spanTotal === arSpanTotal);
+  check("işaretlemeden sonra lang'sız hiçbir .ar span kalmıyor", unmarked === 0);
+  check(`işaretlenen parça sayısı veridekiyle birebir aynı (${markedTotal} / ${arSpanTotal})`, markedTotal === arSpanTotal);
+  check("açıklamalarda .ar span'ları DIŞINDA Arapça harf yok (yani tüm Arapça metin işaretleniyor)", strayArabic === 0);
+}
 
 if (failures) {
   console.error(`\n${failures} check(s) failed.`);

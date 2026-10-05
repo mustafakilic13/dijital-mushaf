@@ -106,7 +106,7 @@ export function renderWordMealCardsHTML(cards) {
   const items = cards
     .map(
       (c) => `<span class="wbw-word">
-        <span class="wbw-ar">${escapeHtml(c.arabic)}</span>${
+        <span class="wbw-ar" lang="ar">${escapeHtml(c.arabic)}</span>${
           c.translation ? `<span class="wbw-tr">${escapeHtml(c.translation)}</span>` : ""
         }
       </span>`

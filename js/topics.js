@@ -137,6 +137,16 @@ export function topicCategoryLabels(record) {
   return labels;
 }
 
+// Açıklamalardaki satır içi Arapça parçalar (<span class="ar">…</span>, 246 adet)
+// veriden geliyor ve dil işareti taşımıyor; belge dili `tr` olduğundan ekran
+// okuyucu bunları Türkçe sesle okumaya çalışırdı (WCAG 3.1.2). Çizim anında
+// lang="ar" ekler, veri dosyasına dokunmaz. Açıklamalarda başka <span> yok
+// (bkz. test/topics_test.mjs), bu yüzden tam eşleşme yeterli ve güvenli.
+export function markArabicSpans(html) {
+  if (!html) return "";
+  return html.replace(/<span class="ar">/g, '<span class="ar" lang="ar">');
+}
+
 // One pass over the flat array building three lookups:
 //  - byId: topic_id -> record
 //  - byAyah: "surah:ayah" -> [topic_id, ...], source order

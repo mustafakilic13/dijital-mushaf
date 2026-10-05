@@ -34,6 +34,7 @@ import {
   parseAyahsField,
   parseRelatedTopicsField,
   topicCategoryLabels,
+  markArabicSpans,
 } from "./topics.js";
 
 const state = {
@@ -501,7 +502,7 @@ function populateSurahList() {
     btn.innerHTML = `
       <span class="modal-item-num">${i}</span>
       <span class="modal-item-main">
-        <span class="modal-item-arabic">${info.nameArabic}</span>
+        <span class="modal-item-arabic" lang="ar">${info.nameArabic}</span>
         <span class="modal-item-sub">${info.nameTurkish} · ${info.versesCount} ayet</span>
       </span>`;
 
@@ -626,7 +627,7 @@ function populateUnitList(listEl, map, count, datasetAttr) {
     btn.innerHTML = `
       <span class="modal-item-num">${n}</span>
       <span class="modal-item-main">
-        <span class="modal-item-arabic">${surahLabel(surahNum).replace(/^\d+\.\s*/, "")}</span>
+        <span class="modal-item-arabic" lang="ar">${surahLabel(surahNum).replace(/^\d+\.\s*/, "")}</span>
         <span class="modal-item-sub">${surahNum}:${ayahNum}'den başlar · sayfa ${page ?? "?"}</span>
       </span>`;
     frag.appendChild(btn);
@@ -919,7 +920,7 @@ function populateEzberSurahPickerList() {
     btn.innerHTML = `
       <span class="modal-item-num">${i}</span>
       <span class="modal-item-main">
-        <span class="modal-item-arabic">${info.nameArabic}</span>
+        <span class="modal-item-arabic" lang="ar">${info.nameArabic}</span>
         <span class="modal-item-sub">${info.nameTurkish} · ${info.versesCount} ayet</span>
       </span>`;
     frag.appendChild(btn);
@@ -1952,7 +1953,7 @@ function surahInfoStatsHTML(surahNum) {
 // içeriğine yaptığı gibi doğrudan innerHTML'e veriliyor.
 function surahInfoBodyHTML(surahNum, entry) {
   const meta = state.surahs[String(surahNum)];
-  const nameHTML = meta && meta.nameArabic ? `<div class="info-name-arabic">${escapeHtml(meta.nameArabic)}</div>` : "";
+  const nameHTML = meta && meta.nameArabic ? `<div class="info-name-arabic" lang="ar">${escapeHtml(meta.nameArabic)}</div>` : "";
   const { intro, sections } = splitInfoSections(entry.text);
   const introHTML = intro.trim() ? `<div class="info-intro">${intro}</div>` : "";
   const sectionsHTML = sections
@@ -2041,7 +2042,7 @@ function surahInfoDetailAyahHTML(surah, ayahStart, ayahEnd) {
   for (let a = ayahStart; a <= ayahEnd; a++) {
     const ref = meta ? `${meta.nameTurkish} ${a}` : `${surah}:${a}`;
     const arabic = ayahArabicText(surah, a);
-    const arabicHTML = arabic ? `<p class="ayah-arabic-text">${escapeHtml(arabic)}</p>` : "";
+    const arabicHTML = arabic ? `<p class="ayah-arabic-text" lang="ar">${escapeHtml(arabic)}</p>` : "";
     html += `
       <div class="info-detail-ayah">
         <div class="info-detail-ayah-ref">${escapeHtml(ref)}</div>
@@ -2164,7 +2165,7 @@ function topicAyahListHTML(ayahList) {
   return ayahList
     .map(({ surah, ayah }) => {
       const arabic = ayahArabicText(surah, ayah);
-      const arabicHTML = arabic ? `<p class="ayah-arabic-text">${escapeHtml(arabic)}</p>` : "";
+      const arabicHTML = arabic ? `<p class="ayah-arabic-text" lang="ar">${escapeHtml(arabic)}</p>` : "";
       return `
         <div class="info-detail-ayah">
           <div class="info-detail-ayah-ref">${escapeHtml(topicAyahRefLabel(surah, ayah))}</div>
@@ -2195,7 +2196,7 @@ function topicDetailBodyHTML(topicId) {
   const t = index && index.byId.get(topicId);
   if (!t) return `<p class="word-meal-loading">Konu bulunamadı.</p>`;
 
-  const arabicNameHTML = t.arabic_name ? `<div class="info-name-arabic">${escapeHtml(t.arabic_name)}</div>` : "";
+  const arabicNameHTML = t.arabic_name ? `<div class="info-name-arabic" lang="ar">${escapeHtml(t.arabic_name)}</div>` : "";
 
   const badgeClassFor = { Ontoloji: "ontology", Tematik: "thematic", Genel: "general" };
   const badgesHTML = `<div class="topic-badges">${topicCategoryLabels(t)
@@ -2203,7 +2204,7 @@ function topicDetailBodyHTML(topicId) {
     .join("")}</div>`;
 
   const descriptionHTML = t.description
-    ? `<div class="wm-section"><div class="wm-section-label">Açıklama</div><div class="topic-description">${t.description}</div></div>`
+    ? `<div class="wm-section"><div class="wm-section-label">Açıklama</div><div class="topic-description">${markArabicSpans(t.description)}</div></div>`
     : "";
 
   // Aynı id iki farklı ana-konu alanında birden görünmüyor (bkz.
@@ -2600,6 +2601,15 @@ function advancePlayback() {
   playAyah(next.surah, next.ayah, state.playback.requestId);
 }
 
+// #play-btn-label düğmenin erişilebilir adıdır ve hem Arapça ibare ("بسم الله…",
+// "صدق الله العظيم") hem Türkçe durum metni ("Yükleniyor…") taşır. Ekran okuyucunun
+// sesi `lang`e göre seçildiğinden metin ve dil HER ZAMAN birlikte değişmeli --
+// etiketi yalnızca burası yazar (test/erisilebilirlik_test.mjs bunu denetler).
+function setPlayLabel(text, lang) {
+  els.playBtnLabel.textContent = text;
+  els.playBtnLabel.lang = lang;
+}
+
 async function startPlayback() {
   if (state.playback.active) return;
   // Set immediately (before the possibly-async data load below) so a rapid
@@ -2611,7 +2621,7 @@ async function startPlayback() {
   els.playBtn.setAttribute("aria-pressed", "true");
 
   if (!state.recitationCache.husary) {
-    els.playBtnLabel.textContent = "Yükleniyor…";
+    setPlayLabel("Yükleniyor…", "tr");
     try {
       await loadRecitationData("husary");
     } catch (err) {
@@ -2622,7 +2632,7 @@ async function startPlayback() {
     if (!state.playback.active) return; // stopped again while the data was loading
   }
 
-  els.playBtnLabel.textContent = "صدق الله العظيم";
+  setPlayLabel("صدق الله العظيم", "ar");
   state.playback.requestId += 1;
   const startAyah = state.selectedAyah || pageFirstAyah(state.currentPage);
   playAyah(startAyah.surah, startAyah.ayah, state.playback.requestId);
@@ -2642,7 +2652,7 @@ function stopPlayback() {
   if (state.currentPageSvg) updateWordHighlight(state.currentPageSvg, state.currentPageWordSegments, null);
   els.playBtn.classList.remove("playing");
   els.playBtn.setAttribute("aria-pressed", "false");
-  els.playBtnLabel.textContent = "بسم الله الرحمن الرحيم";
+  setPlayLabel("بسم الله الرحمن الرحيم", "ar");
 }
 
 // ---------------------------------------------------------------------
@@ -2678,7 +2688,7 @@ async function startEzberPlayback(reciter, surah, from, to, repeat, repeatAll) {
   state.playback.reciter = reciter;
   els.playBtn.classList.add("playing");
   els.playBtn.setAttribute("aria-pressed", "true");
-  els.playBtnLabel.textContent = "صدق الله العظيم";
+  setPlayLabel("صدق الله العظيم", "ar");
   state.playback.requestId += 1;
   const requestId = state.playback.requestId;
   state.playback.ezber = {

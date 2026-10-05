@@ -11,7 +11,13 @@
 // içerik" diye okutuyordu), statik kabukta yalnızca #nav-announcer + arama
 // durumu canlı, panelin kendi içeriği için canlı bölge yalnızca
 // .word-meal-body'de, panel açılış/kapanış anonsları ve aynı pencerede gelen
-// anonsların birleşmesi.
+// anonsların birleşmesi; (5) Arapça metin parçalarının DİLİ (WCAG 3.1.2):
+// belge dili `tr`; sayfa metin katmanı, Arapça sure adları/ayet metinleri/kelime
+// kartları, klavye tuşları ve konu açıklamalarındaki satır içi parçalar
+// lang="ar" taşımalı -- yoksa ekran okuyucu Arapça metni Türkçe sesle okumaya
+// çalışır. CSS'te Arapça font (--font-arabic) kullanan HER sınıf otomatik
+// bulunup şablonlarda lang="ar" aranıyor; yani ileride eklenecek yeni bir
+// Arapça öğe lang'sız gelirse test kırılır.
 //
 // ÖNEMLİ SINIR: axe-core burada jsdom üzerinde çalışıyor -- gerçek bir
 // tarayıcının erişilebilirlik ağacını DEĞİL, yalnızca DOM/ARIA yapısını
@@ -26,8 +32,10 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { JSDOM } from "jsdom";
+import { JSDOM, VirtualConsole } from "jsdom";
 import axeCore from "axe-core";
+import { LineRenderer } from "../js/render.js";
+import { renderWordMealCardsHTML } from "../js/wordmeal.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
@@ -80,6 +88,7 @@ const STRUCTURAL_RULES = [
   "aria-roles", "aria-valid-attr-value", "aria-valid-attr", "aria-hidden-body",
   "aria-hidden-focus", "button-name", "duplicate-id", "duplicate-id-aria",
   "image-alt", "label", "link-name", "role-img-alt", "svg-img-alt",
+  "html-has-lang", "html-lang-valid", "valid-lang",
 ];
 
 // -- #nav-announcer işaretlemesi ------------------------------------------------------------------
@@ -234,33 +243,35 @@ check("render.js/CSS: text-layer-line görünmezliği color:transparent ile (dis
 })());
 check("kaynakta hiçbir yerde SVG sayfa grubuna/köküne role=\"img\" verilmiyor (verilseydi içindeki gerçek metni tek bir resim gibi 'yutabilirdi')", !/role=\\?"img\\?"/.test(renderSource) && !/setAttribute\(\s*["']role["']\s*,\s*["']img["']\s*\)/.test(appSource + renderSource));
 
-// -- Gerçek addTextSelectionLayer çıktısının BİREBİR yapısı jsdom'a monte edilip axe ile taranıyor -----
+// -- GERÇEK addTextSelectionLayer çıktısı jsdom'a monte edilip kontrol ediliyor + axe ile taranıyor --------
+// Bu blok eskiden render.js'teki DOM inşasının elle yazılmış bir KOPYASINI kuruyordu; render.js'ten ayrışırsa
+// (ör. lang düşerse) test yine geçerdi. Artık sınıfın kendisi çalışıyor. render.js çıplak `document` kullandığından
+// jsdom belgesi çağrı süresince global'e konuyor; canvas ölçümü jsdom'da yok, measureTextWidth kendi yedeğine düşüyor.
+const ARABIC_LETTER_RE = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/;
 {
-  const dom = new JSDOM(`<!DOCTYPE html><html lang="tr"><body></body></html>`, { pretendToBeVisual: true });
+  const dom = new JSDOM(`<!DOCTYPE html><html lang="tr"><body></body></html>`, { pretendToBeVisual: true, virtualConsole: new VirtualConsole() });
   const d = dom.window.document;
   const SVG_NS = "http://www.w3.org/2000/svg";
   const svg = d.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", "0 0 700 1000");
   const pageG = d.createElementNS(SVG_NS, "g");
   svg.appendChild(pageG);
-  // addTextSelectionLayer'ın kendisiyle BİREBİR aynı DOM inşası (render.js'ten kopya):
-  const fo = d.createElementNS(SVG_NS, "foreignObject");
-  fo.setAttribute("x", "10");
-  fo.setAttribute("y", "20");
-  fo.setAttribute("width", "300");
-  fo.setAttribute("height", "40");
-  fo.setAttribute("class", "text-layer-fo");
-  const div = d.createElement("div");
-  div.className = "text-layer-line";
-  div.style.fontSize = "900px";
-  div.style.transform = "scaleX(1)";
-  div.dir = "rtl";
-  div.textContent = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
-  fo.appendChild(div);
-  pageG.appendChild(fo);
+  const LINE = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
+  const prevDocument = globalThis.document;
+  globalThis.document = d;
+  try {
+    new LineRenderer(null, null, 0, "").addTextSelectionLayer(pageG, LINE, 300, 300, 100);
+  } finally {
+    if (prevDocument === undefined) delete globalThis.document;
+    else globalThis.document = prevDocument;
+  }
   d.body.appendChild(svg);
 
-  check("kurulan test DOM'unda gerçek Arapça metin sorgulanabilir (jsdom seviyesinde en azından mevcut)", d.querySelector(".text-layer-line").textContent === "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ");
+  const line = d.querySelector(".text-layer-line");
+  check("gerçek addTextSelectionLayer bir .text-layer-line üretti ve gerçek Arapça metni taşıyor", !!line && line.textContent === LINE);
+  check('metin katmanı satırı lang="ar" taşıyor (belge dili tr; Arapça metin Arapça sesle okunsun)', !!line && line.getAttribute("lang") === "ar");
+  check('...dir="rtl" da korunuyor', !!line && line.getAttribute("dir") === "rtl");
+  check("...etkin dil Arapça (en yakın lang atası), belge dili ise tr kalıyor", !!line && line.closest("[lang]").getAttribute("lang") === "ar" && d.documentElement.getAttribute("lang") === "tr");
   check("bu düğümün hiçbir atasında aria-hidden=true YOK (kök html dahil)", (() => {
     let n = d.querySelector(".text-layer-line");
     while (n) {
@@ -272,6 +283,97 @@ check("kaynakta hiçbir yerde SVG sayfa grubuna/köküne role=\"img\" verilmiyor
 
   const results = await runAxe(d, { ...AXE_OPTIONS, runOnly: { type: "rule", values: STRUCTURAL_RULES } });
   check(`metin katmanı parçası axe-core yapısal kurallarını ihlal etmiyor (${results.violations.map((v) => v.id).join(", ") || "yok"})`, results.violations.length === 0);
+}
+
+// -- Arapça metin parçaları: lang="ar" (WCAG 3.1.2, Dil Parçaları) --------------------------------------------
+// Belge dili `tr`. Ekran okuyucunun/TTS'in sesi `lang`e göre seçildiği için işaretsiz Arapça metin Türkçe sesle
+// okunmaya çalışılır. (a) statik kabuk, (b) çizim anında JS'in ürettiği şablonlar, (c) dili metinle birlikte
+// değişen Oynat etiketi ve (d) veriden gelen / yardımcıyla üretilen parçalar denetleniyor. (b) için işaretlenecek
+// sınıflar elle yazılmış bir liste DEĞİL, CSS'te Arapça font (--font-arabic) kullanan sınıflardan türetiliyor.
+{
+  const d = new JSDOM(html).window.document;
+  const langOf = (el) => (el.closest("[lang]") ? el.closest("[lang]").getAttribute("lang") : "");
+  const isArabicScope = (el) => /^ar(-|$)/i.test(langOf(el));
+
+  // (a) Statik kabuk: Arapça harf içeren HER metin düğümü lang="ar" kapsamında olmalı...
+  const walker = d.createTreeWalker(d.body, 4 /* NodeFilter.SHOW_TEXT */);
+  let arabicTextNodes = 0;
+  const unmarked = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (!ARABIC_LETTER_RE.test(n.nodeValue)) continue;
+    arabicTextNodes++;
+    if (!isArabicScope(n.parentElement)) unmarked.push(n.parentElement.id || n.parentElement.className || n.parentElement.tagName);
+  }
+  check(`statik index.html: Arapça harf içeren ${arabicTextNodes} metin düğümünün hepsi lang="ar" kapsamında (işaretsiz: ${unmarked.slice(0, 5).join(", ") || "yok"})`, arabicTextNodes > 0 && unmarked.length === 0);
+  // ...ve ters yön: lang="ar" kapsamına yanlışlıkla Türkçe metin girmesin.
+  const turkishUnderAr = [...d.querySelectorAll('[lang="ar"]')].filter((el) => el.textContent.trim() && !ARABIC_LETTER_RE.test(el.textContent));
+  check(`statik index.html: lang="ar" taşıyan hiçbir öğe Arapça harf içermeyen metin taşımıyor (${turkishUnderAr.map((e) => e.id || e.className).join(", ") || "yok"})`, turkishUnderAr.length === 0);
+  // İçeriği JS ile dolan öğelerde statik metin düğümü yok; genel tarama onları görmez, ayrıca açıkça bakılıyor.
+  check('#surah-btn-arabic lang="ar" (içeriği JS ile doluyor: Arapça sure adı)', !!d.getElementById("surah-btn-arabic") && d.getElementById("surah-btn-arabic").getAttribute("lang") === "ar");
+  check('#play-btn-label ilk hâliyle lang="ar" (Arapça ibare)', !!d.getElementById("play-btn-label") && d.getElementById("play-btn-label").getAttribute("lang") === "ar");
+  const keys = [...d.querySelectorAll(".yaz-key[data-char]")];
+  check(`Arapça klavye: ${keys.length} harf tuşunun hepsi lang="ar"`, keys.length > 20 && keys.every((k) => k.getAttribute("lang") === "ar"));
+  const hint = d.querySelector(".yaz-key[data-hint]");
+  check("klavyedeki İpucu tuşu Arapça kapsamında DEĞİL (aria-label Türkçe)", !!hint && !hint.closest('[lang="ar"]') && /İpucu/.test(hint.getAttribute("aria-label") || ""));
+
+  // (b) Şablonlar: CSS'te --font-arabic kullanan her sınıf, taşındığı her etiketle birlikte lang="ar" almalı.
+  const cssNoComments = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const arabicFontClasses = new Set();
+  for (const m of cssNoComments.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!/font-family:\s*var\(--font-arabic\)/.test(m[2])) continue;
+    for (const selector of m[1].split(",")) {
+      const lastCompound = selector.trim().split(/\s+/).pop();
+      for (const c of lastCompound.matchAll(/\.([A-Za-z0-9_-]+)/g)) arabicFontClasses.add(c[1]);
+    }
+  }
+  check(`CSS ayrıştırması: --font-arabic kullanan sınıflar bulundu (${[...arabicFontClasses].join(", ")})`, ["modal-item-arabic", "info-name-arabic", "wbw-ar", "ayah-arabic-text", "yaz-key", "ar"].every((c) => arabicFontClasses.has(c)));
+  // `.ar` (konu açıklamalarındaki satır içi parça) şablonda değil VERİDE geliyor: markArabicSpans ve topics_test.mjs kapsıyor (bkz. (d)).
+  const stripJsComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\w"'`\\])\/\/.*$/gm, "$1");
+  const jsDir = path.join(ROOT, "js");
+  const scanTargets = [
+    ["index.html", html],
+    ...fs.readdirSync(jsDir).filter((f) => f.endsWith(".js")).map((f) => [`js/${f}`, stripJsComments(fs.readFileSync(path.join(jsDir, f), "utf-8"))]),
+  ];
+  let verifiedTags = 0;
+  const missingLang = [];
+  for (const [file, src] of scanTargets) {
+    for (const m of src.matchAll(/<([a-zA-Z][\w-]*)\b([^<>]*)>/g)) {
+      const cls = /\bclass="([^"]*)"/.exec(m[2]);
+      if (!cls) continue;
+      const classes = cls[1].split(/\s+/);
+      if (!classes.some((c) => c !== "ar" && arabicFontClasses.has(c))) continue;
+      if (classes.includes("yaz-key--hint")) continue; // klavyedeki 💡 İpucu tuşu: tuş sınıfını paylaşıyor ama Arapça metin taşımıyor
+      verifiedTags++;
+      if (!/\blang="ar"/.test(m[2])) missingLang.push(`${file}: <${m[1]} class="${cls[1]}">`);
+    }
+  }
+  check(`Arapça fontlu sınıf taşıyan ${verifiedTags} etiketin (index.html + js/*.js şablonları) hepsi lang="ar" içeriyor (eksik: ${missingLang.slice(0, 4).join(" | ") || "yok"})`, verifiedTags > 30 && missingLang.length === 0);
+
+  // (c) Oynat düğmesinin etiketi (düğmenin erişilebilir adı) hem Arapça ibare hem Türkçe durum metni taşıyor:
+  // metin ve dil birlikte değişmeli, yoksa "Yükleniyor…" Arapça sesle ya da ibare Türkçe sesle okunur.
+  const labelWrites = appSource.match(/els\.playBtnLabel\.textContent\s*=/g) || [];
+  check("app.js: #play-btn-label metni yalnızca setPlayLabel() içinde yazılıyor (dil metinle birlikte değişsin)", labelWrites.length === 1);
+  const setPlayLabelSrc = /function setPlayLabel\(text, lang\) \{[\s\S]*?\n\}/.exec(appSource);
+  check("app.js: setPlayLabel bulundu", !!setPlayLabelSrc);
+  if (setPlayLabelSrc) {
+    const labelEls = { playBtnLabel: { textContent: "", lang: "" } };
+    const setPlayLabel = new Function("els", `${setPlayLabelSrc[0]}\nreturn setPlayLabel;`)(labelEls);
+    setPlayLabel("Yükleniyor…", "tr");
+    check('setPlayLabel: metin ve dil birlikte yazılıyor (Türkçe durum metni → "tr")', labelEls.playBtnLabel.textContent === "Yükleniyor…" && labelEls.playBtnLabel.lang === "tr");
+    setPlayLabel("بسم الله الرحمن الرحيم", "ar");
+    check('setPlayLabel: metin ve dil birlikte yazılıyor (Arapça ibare → "ar")', labelEls.playBtnLabel.textContent === "بسم الله الرحمن الرحيم" && labelEls.playBtnLabel.lang === "ar");
+  }
+  const labelCalls = [...appSource.matchAll(/setPlayLabel\(\s*"([^"]+)"\s*,\s*"([a-z]+)"\s*\)/g)];
+  check(`app.js: ${labelCalls.length} setPlayLabel çağrısı bulundu`, labelCalls.length >= 4);
+  for (const [, text, lang] of labelCalls) {
+    check(`setPlayLabel("${text}", "${lang}"): dil metne uyuyor (Arapça harf varsa "ar", yoksa "tr")`, lang === (ARABIC_LETTER_RE.test(text) ? "ar" : "tr"));
+  }
+
+  // (d) Veriden gelen / yardımcıyla üretilen parçalar. markArabicSpans'in kendi birim testi ve veri taraması
+  // test/topics_test.mjs'te; burada yalnızca app.js'e BAĞLI olduğuna (ham ${t.description} enjeksiyonu kalmadığına) bakılıyor.
+  check("app.js: konu açıklaması markArabicSpans() ile basılıyor, ham ${t.description} enjeksiyonu kalmadı", /markArabicSpans\(t\.description\)/.test(appSource) && !/\$\{t\.description\}/.test(appSource));
+  const cardsHTML = renderWordMealCardsHTML([{ arabic: "كِتَٰبٌ", translation: "kitap" }]);
+  check('renderWordMealCardsHTML: Arapça kelime lang="ar" taşıyor, Türkçe karşılığı (.wbw-tr) taşımıyor', /<span class="wbw-ar" lang="ar">كِتَٰبٌ<\/span>/.test(cardsHTML) && /<span class="wbw-tr">kitap<\/span>/.test(cardsHTML));
 }
 
 // -- Statik index.html kabuğu: axe-core genel yapısal tarama ------------------------------------------------
@@ -287,6 +389,6 @@ if (failures) {
   process.exit(1);
 } else {
   console.log(
-    "All checks passed (nav-announcer yapısı + gecikmeli/tekrar-anons/birleşik-anons mantığı, canlı bölge kapsamı (#page-container canlı değil, panel gövdesi canlı, panel açılış/kapanış anonsu), showPage huni kontrolü, metin katmanının aria-hiding'siz yapısı, axe-core yapısal tarama). NOT: bunlar otomatik/yapısal kontroller -- gerçek bir ekran okuyucu testinin yerini tutmaz."
+    "All checks passed (nav-announcer yapısı + gecikmeli/tekrar-anons/birleşik-anons mantığı, canlı bölge kapsamı (#page-container canlı değil, panel gövdesi canlı, panel açılış/kapanış anonsu), showPage huni kontrolü, metin katmanının aria-hiding'siz yapısı, Arapça metin parçalarında lang=\"ar\" (gerçek LineRenderer çıktısı, statik kabuk, CSS'ten türetilen şablon taraması, Oynat etiketi), axe-core yapısal tarama (dil kuralları dahil)). NOT: bunlar otomatik/yapısal kontroller -- gerçek bir ekran okuyucu testinin yerini tutmaz."
   );
 }

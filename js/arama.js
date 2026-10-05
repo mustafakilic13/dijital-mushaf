@@ -244,7 +244,7 @@ export function setupArama(deps) {
     return (
       `<button type="button" class="modal-item" data-act="go-surah" data-surah="${hit.surah}">` +
       `<span class="modal-item-num">${hit.surah}</span>` +
-      `<span class="modal-item-main"><span class="modal-item-arabic">${esc(s.nameArabic)}</span>` +
+      `<span class="modal-item-main"><span class="modal-item-arabic" lang="ar">${esc(s.nameArabic)}</span>` +
       `<span class="modal-item-sub">${esc(s.nameTurkish)} · ${s.versesCount} ayet</span></span></button>`
     );
   }
