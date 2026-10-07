@@ -10,6 +10,7 @@ import {
 } from "./wordmeal.js";
 import { loadMealData, isMealDataReady, getCachedMealData, getMealText, renderMealHTML } from "./meal.js";
 import { setupArama } from "./arama.js";
+import { createModalFocus } from "./modal-odak.js";
 import {
   tafsirSourceIds,
   tafsirSourceLabel,
@@ -675,11 +676,20 @@ function setActiveModalItem(listEl, matchAttr, value) {
   if (active && active.scrollIntoView) active.scrollIntoView({ block: "center" });
 }
 
+// Modal odak yönetimi (bkz. js/modal-odak.js): açılışta odak modalın içine girer,
+// Tab modalın içinde döner, kapanışta odak modalı açan öğeye geri döner.
+const modalFocus = createModalFocus(document, () => state.openModalEl);
+
 function openModal(modalEl, { onOpen } = {}) {
-  closeAllModals();
+  // Başka bir modalın içinden açılıyorsa (arama -> konu) en baştaki açan öğe korunur. Açan öğe,
+  // closeAllModals()'tan ÖNCE yakalanmalı: sonrasında odak hâlâ eski modalın içinde olurdu.
+  modalFocus.remember({ keepExisting: !!state.openModalEl });
+  closeAllModals({ restoreFocus: false }); // yeni modala geçiliyor: odağı eski açana geri verme
   state.openModalEl = modalEl;
   els.modalBackdrop.hidden = false;
   modalEl.hidden = false;
+  // onOpen'dan ÖNCE: arama modalı onOpen içinde kendi giriş alanına odaklanıyor, bu onu ezmemeli.
+  modalFocus.enter(modalEl);
   // next frame, so the hidden->visible change doesn't get collapsed into
   // the transform transition (no "from" state to animate from otherwise)
   requestAnimationFrame(() => {
@@ -689,7 +699,7 @@ function openModal(modalEl, { onOpen } = {}) {
   if (onOpen) onOpen();
 }
 
-function closeModal(modalEl) {
+function closeModal(modalEl, { restoreFocus = true } = {}) {
   if (!modalEl || modalEl.hidden) return;
   modalEl.classList.remove("open");
   els.modalBackdrop.classList.remove("open");
@@ -711,6 +721,10 @@ function closeModal(modalEl) {
   // with a fallback in case transitionend doesn't fire (reduced-motion,
   // already mid-transition, etc.)
   const finish = () => {
+    // Kapanış animasyonu sürerken modal YENİDEN açıldıysa (Escape, hemen ardından Enter: odak artık açan
+    // düğmede olduğu için klavyeyle mümkün) eski kapanışın zamanlayıcısı onu gizlemesin. Gizlerse modal
+    // görünmez ama "açık" kalır, perde ekranda takılır ve Escape bile çalışmaz (closeModal gizli modalı atlıyor).
+    if (state.openModalEl === modalEl) return;
     modalEl.hidden = true;
     if (!els.modalBackdrop.classList.contains("open")) els.modalBackdrop.hidden = true;
   };
@@ -728,11 +742,15 @@ function closeModal(modalEl) {
       finish();
     }
   }, 320);
-  if (state.openModalEl === modalEl) state.openModalEl = null;
+  if (state.openModalEl === modalEl) {
+    state.openModalEl = null;
+    // state.openModalEl temizlendikten SONRA: odak modalın içine geri çeken güvenlik ağı artık bu modalı korumuyor.
+    if (restoreFocus) modalFocus.restore();
+  }
 }
 
-function closeAllModals() {
-  [els.surahModal, els.juzModal, els.pageModal, els.ezberModal, els.surahInfoModal, els.topicsModal, els.aramaModal].forEach(closeModal);
+function closeAllModals({ restoreFocus = true } = {}) {
+  [els.surahModal, els.juzModal, els.pageModal, els.ezberModal, els.surahInfoModal, els.topicsModal, els.aramaModal].forEach((m) => closeModal(m, { restoreFocus }));
 }
 
 function setupModals() {
@@ -837,8 +855,9 @@ function setupModals() {
     els.pageJumpInput.value = els.pageJumpSlider.value;
   });
 
-  els.modalBackdrop.addEventListener("click", closeAllModals);
-  document.querySelectorAll("[data-close]").forEach((btn) => btn.addEventListener("click", closeAllModals));
+  // Ok işlevi: click olayı closeAllModals'a seçenek nesnesi olarak geçmesin.
+  els.modalBackdrop.addEventListener("click", () => closeAllModals());
+  document.querySelectorAll("[data-close]").forEach((btn) => btn.addEventListener("click", () => closeAllModals()));
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (state.openModalEl) closeAllModals();

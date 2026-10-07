@@ -511,6 +511,88 @@ düğmesinin erişilebilir adı yalnızca o Arapça ibare (`aria-label` yok); ad
 artık Arapça sesle okunur ama düğmenin ne yaptığını Türkçe söyleyen bir ad
 yok.
 
+**Modal odak yönetimi.** Yedi modalın (sure, cüz, sayfa, ezber, sure bilgisi,
+konu, arama) hepsi `role="dialog"` + `aria-modal="true"` +
+`aria-labelledby` taşıyordu, ama odağa hiç dokunulmuyordu. Başsız
+Chromium'da (430 ve 1200 px görünüm; fare + klavye; 7 modalın her biri
+için aynı senaryo) yamadan ÖNCE ölçülen durum: modal açılınca odak modalın
+içine girmiyor, arkadaki düğmede ya da `<body>`'de kalıyordu (yalnızca
+arama modalı giriş alanına odaklanıyor: 1/7) -- ekran okuyucu "Sure Seç,
+iletişim kutusu" demiyor, Tab de modalın ALTINDAKİ sayfada dolaşıyordu
+(Tab durağı sayıları: sure 229, konu 189, cüz 35, ezber 12, arama 8, sayfa
+6, sure bilgisi 4); modalın son durağında Tab odağı dışarı taşıyordu
+(içeride kalan: 0/7); Esc, Kapat, perdeye tıklama ya da bir öğe seçme ile
+kapanınca odak modalı açan düğmeye değil `<body>`'ye düşüyordu (açana dönen:
+0/6, öğe seçmede 0/3) -- Tab sayfanın başından başlıyor, ekran okuyucu
+kullanıcısı nerede olduğunu kaybediyordu. `js/modal-odak.js` bunu üç şeyle
+çözüyor (WAI-ARIA APG "Dialog (Modal)" deseni) ve `openModal`/`closeModal`'a
+tek yerden bağlı:
+
+- **Açılışta odak modalın kendisine** alınıyor (`tabindex="-1"`: programatik
+  odak alır, Tab sırasına girmez). Ekran okuyucu başlığı ve rolü okur;
+  229 duraklı bir listede ilk öğeye ya da Kapat düğmesine atlamaktan daha
+  iyi. Arama modalı kendi giriş alanına odaklanmaya devam ediyor (`onOpen`,
+  `enter()`'den SONRA çalışıyor). `.modal-sheet:focus { outline: none }`:
+  kapsayıcı etkileşimli bir öğe değil, klavyeyle açınca bütün sheet'in
+  çevresine halka çizilmesin; düğme/giriş öğelerinin `:focus-visible`
+  halkası olduğu gibi duruyor.
+- **Tab/Shift+Tab modalın içinde dönüyor** (son durakta Tab -> ilk; ilk
+  durakta ya da kapsayıcıdayken Shift+Tab -> son). Odak başka bir yolla
+  dışarı düşerse (yardımcı teknoloji, gizlenen bir öğeden `<body>`'ye düşen
+  odak) `focusin` güvenlik ağı onu son Tab yönüne göre içeri çekiyor. Durak
+  listesinde `[hidden]`/`[inert]` atası olanlar, `display:none` /
+  `visibility:hidden` olanlar (`checkVisibility()`), devre dışı ve
+  `tabindex="-1"` öğeler yok.
+- **Kapanışta odak açana dönüyor.** Arama -> konu gibi modaldan modala
+  geçişlerde en baştaki açan korunuyor (zincirin sonunda odak yine baştaki
+  düğmeye döner); ara modalın kapanışı odağı geri vermiyor. Safari/iOS
+  tıklanan düğmeye odak vermediği için (`document.activeElement` `<body>`
+  kalıyor) yakalama aşamasında son tıklanan etkileşimli öğe de tutuluyor
+  ve yalnızca taze ise (1 sn) kullanılıyor. Sure başlığına SVG üzerinden
+  dokunarak açılan Sure Bilgisi'nin odaklanabilir bir açanı yok; orada
+  kapanışta odağa dokunulmuyor (bkz. Yapılacaklar'daki klavye notu).
+
+Aynı senaryo yamalı sürümde: açılışta odak modalda 7/7, açılışta Shift+Tab
+içeride 7/7, son durakta Tab içeride 7/7, kapanışta odak açana dönüyor
+(Esc, Kapat ve perde için ayrı ayrı 6/6; Sure Bilgisi'nin açanı yok), öğe
+seçerek kapanışta 3/3; klavyeyle açılan kapsayıcıda halka yok (0/4), ama
+arama girişi 2 px halkasını koruyor.
+Görünüm değişmedi: fareyle açılmış 7 modalın ekran görüntüleri 430 ve
+1200 px'te yamasız sürümle piksel piksel aynı (14 görüntüde 0 piksel
+fark). Klavyeyle (Enter) açılışta tek fark üst çubukta: yamasızda odak
+açan düğmede kaldığı için o düğmenin altın odak halkası perdenin ardında
+görünür, yamalıda odak modalın içinde olduğundan görünmez; sheet'in
+çevresinde yeni bir halka çıkmıyor.
+
+**Aynı yamada kapatılan gizli bir hata: kapat-hemen-yeniden-aç.**
+`closeModal`'ın kapanış bitişi (`transitionend` + 320 ms yedek
+zamanlayıcı) modalı `hidden` yapıyor; kapanış animasyonu bitmeden modal
+YENİDEN açılırsa eski zamanlayıcı yeni açılışı gizliyordu -- modal görünmez
+ama "açık" kalıyor, perde ekranda takılıyor, Esc bile çalışmıyordu
+(`closeModal` zaten gizli modalı atlıyor). Eski kodda buna pratikte
+ulaşılamıyordu (Esc odağı `<body>`'ye düşürüyordu; perde -- `position:
+fixed; inset: 0`, `pointer-events` kapatılmıyor -- kapanış sürerken de
+fare tıklamasını karşılıyor), ama odak açan düğmeye dönünce
+klavyeyle ("Esc, hemen ardından Enter") ulaşılabilir hâle gelecekti; o
+yüzden aynı yamada kapatıldı: `finish` artık modal o arada yeniden
+açıldıysa dokunmuyor. Yamasız sürümde aynı durum (odak elle açana alınarak
+taklit edildi) sabit açanı olan 5 modalın 5'inde arayüzü kilitledi, yamalıda
+0/5.
+
+`test/modal_odak_test.mjs` (jsdom, 108 kontrol): 7 modalın işaretlemesi ve
+`closeAllModals` listesiyle bire bir örtüşmesi, `tabbablesIn`/`isRendered`,
+`createModalFocus`'un GERÇEK `index.html` üzerinde davranışı (döngü,
+kaçan odağın geri çekilmesi, Chromium ve Safari/iOS açan yakalama yolları,
+tıklama kaydının açanın kendi `click` işleyicisinden ÖNCE yapılması,
+zincirleme açılış, yok olmuş/gizli/devre dışı açanda sessiz vazgeçme) ve
+`app.js`'in `openModal`/`closeModal`/`closeAllModals` bloğunun kaynaktan
+çıkarılıp gerçek modal işaretlemesiyle çalıştırılması (sıralama, kapat-aç
+yarışı, `restoreFocus:false`). Her parça tek tek bozularak (modülde 20,
+`app.js`'te 12, HTML/CSS'te 4, `sw.js`'te 2 -- toplam 38 mutasyon)
+testlerin gerçekten kırıldığı doğrulandı. Sınır: jsdom'da düzen ve gerçek
+Tab gezintisi yok; yukarıdaki Chromium ölçümü bu açığı kapatıyor, ama gerçek
+ekran okuyucu testinin yerini tutmuyor.
+
 **Otomatik doğrulama, gerçek cihaz testinin YERİNE DEĞİL.**
 `test/erisilebilirlik_test.mjs`, yukarıdaki ikisini + genel ARIA
 etiketlerini hem kaynak metin üzerinden hem [axe-core](https://github.com/dequelabs/axe-core)
@@ -609,7 +691,13 @@ listede olduğunu hem ikincil/büyük verilerin OLMADIĞINI doğruluyor. Sahte
 `caches`, gerçek Cache API gibi göreli URL'leri `sw.js`'in adresine göre
 mutlak URL'ye çözüyor; böylece "kurulumdan hemen sonra, hiç çevrimiçi
 açılış olmadan çevrimdışı" senaryosu (`PRECACHE_URLS`'in her biri + dizin
-URL'si + gezinti fallback'i) da sınanıyor.
+URL'si + gezinti fallback'i) da sınanıyor. Ayrıca bir koruma, `index.html`'in
+`<script src>`/stylesheet bağlantılarını ve `js/app.js`'ten statik `import`
+ile erişilen modül ağacını çıkarıp bunların HER BİRİNİN `PRECACHE_URLS`'te
+olduğunu (yeni bir modül listeye eklenmezse "ilk ziyaretten sonra çevrimdışı"
+yine kırılırdı) ve listedeki her dosyanın diskte bulunduğunu (biri 404
+verirse `cache.addAll` tümüyle reddedilir, `install` başarısız olur)
+doğruluyor.
 
 ## Proje yapısı
 
@@ -628,6 +716,7 @@ js/surahinfo.js           Sure Bilgisi: veri yükleme + <h2> sınırlarından ak
 js/topics.js              Konu Fihristi: veri yükleme + ayrıştırma/indeksleme (ayet, ana/alt/ilişkili konu)
 js/search.js               Arama: saf mantık (normalleştirme, sorgu ayrıştırma, dizin, vurgu, son aramalar)
 js/arama.js                 Arama modalı: arayüz + olaylar (bkz. "Arama")
+js/modal-odak.js             Modal odak yönetimi: açılışta odağı modala al, Tab'i içeride döndür, kapanışta açana geri ver (bkz. "Erişilebilirlik")
 js/app.js               Sayfa yükleme, önbellek, gezinme, modaller, ayet seçimi, ayet detay paneli, konu fihristi
 data/mushaf.json         604 sayfa × satır × kelime (QUL'dan üretildi, ~3MB)
 data/surahs.json          Sure adları/metadata (Türkçe isim dahil) + başlık glyph'i
@@ -653,6 +742,7 @@ test/full_corpus_test.mjs  604 sayfayı Node'da render edip doğrulayan test
 test/search_test.mjs        Arama saf mantığı (Node)
 test/arama_ui_test.mjs       Arama modalı arayüzü (jsdom)
 test/erisilebilirlik_test.mjs Anons bölgesi + axe-core yapısal tarama (jsdom)
+test/modal_odak_test.mjs        Modal odak yönetimi: işaretleme, Tab döngüsü, açan öğeye dönüş, app.js bağlantısı (jsdom)
 test/sw_test.mjs              Servis worker: sahte self/caches ile (Node)
 ```
 
@@ -764,15 +854,31 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
    ayarlarında, VoiceOver/TalkBack'te ses paketlerinde bakılacak). Aynı
    kontrolü üst çubuktaki Arapça sure adında, Oynat düğmesinde ve sure
    listesinde de yap.
-3. Bir ayete dokununca/Enter'a basınca "<Sure> <ayet> detayı açıldı"
+3. Bir ayete dokununca (fareyle tıklayınca) "<Sure> <ayet> detayı açıldı"
    duyuluyor mu; panel gövdesinin ilk içeriği en fazla bir kez okunuyor mu
    (yeni eklenen bir canlı bölgenin ilk içeriğini bazı ekran okuyucular
-   okur, bazıları okumaz).
+   okur, bazıları okumaz). **Not: bu panele klavyeyle ulaşılamıyor.**
+   Ayet paneli de, sure başlığındaki Sure Bilgisi de yalnızca sayfa
+   SVG'sine gelen `click` ile açılıyor (`els.pageContainer` işleyicisi,
+   ayet `pointToAyah(e.clientX, e.clientY, ...)` ile imleç konumundan
+   bulunuyor); odaklanabilir bir öğe ya da Enter/Space işleyicisi yok.
+   Bir ekran okuyucunun "etkinleştir" hareketinin bu SVG'ye `click`
+   üretip üretmediği de sınanmadı. Bu ayrı bir erişilebilirlik açığı ve
+   ayrı bir yamayla çözülmeli.
 4. Tefsir sekmesine basınca tefsir metni okunuyor mu.
 5. Kapat düğmesine/Esc'ye basınca "Ayet detayı kapatıldı" duyuluyor mu.
+6. Bir modal açılınca (ör. üst çubuktan Sure Seç) ekran okuyucu başlığı ve
+   rolü okuyor mu ("Sure Seç, iletişim kutusu" gibi), odak modalın içinde
+   mi, Tab/Shift+Tab modalın dışına çıkmadan dönüyor mu.
+7. Kapat/Esc/perdeye dokunma/bir öğe seçme ile kapanınca odak modalı açan
+   düğmeye dönüyor mu ve ekran okuyucu oradaki düğmeyi okuyor mu. Safari/iOS
+   tıklanan düğmeye odak vermediği için açan öğe orada "son tıklanan
+   etkileşimli öğe"den (en fazla 1 sn önce) bulunuyor -- özellikle iPhone'da
+   doğrula. Arama -> konu gibi zincirde odak başa, yani Arama düğmesine
+   dönmeli.
 
-Beklenenden farklı çıkarsa canlı bölge değişikliği ve dil işaretleri ayrı
-ayrı tek commit'tir, geri alınabilir.
+Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri ve modal
+odak yönetimi ayrı ayrı tek commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 

@@ -300,6 +300,38 @@ try {
 for (const f of ["./", "index.html", "js/app.js", "css/style.css", "data/mushaf.json", "data/meal.json", "vendor/hb.wasm", "fonts/DigitalKhattV2.woff2"]) {
   check(`PRECACHE_URLS kritik dosyayı içeriyor: ${f}`, PRECACHE_URLS.includes(f));
 }
+// Uygulamanın yüklediği HER yerel kabuk dosyası listede mi? Yeni bir JS modülü eklenip buraya yazılmazsa,
+// kurulumdan hemen sonra çevrimdışı açılışta `import` başarısız olur ve uygulama hiç açılmaz (ilk ziyarette
+// SW sayfayı henüz denetlemediği için modül çalışma-zamanında da önbelleğe girmemiştir). Kritik dosyaları
+// elle saymak yerine KAYNAKTAN çıkarıyoruz: index.html'deki betik/stil + app.js'ten erişilen import ağacı.
+// Ters yön de önemli: listedeki bir dosya diskte yoksa cache.addAll TÜMÜYLE reddedilir ve install başarısız olur.
+{
+  const isLocal = (u) => !!u && !/^([a-z][a-z0-9+.-]*:)?\/\//i.test(u) && !u.startsWith("data:");
+  const needed = new Set();
+  for (const m of html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)) if (isLocal(m[1])) needed.add(m[1]);
+  for (const m of html.matchAll(/<link[^>]*rel="stylesheet"[^>]*\shref="([^"]+)"/g)) if (isLocal(m[1])) needed.add(m[1]);
+  const queue = ["js/app.js"];
+  const seen = new Set();
+  let allJs = "";
+  while (queue.length) {
+    const f = queue.pop();
+    if (seen.has(f)) continue;
+    seen.add(f);
+    needed.add(f);
+    const src = readText(f);
+    allJs += `\n${src}`;
+    // Statik import / export ... from "./x.js" (çok satırlı olanlar dahil) ve çıplak import "./x.js".
+    for (const m of src.matchAll(/^[ \t]*(?:import|export)\b[^;'"]*?\bfrom\s*["'](\.{1,2}\/[^"']+)["']|^[ \t]*import\s*["'](\.{1,2}\/[^"']+)["']/gm)) {
+      queue.push(path.posix.normalize(path.posix.join(path.posix.dirname(f), m[1] || m[2])));
+    }
+  }
+  check(`import ağacı taraması gerçekten çalıştı (app.js'ten ${seen.size} JS dosyasına ulaşıldı; en az 10 beklenir)`, seen.size >= 10);
+  check("kaynakta dinamik import() yok (yukarıdaki ağaç taraması yalnızca statik import'ları görür; ekleyen bunu bilerek taramayı genişletmeli)", !/\bimport\s*\(/.test(allJs));
+  const missing = [...needed].filter((f) => !PRECACHE_URLS.includes(f));
+  check(`PRECACHE_URLS, index.html'in ve app.js import ağacının yüklediği HER yerel dosyayı içeriyor${missing.length ? ` -- EKSİK: ${missing.join(", ")}` : ""}`, missing.length === 0);
+  const dangling = PRECACHE_URLS.filter((u) => u !== "./" && !fs.existsSync(path.join(ROOT, u)));
+  check(`PRECACHE_URLS'teki her dosya diskte var (biri bile 404 verirse cache.addAll tümüyle reddedilir, install başarısız olur)${dangling.length ? ` -- YOK: ${dangling.join(", ")}` : ""}`, dangling.length === 0);
+}
 check("PRECACHE_URLS ikincil/büyük verileri İÇERMİYOR (word-meal/konular/sure-bilgisi/tefsir/ses-zamanlama/sure-başlıkları -- bunlar İLK KULLANILDIĞINDA önbelleğe giriyor)", (() => {
   const secondary = ["data/word-meal.json", "data/topics-tr.json", "data/surah-info-tr.json", "data/tafsir-saadi.json", "data/recitation-husary-mujawwad.json", "data/surah-headers/1.json"];
   return secondary.every((f) => !PRECACHE_URLS.includes(f));

@@ -712,7 +712,7 @@ function makeEnv(deps = {}) {
 // -- app.js kablolaması (kaynak metin) ------------------------------------------------------------------------
 check('app.js: setupArama import ediliyor', /import \{ setupArama \} from "\.\/arama\.js";/.test(appSource));
 check("app.js: els.aramaModal tanımlı", /aramaModal:\s*document\.getElementById\("arama-modal"\)/.test(appSource));
-check("app.js: closeAllModals listesinde arama modalı var (Escape/perde/[data-close] hepsi buradan)", /\[els\.surahModal[^\]]*els\.aramaModal\]\.forEach\(closeModal\)/.test(appSource));
+check("app.js: closeAllModals listesinde arama modalı var (Escape/perde/[data-close] hepsi buradan)", /\[els\.surahModal[^\]]*els\.aramaModal\]\.forEach\(\(m\) => closeModal\(m, \{ restoreFocus \}\)\)/.test(appSource));
 {
   const call = appSource.slice(appSource.indexOf("setupArama({"), appSource.indexOf("setupArama({") + 900);
   check("app.js: setupArama gerekli bağımlılıkların hepsiyle çağrılıyor", ["modal: els.aramaModal", "openBtn: els.aramaBtn", "getSurahs", "openModal", "closeModal", "goToAyah", "goToSurah", "goToJuz: goToJuzNum", "goToPage", "openTopic: openTopicsModal", "loadMealData", "loadWordMealData", "loadTopicsData", "ayahRawWords: ayahRawWordsAnywhere"].every((k) => call.includes(k)));

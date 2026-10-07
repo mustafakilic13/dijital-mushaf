@@ -258,6 +258,11 @@ body {
 .modal-sheet.open { transform: translate(-50%, 0); }
 .modal-sheet--compact { max-height: none; }
 .modal-sheet[hidden] { display: none; }
+/* Modal açılırken odak programatik olarak kapsayıcının kendisine alınır (js/modal-odak.js;
+   ekran okuyucu başlığı ve rolü okusun diye). Kapsayıcı etkileşimli bir öğe değil: klavyeyle
+   açılınca bütün sheet'in çevresine halka çizilmesin. Halka içindeki düğme/giriş/seçim
+   öğelerinde (button:focus-visible vb., aşağıda) olduğu gibi duruyor. */
+.modal-sheet:focus { outline: none; }
 
 @media (min-width: 640px) {
   .modal-sheet {
