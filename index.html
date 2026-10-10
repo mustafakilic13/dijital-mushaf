@@ -68,6 +68,17 @@
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
 
+    <!-- Ayet gezgini (js/ayet-gezgini.js): sayfa tek bir <svg>, ayetlere/sure başlığına yalnızca fareyle
+         tıklanabiliyordu. Burada sayfadaki sure başlıkları ve ayetler gerçek düğme olarak sunuluyor
+         (görsel olarak gizli; odak halkası sayfadaki vurgunun üstüne çiziliyor). .reader-scroll'dan ÖNCE:
+         CSS (#ayah-nav[data-kbd] ~ .reader-scroll ...) kardeş seçiciyle sayfadaki vurguyu boyuyor. -->
+    <nav id="ayah-nav" class="ayah-nav sr-only" aria-label="Sayfa gezgini" hidden>
+      <ul class="ayah-nav-surahs" aria-label="Sure başlıkları" hidden></ul>
+      <ul class="ayah-nav-ayahs" aria-label="Sayfadaki ayetler" aria-describedby="ayah-nav-hint" hidden></ul>
+      <p id="ayah-nav-hint" hidden>Ayetler arasında gezinmek için yukarı ve aşağı ok tuşlarını, ayrıntıyı açıp kapatmak için Enter tuşunu kullanın.</p>
+    </nav>
+    <div class="ayah-nav-hint" aria-hidden="true">↑ ↓ ayet seç · Enter ayrıntı · Esc kapat</div>
+
     <div class="reader-scroll">
       <div id="page-container" class="page-container"></div>
     </div>

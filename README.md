@@ -141,7 +141,8 @@ Sayfadaki bir ayetin metnine dokunmak, o ayetin **son satırından hemen
 sonra** bir panel açar; aynı ayete (veya başka bir ayete) tekrar dokunmak
 kapatır. Panelde sırayla kelime meali, meal ve tefsir var (bkz. `js/app.js`,
 "Ayet detay paneli (kelime meali, meal, ...)" başlıklı yorum bloğu ve
-`ayahPanelBodyHTML`).
+`ayahPanelBodyHTML`). Klavyeyle ve ekran okuyucuyla aynı panel ayet
+gezgininden (Enter/Space) açılıyor, bkz. "Erişilebilirlik".
 
 **Neden bu kadar dolambaçlı:** Sayfa tek parça bir SVG olduğu için ("Nasıl
 çalışır" bölümüne bakın), paneli normal bir HTML akışının arasına sokmak
@@ -549,8 +550,10 @@ tek yerden bağlı:
   tıklanan düğmeye odak vermediği için (`document.activeElement` `<body>`
   kalıyor) yakalama aşamasında son tıklanan etkileşimli öğe de tutuluyor
   ve yalnızca taze ise (1 sn) kullanılıyor. Sure başlığına SVG üzerinden
-  dokunarak açılan Sure Bilgisi'nin odaklanabilir bir açanı yok; orada
-  kapanışta odağa dokunulmuyor (bkz. Yapılacaklar'daki klavye notu).
+  fareyle/dokunarak açılan Sure Bilgisi'nin odaklanabilir bir açanı yok;
+  orada kapanışta odağa dokunulmuyor. Klavye/ekran okuyucuyla açılınca
+  açan, gezgindeki sure başlığı düğmesi ve kapanışta odak ona dönüyor (bkz.
+  aşağıdaki "Ayete ve sure başlığına klavye / ekran okuyucu erişimi").
 
 Aynı senaryo yamalı sürümde: açılışta odak modalda 7/7, açılışta Shift+Tab
 içeride 7/7, son durakta Tab içeride 7/7, kapanışta odak açana dönüyor
@@ -592,6 +595,132 @@ yarışı, `restoreFocus:false`). Her parça tek tek bozularak (modülde 20,
 testlerin gerçekten kırıldığı doğrulandı. Sınır: jsdom'da düzen ve gerçek
 Tab gezintisi yok; yukarıdaki Chromium ölçümü bu açığı kapatıyor, ama gerçek
 ekran okuyucu testinin yerini tutmuyor.
+
+**Ayete ve sure başlığına klavye / ekran okuyucu erişimi (ayet gezgini).**
+Sayfa tek bir `<svg>` (harfler `<path>`, üstünde görünmez bir metin katmanı)
+olduğu için **ayet detay paneli** (kelime meali, meal, tefsir, konular) ile
+**Sure Bilgisi** yalnızca bu SVG'ye gelen fare/dokunma `click`'iyle açılıyordu:
+odaklanabilir bir öğe ve Enter/Space işleyicisi yoktu. Başsız Chromium'da
+(1. sayfa) yamadan ÖNCE ölçülen durum: 430 px'te 6, 1200 px'te 9 Tab durağı
+var ve hiçbiri sayfanın içeriğine (ayetlere, sure başlığına) gitmiyor
+(1200 px'teki `.reader-scroll`, kaydırma kapsayıcısının kendisi); her
+durağa Enter ve Space ile toplam 28 deneme yapıldı (430 px'te 12, 1200 px'te
+16; kaydırma kapsayıcısı atlandı) ve ayet paneli de Sure Bilgisi de 0 kez
+açıldı. Yani uygulamanın ana özelliğine klavyeyle ya da ekran okuyucuyla
+ulaşılamıyordu.
+
+`js/ayet-gezgini.js`, sayfayı yeniden çizmeden SVG'nin yanına kendi
+erişilebilirlik ağacını ekliyor: `index.html`'deki `#ayah-nav`, görsel olarak
+gizli (`.sr-only`), `aria-label="Sayfa gezgini"` taşıyan bir `<nav>`; içinde
+o sayfadaki **her sure başlığı ve her ayet gerçek bir `<button>`** ("Sure
+başlıkları" ve "Sayfadaki ayetler" listeleri; boş liste gizli, ekran okuyucu
+"liste, 0 öğe" demesin). `showPage` bunları sayfa çizilince o sayfanın
+verisinden kuruyor -- `state.currentPageSegments` ve SVG'deki
+`.surah-header-hit` grupları, yani fareyle tıklanabilenlerle birebir aynı
+küme --; liste değişmediyse yeniden kurmuyor (odak ve ekran okuyucu konumu
+korunsun). `#ayah-nav`, `.reader-scroll`'dan ÖNCE geliyor: CSS'teki kardeş
+seçicisi (`~`) buna dayanıyor.
+
+- **Sure başlığı düğmeleri** ("Fâtiha Suresi hakkında bilgi") normal Tab
+  durakları; Enter/Space -> Sure Bilgisi (`openSurahInfo`, fareyle aynı yol).
+- **Ayet düğmeleri** ("Fâtiha Suresi, 3. ayet": sayfa geçişi anonsuyla aynı
+  kalıp) **tek Tab durağı** (roving tabindex: seçili ayet `tabindex="0"`,
+  ötekiler `-1`); yani sayfada 7 ya da 40 ayet olması Tab'ı uzatmıyor.
+  Yukarı/Aşağı/Home/End ayetler arasında gezinir ve gezdiği ayeti **seçer**
+  (sayfadaki vurgu taşınır; fareyle o ayete dokunmakla aynı `showPage` yolu,
+  URL'ye yazmadan); uçlarda dönülmez, sayfa değişmez. `aria-current="true"`
+  seçili ayeti, `aria-expanded` paneli açık ayeti işaretliyor. Enter/Space
+  paneli açar/kapatır (`onAyahTextClick`, fareyle aynı yol).
+- **Sol/Sağ ok sayfa çevirmeye devam ediyor** (belge düzeyindeki işleyici;
+  gezgin bu tuşlara dokunmuyor). Shift/Ctrl/Alt/Meta ile birlikte basılan
+  tuşlara ve başka bir işleyicinin zaten `preventDefault` ettiği olaylara da
+  dokunmuyor (tarayıcı/ekran okuyucu kısayolları bozulmasın). Enter basılı
+  tutulunca panelin saniyede onlarca kez açılıp kapanması engelleniyor.
+- **Panel açılınca odak panele geçiyor** (`tabindex="-1"`; ekran okuyucu
+  "Fâtiha 2 detayı, bölge" der). Tab panelin içindeki düğmelere gider;
+  Escape ya da Kapat ile kapanınca odak o ayet düğmesine döner (eskiden
+  `<body>`'ye düşerdi). Panel, açılış animasyonu bitince (`transitionend`;
+  gelmezse 400 ms yedek) görünür alana kaydırılıyor. Panel fareyle
+  açılırsa odağa dokunulmuyor.
+- **Odak `<body>`'ye düşmüyor:** gezginde ya da panelde iken sayfa çevrilir
+  veya panel kalkarsa odak aynı sure başlığına, yoksa yeni sayfanın seçili
+  ayet düğmesine veriliyor. Gezgin Ezber çalışırken gizli (orada ayete
+  dokunmak panel değil kelime açmak demek) ve "Bitir"den sonra geri geliyor.
+- **Odak halkası gizli düğmenin değil, sayfadaki asıl yerin üstüne
+  çiziliyor:** ayet düğmesindeyken seçili ayetin vurgusuna, sure başlığı
+  düğmesindeyken başlığa 3 px zümrüt çerçeve (`vector-effect:
+  non-scaling-stroke`: sayfa ölçeğinden bağımsız). Yalnızca `:focus-visible`
+  iken (`#ayah-nav[data-kbd="ayah"|"surah"]`): fareyle "Kapat"a basınca odak
+  programatik olarak ayet düğmesine geçse bile fare kullanıcısı halka
+  görmez, sayfası da kaymaz. Odak gezgindeyken altta "↑ ↓ ayet seç · Enter
+  ayrıntı · Esc kapat" ipucu çıkıyor (`aria-hidden`; ekran okuyucuya aynı
+  bilgi `aria-describedby` ile okutuluyor). Odaklanan ayet/başlık görünür
+  alanın dışındaysa `.reader-scroll` en az kaydırmayla ve 16 px boşlukla
+  kaydırılıyor (`revealDelta`); pencereden uzun bir ayette ÜST kenar
+  hizalanıyor.
+- **Yeni canlı bölge eklenmedi:** seçim değişince anons yine
+  `#nav-announcer`'dan geliyor (`showPage` -> `announceNavigation`); gezgin
+  kendi içinde canlı bölge taşımıyor.
+
+Aynı ölçüm yamalı sürümde (başsız Chromium, 1. sayfa, aynı sonda): Tab
+durakları 430 px'te 6 -> 8, 1200 px'te 9 -> 11 (artı iki durak: sure başlığı
+ve seçili ayet; Tab ile gezgine 430 px'te 4, 1200 px'te 5 basışta
+varılıyor). Enter ve Space denemelerinde sure başlığı düğmesi Sure
+Bilgisi'ni 2/2, seçili ayet düğmesi ayet panelini 2/2 açıyor (her iki
+genişlikte; yamasızda 28 denemede 0). Uçtan uca akış üç görünümde
+(430x900 1. sayfa, 430x520 2. sayfa, 1200x900 1. sayfa) çalıştırıldı ve
+şunları doğruladı: Tab ile giriş (ilk durak sure başlığı, ikincisi seçili
+ayet); ok tuşlarıyla seçim (her adımda tek `aria-current` ve tek Tab durağı,
+adres çubuğu değişmiyor, anons "Sayfa 1, Fâtiha Suresi, 2. ayet"), uçlarda
+dönmeme; Enter ile panel açılıyor, odak panelde, panelin başı görünür
+alanda, Tab panelin içinde kalıyor, Escape ile kapanınca odak ayet
+düğmesinde ve `aria-expanded` temizleniyor; Shift+Tab ile ayete dönüş;
+başlıkta Enter -> Sure Bilgisi (odak modalın içinde), Escape ile odak başlık
+düğmesine dönüyor, başlıktayken YALNIZCA başlıkta çerçeve var (ayet
+vurgusunda yok: iki halka birden çıkmıyor); Sol/Sağ okla sayfa çevirirken (panel
+açıkken de) odak gezginde kalıyor; fareyle akış eskisi gibi (panel açılıp
+kapanıyor, odak `<body>`'de, `data-kbd` yok: halka ve ipucu çıkmıyor); 12 ok
+basışında vurgunun ilk satırı hep görünür alanda, `.reader` ve belge
+kaymıyor; Ezber çalışırken gezgin gizli, Tab içine girmiyor, "Bitir"den
+sonra geri geliyor. Sayfa hatası: 0. Görünüm değişmedi: fareyle ulaşılan 9 durumun
+(kapalı sayfa, panel açık, panel kapalı, Sure Bilgisi; 1., 2. ve 3. sayfa)
+ekran görüntüleri 430 ve 1200 px'te yamasız sürümle piksel piksel aynı (18
+görüntü çiftinde 0 piksel fark). Klavye halkası, ipucu ve panel odak
+halkasının görünümü ayrıca ekran görüntüleriyle gözle incelendi.
+
+`test/ayet_gezgini_test.mjs` (jsdom, 177 kontrol): `#ayah-nav` işaretlemesi
+(nav + etiketler + gizli listeler + ipucu, `.reader-scroll`'dan önce gelmesi,
+canlı bölge İÇERMEMESİ), CSS halka/ipucu kuralları, `sw.js` ön yüklemesi,
+saf yardımcılar (`ayahsOnPage`, `surahsOfSvg`, `revealDelta`),
+`createAyahNav`'ın GERÇEK `index.html` üzerinde davranışı (roving tabindex,
+`aria-current`/`aria-expanded`, tuşlar ve dokunulmayan tuşlar, tıklama, sayfa
+değişince odağın korunması, `restoreFocus`, `:focus-visible` işareti,
+`onFocusTarget`; aynı numaralı iki ayetin (112:3 ve 113:3) karışmaması),
+`app.js`'in `<ayah-nav>` bloğunun kaynaktan çıkarılıp gerçek denetleyiciyle
+çalıştırılması (seçim -> `showPage`, başlık -> Sure Bilgisi, panel açılınca
+odak + kaydırma, yalnızca klavye odağında halka/kaydırma, Ezber'de gizleme),
+`showPage`/`openWordMeal`/`closeWordMeal`/`startEzberStudy`/`endEzberStudy`
+içindeki çağrıların varlığı VE sırası (odağın DOM'dan kalkmadan ÖNCE
+ölçülmesi gibi) ve axe-core yapısal taraması. Her parça tek tek bozularak
+(modülde 59, `app.js`'te 40, `index.html`'de 11, CSS'te 10, `sw.js`'te 1 --
+toplam 121 mutasyon) testlerin gerçekten kırıldığı doğrulandı.
+
+Sınırlar ve kapsam dışı kalanlar: jsdom'da düzen, gerçek Tab gezintisi ve
+`:focus-visible` sezgisi yok; yukarıdaki Chromium ölçümü bu açığı kapatıyor,
+ama **gerçek bir ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı.**
+Ok tuşlarıyla ayet değiştirirken ekran okuyucu hem odaklanan düğmenin adını
+hem `#nav-announcer` anonsunu okuyabilir (çift okuma); şimdilik güvenli taraf
+olarak ikisi de duruyor, gerçek cihazda duyup birini kaldırmak gerekebilir.
+NVDA/JAWS "tarama modu"nda ok tuşlarını ekran okuyucu kendisi kullanır, yani
+orada Yukarı/Aşağı ile seçim çalışmaz; sanal imleçle ayet düğmesine gelip
+Enter'a basmanın paneli açması beklenir ama sınanmadı. Sayfa kenarında dönme
+ya da sayfa geçişi yok (son ayette Aşağı hiçbir şey yapmaz; sayfa çevirme
+Sol/Sağ okla). Ezber çalışırken kelime açma/kapama hâlâ yalnızca fare/
+dokunmayla. Panelin altındaki sayfa kopyası (alt dilim) hâlâ `aria-hidden`
+değil: ekran okuyucu panelden sonra sayfa metnini bir kez daha okuyabilir
+(yamadan önce de böyleydi). Sure Bilgisi'nden "Mushaf'a Git" ile sayfa
+değişirse açan sure başlığı düğmesi yeniden kurulmuş olur; modal kapanınca
+odak `<body>`'ye düşebilir.
 
 **Otomatik doğrulama, gerçek cihaz testinin YERİNE DEĞİL.**
 `test/erisilebilirlik_test.mjs`, yukarıdaki ikisini + genel ARIA
@@ -717,6 +846,7 @@ js/topics.js              Konu Fihristi: veri yükleme + ayrıştırma/indekslem
 js/search.js               Arama: saf mantık (normalleştirme, sorgu ayrıştırma, dizin, vurgu, son aramalar)
 js/arama.js                 Arama modalı: arayüz + olaylar (bkz. "Arama")
 js/modal-odak.js             Modal odak yönetimi: açılışta odağı modala al, Tab'i içeride döndür, kapanışta açana geri ver (bkz. "Erişilebilirlik")
+js/ayet-gezgini.js              Ayet gezgini: sayfadaki ayet/sure başlığı için görünmez <nav> -- klavye ve ekran okuyucu erişimi (bkz. "Erişilebilirlik")
 js/app.js               Sayfa yükleme, önbellek, gezinme, modaller, ayet seçimi, ayet detay paneli, konu fihristi
 data/mushaf.json         604 sayfa × satır × kelime (QUL'dan üretildi, ~3MB)
 data/surahs.json          Sure adları/metadata (Türkçe isim dahil) + başlık glyph'i
@@ -743,6 +873,7 @@ test/search_test.mjs        Arama saf mantığı (Node)
 test/arama_ui_test.mjs       Arama modalı arayüzü (jsdom)
 test/erisilebilirlik_test.mjs Anons bölgesi + axe-core yapısal tarama (jsdom)
 test/modal_odak_test.mjs        Modal odak yönetimi: işaretleme, Tab döngüsü, açan öğeye dönüş, app.js bağlantısı (jsdom)
+test/ayet_gezgini_test.mjs         Ayet gezgini: işaretleme, CSS, saf yardımcılar, denetleyici, app.js bağlantısı ve sırası, axe-core (jsdom)
 test/sw_test.mjs              Servis worker: sahte self/caches ile (Node)
 ```
 
@@ -857,14 +988,13 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
 3. Bir ayete dokununca (fareyle tıklayınca) "<Sure> <ayet> detayı açıldı"
    duyuluyor mu; panel gövdesinin ilk içeriği en fazla bir kez okunuyor mu
    (yeni eklenen bir canlı bölgenin ilk içeriğini bazı ekran okuyucular
-   okur, bazıları okumaz). **Not: bu panele klavyeyle ulaşılamıyor.**
-   Ayet paneli de, sure başlığındaki Sure Bilgisi de yalnızca sayfa
-   SVG'sine gelen `click` ile açılıyor (`els.pageContainer` işleyicisi,
-   ayet `pointToAyah(e.clientX, e.clientY, ...)` ile imleç konumundan
-   bulunuyor); odaklanabilir bir öğe ya da Enter/Space işleyicisi yok.
-   Bir ekran okuyucunun "etkinleştir" hareketinin bu SVG'ye `click`
-   üretip üretmediği de sınanmadı. Bu ayrı bir erişilebilirlik açığı ve
-   ayrı bir yamayla çözülmeli.
+   okur, bazıları okumaz). Klavyeyle/ekran okuyucuyla aynı panele ve Sure
+   Bilgisi'ne artık ayet gezgininden ulaşılıyor (bkz. 8-11. maddeler); bu
+   madde fare/dokunma yolu için. Not: o yol hâlâ yalnızca sayfa SVG'sine
+   gelen `click` ile çalışıyor (`els.pageContainer` işleyicisi, ayet
+   `pointToAyah(e.clientX, e.clientY, ...)` ile imleç konumundan
+   bulunuyor); bir ekran okuyucunun "etkinleştir" hareketinin bu SVG'ye
+   `click` üretip üretmediği sınanmadı.
 4. Tefsir sekmesine basınca tefsir metni okunuyor mu.
 5. Kapat düğmesine/Esc'ye basınca "Ayet detayı kapatıldı" duyuluyor mu.
 6. Bir modal açılınca (ör. üst çubuktan Sure Seç) ekran okuyucu başlığı ve
@@ -876,9 +1006,28 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
    etkileşimli öğe"den (en fazla 1 sn önce) bulunuyor -- özellikle iPhone'da
    doğrula. Arama -> konu gibi zincirde odak başa, yani Arama düğmesine
    dönmeli.
+8. Ayet gezgini (`#ayah-nav`): Tab ile gelince ekran okuyucu "Sayfa gezgini"
+   bölgesini, "Sure başlıkları" ve "Sayfadaki ayetler" listelerini ve
+   düğmeleri okuyor mu ("Fâtiha Suresi, 3. ayet, düğme"; seçili ayette
+   "geçerli", panel açıkken "genişletilmiş" gibi); `aria-describedby`
+   ipucu ("Ayetler arasında gezinmek için yukarı ve aşağı ok tuşlarını,
+   ayrıntıyı açıp kapatmak için Enter tuşunu kullanın.") okunuyor mu.
+9. Yukarı/Aşağı ile ayet değiştirirken **çift okuma** var mı (odaklanan
+   düğmenin adı + `#nav-announcer`'ın "Sayfa N, <Sure> Suresi, M. ayet"
+   anonsu)? Varsa ve rahatsız ediyorsa biri kaldırılmalı; şimdilik güvenli
+   taraf olarak ikisi de duruyor.
+10. Enter ile panel açılınca odak panelde mi ve "<Sure> <ayet> detayı,
+    bölge" okunuyor mu; Tab panelin içindeki düğmelere/konu etiketlerine
+    gidiyor mu; Esc/Kapat ile kapanınca odak o ayet düğmesine dönüyor ve
+    okunuyor mu. VoiceOver (iOS/Mac) ve TalkBack'te "etkinleştir"
+    hareketi gezgin düğmesine `click` üretip paneli açıyor mu.
+11. NVDA/JAWS tarama modunda ok tuşlarını ekran okuyucu kendisi kullanır,
+    gezginin Yukarı/Aşağı işleyicisi orada çalışmaz: sanal imleçle bir ayet
+    düğmesine gelip Enter'a basmak paneli açıyor mu (ayet seçili değilse
+    önce seçip açıyor mu), sure başlığı düğmesi Sure Bilgisi'ni açıyor mu.
 
-Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri ve modal
-odak yönetimi ayrı ayrı tek commit'tir, geri alınabilir.
+Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal
+odak yönetimi ve ayet gezgini ayrı ayrı tek commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 
