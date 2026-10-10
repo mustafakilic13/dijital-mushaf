@@ -153,7 +153,9 @@ mümkün değil. Bunun yerine sayfa görsel olarak ikiye "dilimleniyor":
   yükseklikte,
 - panel,
 - **alt dilim** — aynı SVG'nin bir *klonu*, yukarı kaydırılmış, sadece
-  kesim noktasından sonrası görünecek şekilde.
+  kesim noktasından sonrası görünecek şekilde. Sayfa metni ekran okuyucuya
+  iki kez gitmesin diye erişilebilirlik ağacından saklı (`aria-hidden`;
+  `inert` değil, tıklanabilir kalıyor), bkz. "Erişilebilirlik".
 
 İki dilim de tek parça sayfanın birebir aynı piksellerini gösteriyor —
 kesim, panel araya girmeden önce görünmüyor. Kesim noktası (`cutY`), iki
@@ -479,9 +481,53 @@ her mushaf satırının gerçek/seçilebilir Unicode metnini bir
 `<foreignObject><div class="text-layer-line" dir="rtl">` ile (görünür
 glif'leri çizen SVG `<path>`'lerin üstüne, `color: transparent` ile --
 `display:none`/`visibility:hidden` DEĞİL) yerleştiriyor; PDF.js'in metin
-katmanı tekniğinin aynısı. Hiçbir yerde `aria-hidden` uygulanmıyor, üst
-SVG'de de `role="img"` yok (olsaydı içindeki gerçek metni tek bir resim
-gibi "yutabilirdi"). Yapısal olarak doğru.
+katmanı tekniğinin aynısı. Gerçek (önbellekteki) SVG'de hiçbir yerde
+`aria-hidden` uygulanmıyor, üst SVG'de de `role="img"` yok (olsaydı içindeki
+gerçek metni tek bir resim gibi "yutabilirdi"). Yapısal olarak doğru. Tek
+istisna, ayet panelinin açıkken kurduğu ikinci kopya: aşağıdaki paragraf.
+
+**Ayet paneli açıkken sayfa metni erişilebilirlik ağacında bir kez.** Panel
+sayfayı görsel olarak ikiye böldüğü için (bkz. "Ayet detay paneli") DOM'da
+iki SVG var: üst dilimde gerçek, önbellekteki sayfa; alt dilimde onun klonu.
+Kesim yalnızca görsel (`overflow:hidden`), iki SVG de görünmez metin
+katmanının TÜM satırlarını taşıyor; yani panel açıkken ekran okuyucu sayfayı
+okuyor, paneli okuyor, sonra sayfayı baştan bir kez daha okuyordu. Başsız
+Chromium'da (CDP `Accessibility.getFullAXTree`; ağaçtaki görünür her düğüm
+DOM'daki yerine göre üst/alt dilim/panel diye sınıflandı) yamadan ÖNCE
+ölçüldü: panel kapalıyken 1. sayfada 7 Arapça satır (309 karakter) görünür,
+panel açılınca üst dilimde 7 + alt kopyada 7; Bakara 3. sayfada 15 + 15 (1233
++ 1233 karakter). Alt dilim artık `aria-hidden="true"`; gerçek üst dilim,
+panel ve panel kapanınca geri kurulan tek SVG ağaçta kalıyor. Alt kopya her
+açılışta baştan kurulduğundan işaret kapanışta kendiliğinden gidiyor, gerçek
+SVG'ye hiç dokunulmuyor. `inert` bilerek kullanılmadı: fare/dokunma
+tıklamasını da keserdi, oysa alt dilimdeki ayete dokunmak ve sure başlığına
+basmak çalışmaya devam etmeli; kopyada odaklanabilir öğe de yok, yani klavye
+yolu etkilenmiyor. Yamadan SONRA aynı ölçüm: panel açıkken görünür Arapça
+satır 7 + 7 -> 7 (430 ve 1200 px, 1. sayfa) ve 15 + 15 -> 15 (430 px, 3.
+sayfa); ağaçtaki görünür düğüm sayısı 238 -> 204, 240 -> 206 ve 343 -> 275;
+panel kapalıyken (açılıştan önce ve kapandıktan sonra) ağaç yamasızla birebir
+aynı (143, 146 ve 191 düğüm). Panel açıkken alt dilimdeki bir ayete fareyle
+tıklamak yamasızla aynı ayeti seçiyor (1. sayfada 7. ayet, 3. sayfada 16.
+ayet). Görünüm değişmedi: fareyle ulaşılan 4 durumun (kapalı sayfa, panel
+açık, panel kapalı, Sure Bilgisi) 1., 2. ve 3. sayfada, 430 ve 1200 px'te
+ekran görüntüleri yamasız sürümle piksel piksel aynı (24 çiftte 0 piksel
+fark); ayet gezgini yamasının Chromium akışları (Tab durakları, Enter/Space
+ile panel ve Sure Bilgisi, odak yönetimi, Ezber) yamalı ağaçta aynen geçti.
+`test/erisilebilirlik_test.mjs`e 29 kontrol eklendi (gerçek
+`openWordMealStructure`/`mountClosedPage` kaynaktan çıkarılıp gerçek
+`index.html` ve gerçek metin katmanıyla jsdom'da çalışıyor): alt kopya
+`aria-hidden` ve ağaçta kalan satırlar yalnızca üst dilimin, panel ve gerçek
+SVG'ye dokunulmamış, kapanışta ve ikinci açılışta hiçbir işaret kalmıyor,
+`inert`/`pointer-events` yok, kopya sadık (içindeki metin seçilebilir),
+kopyada odaklanabilir öğe yok. Her parça tek tek bozularak (16 mutasyon:
+geri alma, yanlış dilim, panel, `#page-container`, `inert`, `"false"`, gerçek
+SVG, yalnızca ilk açılış, kopyadan satır silme, sızan odaklanabilir öğe,
+kapanışta artık, klon farkı, `pointer-events`) testlerin kırıldığı
+doğrulandı. Ödünleşme: okuma sırası "sayfa metni, sonra panel" oldu (görsel sıra
+"kesimin üstü, panel, kesimin altı"); dokunarak keşfeden bir ekran okuyucu
+kullanıcısı panelin altındaki satırların üstünde parmağını gezdirince artık
+bir şey duymaz (aynı satırlar üst kopyada sırayla okunur, alttaki ayetlere de
+ayet gezgininden gidilir) -- bu beklenti, gerçek cihazda sınanmadı.
 
 **Arapça metin parçalarının dili (`lang="ar"`).** Belge dili `tr`
 (`<html lang="tr">`); ekran okuyucunun/TTS'in sesi `lang`e göre seçildiği
@@ -716,9 +762,7 @@ orada Yukarı/Aşağı ile seçim çalışmaz; sanal imleçle ayet düğmesine g
 Enter'a basmanın paneli açması beklenir ama sınanmadı. Sayfa kenarında dönme
 ya da sayfa geçişi yok (son ayette Aşağı hiçbir şey yapmaz; sayfa çevirme
 Sol/Sağ okla). Ezber çalışırken kelime açma/kapama hâlâ yalnızca fare/
-dokunmayla. Panelin altındaki sayfa kopyası (alt dilim) hâlâ `aria-hidden`
-değil: ekran okuyucu panelden sonra sayfa metnini bir kez daha okuyabilir
-(yamadan önce de böyleydi). Sure Bilgisi'nden "Mushaf'a Git" ile sayfa
+dokunmayla. Sure Bilgisi'nden "Mushaf'a Git" ile sayfa
 değişirse açan sure başlığı düğmesi yeniden kurulmuş olur; modal kapanınca
 odak `<body>`'ye düşebilir.
 
@@ -871,7 +915,7 @@ tools/raw-data/           Ham build girdileri (bkz. Veriyi güncellemek) + QCF_S
 test/full_corpus_test.mjs  604 sayfayı Node'da render edip doğrulayan test
 test/search_test.mjs        Arama saf mantığı (Node)
 test/arama_ui_test.mjs       Arama modalı arayüzü (jsdom)
-test/erisilebilirlik_test.mjs Anons bölgesi + axe-core yapısal tarama (jsdom)
+test/erisilebilirlik_test.mjs Anons bölgesi, panel açıkken tek sayfa metni (alt kopya aria-hidden) + axe-core yapısal tarama (jsdom)
 test/modal_odak_test.mjs        Modal odak yönetimi: işaretleme, Tab döngüsü, açan öğeye dönüş, app.js bağlantısı (jsdom)
 test/ayet_gezgini_test.mjs         Ayet gezgini: işaretleme, CSS, saf yardımcılar, denetleyici, app.js bağlantısı ve sırası, axe-core (jsdom)
 test/sw_test.mjs              Servis worker: sahte self/caches ile (Node)
@@ -1025,9 +1069,20 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     gezginin Yukarı/Aşağı işleyicisi orada çalışmaz: sanal imleçle bir ayet
     düğmesine gelip Enter'a basmak paneli açıyor mu (ayet seçili değilse
     önce seçip açıyor mu), sure başlığı düğmesi Sure Bilgisi'ni açıyor mu.
+12. Ayet paneli açıkken sayfa metni ekran okuyucuyla gezinilirken **bir kez**
+    mi okunuyor (sayfa, sonra panel; panelin altında sayfa metni tekrar
+    başlamıyor mu)? VoiceOver/TalkBack'te panelin altındaki satırların
+    üstünde parmakla gezinince ne duyuluyor: alt kopya `aria-hidden` olduğu
+    için sessizlik beklenir. Bu rahatsız ederse alt kopyayı bütünüyle
+    gizlemek yerine, üst kopyada kesimin altında kalan satırlar ile alt
+    kopyada kesimin üstünde kalanları tek tek gizleyen (okuma sırası görsel
+    sıraya uyar) bir yönteme geçilebilir; o durumda gerçek SVG'ye işaret
+    koymak gerektiğinden, kapanışta ve sayfa değişiminde temizlenmesi ayrıca
+    sınanmalı.
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal
-odak yönetimi ve ayet gezgini ayrı ayrı tek commit'tir, geri alınabilir.
+odak yönetimi, ayet gezgini ve alt kopyanın gizlenmesi ayrı ayrı tek
+commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 

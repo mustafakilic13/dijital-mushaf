@@ -1860,6 +1860,15 @@ function openWordMealStructure(bodyHTML, refText) {
 
   const bottomOuterEl = document.createElement("div");
   bottomOuterEl.className = "page-slice page-slice--bottom";
+  // Alt dilim, üst dilimdeki SVG'nin birebir klonu: görünürde yalnızca kesimin altı var ama görünmez
+  // metin katmanının TÜM satırlarını taşıyor; üst dilim de (overflow:hidden yalnızca görsel) hepsini
+  // taşıyor. Gizlenmezse sayfa metni erişilebilirlik ağacında panel açıkken iki kez görünür: ekran
+  // okuyucu sayfayı okur, paneli okur, sonra sayfayı baştan bir kez daha okur. Gerçek olan üst
+  // dilim ağaçta kalıyor, kopya aria-hidden ile çıkarılıyor. `inert` KULLANILMAZ: fare/dokunma
+  // tıklamasını da keser, oysa alt dilimdeki ayete dokunmak ve sure başlığına basmak çalışmalı.
+  // İçinde odaklanabilir öğe yok (aria-hidden-focus), yani klavye yolu da etkilenmez. Her açılışta
+  // yapı baştan kurulduğundan işaret kapanışta kendiliğinden gidiyor (mountClosedPage tek SVG'yi koyar).
+  bottomOuterEl.setAttribute("aria-hidden", "true");
   const bottomInnerEl = document.createElement("div");
   bottomInnerEl.className = "page-slice-inner";
   const bottomSvg = svg.cloneNode(true);

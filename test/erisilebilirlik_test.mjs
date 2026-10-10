@@ -17,7 +17,12 @@
 // lang="ar" taşımalı -- yoksa ekran okuyucu Arapça metni Türkçe sesle okumaya
 // çalışır. CSS'te Arapça font (--font-arabic) kullanan HER sınıf otomatik
 // bulunup şablonlarda lang="ar" aranıyor; yani ileride eklenecek yeni bir
-// Arapça öğe lang'sız gelirse test kırılır.
+// Arapça öğe lang'sız gelirse test kırılır; (6) ayet paneli açıkken sayfa
+// metninin erişilebilirlik ağacında BİR kez görünmesi: panelin alt sayfa
+// dilimi (üst SVG'nin klonu, tüm metin katmanıyla) aria-hidden olmalı, gerçek
+// üst dilim/panel ağaçta kalmalı, kapanınca hiçbir işaret kalmamalı, alt
+// dilime tıklama (inert/pointer-events yok) ve içindeki metnin
+// seçilebilirliği (klon sadık) bozulmamalı.
 //
 // ÖNEMLİ SINIR: axe-core burada jsdom üzerinde çalışıyor -- gerçek bir
 // tarayıcının erişilebilirlik ağacını DEĞİL, yalnızca DOM/ARIA yapısını
@@ -234,6 +239,125 @@ check("goToUnitNum da showPage'e çıkıyor (goToJuz/Hizb/Rub/Manzil'in ortak yo
   check("canlı bölge panelin sayfa dilimlerine (üst/alt, metin katmanı taşıyan) VERİLMİYOR", !/(topEl|bottomOuterEl|bottomInnerEl|panelEl)\.setAttribute\(\s*["']aria-live["']/.test(appSource));
 }
 
+// -- ayet paneli açıkken sayfa metni erişilebilirlik ağacında BİR kez ---------------------------------------
+// openWordMealStructure sayfayı üçe böler: üst dilim (gerçek, önbellekteki SVG), panel, alt dilim (AYNI SVG'nin
+// klonu, yukarı kaydırılmış). Kesim yalnızca görsel (overflow:hidden); iki SVG de görünmez metin katmanının TÜM
+// satırlarını taşıyor. Alt kopya gizlenmeden panel açılınca sayfa metni ağaçta iki kez görünüyordu (başsız
+// Chromium'da 1. sayfa: 7 + 7 Arapça satır, Bakara 3. sayfa: 15 + 15). Beklenen: alt kopya aria-hidden; GERÇEK olan
+// üst dilim, panel ve kapanınca geri kurulan tek SVG ağaçta KALIR (metin katmanını erişilebilirlikten çıkarmak
+// yanlış olurdu). aria-hidden yerine `inert` KULLANILAMAZ: inert fare/dokunma tıklamasını da keser, oysa alt
+// dilimdeki ayete dokunmak çalışmaya devam etmeli. Gerçek openWordMealStructure/mountClosedPage (app.js'ten
+// kaynak olarak çıkarılıp) gerçek index.html'e, gerçek LineRenderer metin katmanıyla çalıştırılıyor.
+{
+  const fnSrc = (re, what) => {
+    const m = re.exec(appSource);
+    check(`app.js: ${what} bulundu`, !!m);
+    return m ? m[0] : "";
+  };
+  const openSrc = fnSrc(/function openWordMealStructure\([\s\S]*?\n\}\n/, "openWordMealStructure");
+  const mountSrc = fnSrc(/function mountClosedPage\(svg\) \{[\s\S]*?\n\}\n/, "mountClosedPage");
+  const escSrc = fnSrc(/function escapeHtml\(s\) \{[\s\S]*?\n\}\n/, "escapeHtml");
+
+  const dom = new JSDOM(html, { pretendToBeVisual: true, virtualConsole: new VirtualConsole() });
+  const d = dom.window.document;
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const LINES = ["بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ", "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ", "الرَّحْمَٰنِ الرَّحِيمِ", "مَالِكِ يَوْمِ الدِّينِ"];
+  const svg = d.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("class", "mushaf-page-svg");
+  svg.setAttribute("viewBox", "0 0 700 1000");
+  const pageG = d.createElementNS(SVG_NS, "g");
+  svg.appendChild(pageG);
+  const prevDocument = globalThis.document;
+  globalThis.document = d;
+  try {
+    const r = new LineRenderer(null, null, 0, "");
+    LINES.forEach((t, i) => r.addTextSelectionLayer(pageG, t, 300, 200 + i * 150, 100));
+  } finally {
+    if (prevDocument === undefined) delete globalThis.document;
+    else globalThis.document = prevDocument;
+  }
+
+  const pc = d.getElementById("page-container");
+  const state = {
+    currentPage: 1,
+    pageCache: new Map([[1, { svg }]]),
+    wordMeal: { open: false, panelEl: null, bodyEl: null, topEl: null, topSvg: null, bottomOuterEl: null, bottomInnerEl: null, bottomSvg: null, cutY: 500 },
+  };
+  const els = { pageContainer: pc };
+  const calls = { layout: 0, announce: [], raf: [] };
+  const stubs = {
+    announce: (text, key) => calls.announce.push([text, key]),
+    layoutPageContainer: () => calls.layout++,
+    closeWordMeal: () => {},
+    onTafsirTabClick: () => {},
+    openTopicsModal: () => {},
+    requestAnimationFrame: (cb) => calls.raf.push(cb),
+  };
+  const env = new Function(
+    "state", "els", "document", "announce", "layoutPageContainer", "closeWordMeal", "onTafsirTabClick", "openTopicsModal", "requestAnimationFrame",
+    `${escSrc}\n${openSrc}\n${mountSrc}\nreturn { openWordMealStructure, mountClosedPage };`
+  )(state, els, d, stubs.announce, stubs.layoutPageContainer, stubs.closeWordMeal, stubs.onTafsirTabClick, stubs.openTopicsModal, stubs.requestAnimationFrame);
+
+  // Erişilebilirlik ağacında GÖRÜNEN: kendisi ya da herhangi bir atası aria-hidden="true" olmayan.
+  const exposed = (el) => !el.closest('[aria-hidden="true"]');
+  const exposedLines = (root) => [...root.querySelectorAll(".text-layer-line")].filter(exposed).map((l) => l.textContent);
+  const FOCUSABLE = 'a[href],button,input,select,textarea,summary,[tabindex],[contenteditable]';
+  const sameList = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+  env.mountClosedPage(svg);
+  check("kapalı sayfa (başlangıç): metin satırlarının hepsi ağaçta, bir kez", sameList(exposedLines(pc), LINES));
+  const canonicalBefore = svg.outerHTML;
+
+  const open = () => {
+    const panel = env.openWordMealStructure("<p>gövde</p>", "Fâtiha Suresi, 1. ayet");
+    return { panel, top: pc.querySelector(".page-slice--top"), bottom: pc.querySelector(".page-slice--bottom") };
+  };
+  let o = open();
+  check("panel açıldı: #page-container = [üst dilim, panel, alt dilim] sırasıyla", sameList([...pc.children].map((c) => c.classList.contains("page-slice--top") ? "top" : c.classList.contains("word-meal-panel") ? "panel" : c.classList.contains("page-slice--bottom") ? "bottom" : "?"), ["top", "panel", "bottom"]));
+  check("üst dilim GERÇEK (önbellekteki) SVG'yi taşıyor, alt dilim ayrı bir klon taşıyor", o.top.querySelector("svg") === svg && !!o.bottom.querySelector("svg") && o.bottom.querySelector("svg") !== svg);
+  check(`alt kopya gerçekten yinelenen metni taşıyor (${LINES.length} satır; test boş bir kopyayı gizlemiyor)`, o.bottom.querySelectorAll(".text-layer-line").length === LINES.length);
+  check("alt dilim (kopya) aria-hidden=\"true\" taşıyor", o.bottom.getAttribute("aria-hidden") === "true");
+  check(`panel açıkken sayfa metni ağaçta BİR kez: ${LINES.length} satır (iki kez olsaydı ${LINES.length * 2})`, sameList(exposedLines(pc), LINES));
+  check("ağaçta kalan satırlar üst dilimin (gerçek SVG'nin) satırları; alt kopyadan hiçbiri görünmüyor", sameList(exposedLines(o.top), LINES) && exposedLines(o.bottom).length === 0);
+  check("üst dilim ve panel ağaçta (hiçbirinin atasında aria-hidden=true yok)", exposed(o.top) && exposed(o.panel) && exposed(pc));
+  check("panel kendi adını koruyor (role=region, aria-label '<ref> detayı') ve gövdesi canlı bölge", o.panel.getAttribute("role") === "region" && o.panel.getAttribute("aria-label") === "Fâtiha Suresi, 1. ayet detayı" && o.panel.querySelector(".word-meal-body").getAttribute("aria-live") === "polite");
+  const hiddenOutsidePanel = [...pc.querySelectorAll('[aria-hidden="true"]')].filter((e) => !e.closest(".word-meal-panel"));
+  check("#page-container içinde (panelin kendi süs ikonu hariç) aria-hidden taşıyan TEK öğe alt dilim", hiddenOutsidePanel.length === 1 && hiddenOutsidePanel[0] === o.bottom);
+  check("gerçek (üst) SVG'ye HİÇ dokunulmadı: işaretlemesi açılıştan önceki ile birebir aynı (kapanınca eski işaret kalma riski yok)", svg.outerHTML === canonicalBefore);
+  check("klon sadık: alt dilimdeki SVG'nin işaretlemesi gerçek SVG ile birebir aynı (metin seçilebilir/kopyalanabilir kalıyor, yalnızca ağaçtan çıkarıldı)", o.bottom.querySelector("svg").outerHTML === svg.outerHTML);
+
+  // Fare/dokunma yolu: aria-hidden tıklamayı etkilemez, ama inert/pointer-events etkiler -- ikisi de olmamalı.
+  check("alt dilimde ve içinde `inert` YOK (inert, alt dilimdeki ayete dokunmayı keserdi)", !o.bottom.querySelector("[inert]") && !o.bottom.hasAttribute("inert") && !o.bottom.querySelector(".page-slice-inner").hasAttribute("inert"));
+  check("alt dilimde satır içi pointer-events yok", !/pointer-events/.test(o.bottom.getAttribute("style") || "") && !/pointer-events/.test(o.bottom.querySelector(".page-slice-inner").getAttribute("style") || ""));
+  const cssNoComments2 = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const sliceRules = [...cssNoComments2.matchAll(/([^{}]*\.page-slice[^{}]*)\{([^{}]*)\}/g)];
+  check(`CSS: .page-slice* kurallarında (${sliceRules.length}) pointer-events:none yok`, sliceRules.length >= 3 && sliceRules.every((m) => !/pointer-events\s*:\s*none/.test(m[2])));
+  check("app.js: openWordMealStructure alt dilimi inert YAPMIYOR (setAttribute('inert') / .inert = yok)", !/setAttribute\(\s*["']inert["']|\.inert\s*=/.test(openSrc));
+
+  // aria-hidden içinde odaklanabilir öğe olmamalı (WCAG 4.1.2): yoksa klavye kullanıcısı ağaçta olmayan bir öğeye
+  // düşerdi. Bu açıkça denetleniyor, çünkü jsdom'da axe'in 'aria-hidden-focus' kuralı bir <button>'ı bile yakalamadı.
+  check("alt kopyada odaklanabilir öğe YOK (gizlemek klavye yolunu etkilemiyor)", o.bottom.querySelectorAll(FOCUSABLE).length === 0 && svg.querySelectorAll(FOCUSABLE).length === 0);
+  {
+    const results = await runAxe(d, { ...AXE_OPTIONS, runOnly: { type: "rule", values: STRUCTURAL_RULES } });
+    check(`panel AÇIKKEN belge axe-core yapısal kurallarını ihlal etmiyor (${results.violations.map((v) => v.id).join(", ") || "yok"})`, results.violations.length === 0);
+  }
+
+  // Her açılış yapıyı baştan kuruyor: ikinci açılışta da (başka bir ayet için) kopya gizli, metin yine bir kez.
+  env.mountClosedPage(svg);
+  check("panel kapanınca (mountClosedPage): tek SVG geri geliyor, #page-container içinde HİÇ aria-hidden kalmıyor", pc.children.length === 1 && pc.firstElementChild === svg && pc.querySelectorAll("[aria-hidden]").length === 0);
+  check("...ve sayfa metni yine ağaçta, bir kez", sameList(exposedLines(pc), LINES));
+  check("...panel durumundaki alt dilim işaretçileri sıfırlandı", state.wordMeal.bottomOuterEl === null && state.wordMeal.bottomSvg === null);
+  o = open();
+  check("ikinci açılış: alt dilim yine aria-hidden, sayfa metni yine bir kez", o.bottom.getAttribute("aria-hidden") === "true" && sameList(exposedLines(pc), LINES));
+  check("ikinci açılış: gerçek SVG yine değişmedi", svg.outerHTML === canonicalBefore);
+  env.mountClosedPage(svg);
+  check("ikinci kapanış: temiz", pc.querySelectorAll("[aria-hidden]").length === 0 && sameList(exposedLines(pc), LINES));
+
+  // Kaynak: gizleme alt dilim üzerinde ve aria-hidden ile yapılıyor (davranış kontrolleri asıl güvence, bu yalnızca kayıt).
+  check('app.js: openWordMealStructure alt dilime aria-hidden="true" veriyor', /bottomOuterEl\.setAttribute\(\s*"aria-hidden"\s*,\s*"true"\s*\)/.test(openSrc));
+  check("app.js: üst dilime/panele/#page-container'a aria-hidden verilmiyor", !/(topEl|panelEl|innerEl|svg|els\.pageContainer)\.setAttribute\(\s*["']aria-hidden["']/.test(openSrc + mountSrc));
+}
+
 // -- js/render.js: metin katmanı yapısı kaynak üzerinden -------------------------------------------------
 check("render.js: addTextSelectionLayer hiçbir yerde aria-hidden UYGULAMIYOR", !/addTextSelectionLayer[\s\S]{0,900}aria-hidden/.test(renderSource));
 check("render.js: metin katmanı foreignObject+div, gerçek textContent taşıyor (innerHTML/innerText değil -- kaçışsız enjeksiyon riski de yok)", /fo\.appendChild\(div\)/.test(renderSource) && /div\.textContent = lineText/.test(renderSource));
@@ -389,6 +513,6 @@ if (failures) {
   process.exit(1);
 } else {
   console.log(
-    "All checks passed (nav-announcer yapısı + gecikmeli/tekrar-anons/birleşik-anons mantığı, canlı bölge kapsamı (#page-container canlı değil, panel gövdesi canlı, panel açılış/kapanış anonsu), showPage huni kontrolü, metin katmanının aria-hiding'siz yapısı, Arapça metin parçalarında lang=\"ar\" (gerçek LineRenderer çıktısı, statik kabuk, CSS'ten türetilen şablon taraması, Oynat etiketi), axe-core yapısal tarama (dil kuralları dahil)). NOT: bunlar otomatik/yapısal kontroller -- gerçek bir ekran okuyucu testinin yerini tutmaz."
+    "All checks passed (nav-announcer yapısı + gecikmeli/tekrar-anons/birleşik-anons mantığı, canlı bölge kapsamı (#page-container canlı değil, panel gövdesi canlı, panel açılış/kapanış anonsu), panel açıkken sayfa metninin ağaçta bir kez görünmesi (alt kopya aria-hidden, gerçek openWordMealStructure/mountClosedPage), showPage huni kontrolü, metin katmanının aria-hiding'siz yapısı, Arapça metin parçalarında lang=\"ar\" (gerçek LineRenderer çıktısı, statik kabuk, CSS'ten türetilen şablon taraması, Oynat etiketi), axe-core yapısal tarama (dil kuralları dahil)). NOT: bunlar otomatik/yapısal kontroller -- gerçek bir ekran okuyucu testinin yerini tutmaz."
   );
 }
