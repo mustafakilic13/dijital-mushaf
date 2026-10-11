@@ -553,10 +553,68 @@ tarayıcının kendi `:lang(ar)` eşleşmesinde Arapça. Ekran
 görüntüleri ve metin katmanı satırlarının ölçüleri değişmedi. Kapsam dışı:
 Sa'dî tefsiri metinlerinin içindeki seyrek Arapça alıntılar (verideki ~12
 bin dizenin 99'unda Arapça harf var) hâlâ işaretsiz -- satır içi HTML'in
-içinden ayıklamak daha büyük bir iş. Bilinen başka bir eksik: Oynat
-düğmesinin erişilebilir adı yalnızca o Arapça ibare (`aria-label` yok); ad
-artık Arapça sesle okunur ama düğmenin ne yaptığını Türkçe söyleyen bir ad
-yok.
+içinden ayıklamak daha büyük bir iş.
+
+**Oynat düğmesinin erişilebilir adı.** Düğmenin adı yalnızca ekrandaki Arapça
+ibareydi ("بسم الله الرحمن الرحيم"; çalarken "صدق الله العظيم", veri
+yüklenirken "Yükleniyor…") ve ayrıca `aria-pressed` taşıyordu. Başsız
+Chromium'un erişilebilirlik ağacında (CDP `Accessibility.getPartialAXTree`;
+boşta, veri yüklenirken, çalarken, Enter / Space / fareyle durdurunca ve
+Ezber > Dinle çalarken/durunca: 10 durum, 430 ve 1200 px) yamadan ÖNCE
+ölçülen ad hep o ibareydi, durum "pressed=false/true"; düğmenin ne yaptığını
+söyleyen tek bir Türkçe sözcük yoktu. Şimdi ad
+`aria-labelledby="play-btn-action play-btn-label"` ile iki parçadan kuruluyor:
+görünmez (`.sr-only`) Türkçe eylem (`#play-btn-action`: boştayken "Oynat",
+çalarken "Duraklat") ve ekranda görünen etiket (`#play-btn-label`,
+`lang="ar"`). Ölçülen adlar: boşta "Oynat بسم الله الرحمن الرحيم", yüklenirken
+"Duraklat Yükleniyor…", çalarken "Duraklat صدق الله العظيم", durdurunca yine
+"Oynat بسم…"; Enter, Space, fare ve Ezber > Dinle yollarında aynı, `pressed`
+özelliği yok, odak düğmede kalıyor, sayfa hatası 0. Kararlar:
+
+- **`aria-label="Oynat"` değil, `aria-labelledby`.** `aria-label` ekrandaki
+  Arapça ibareyi addan çıkarırdı; WCAG 2.5.3 (Adda Etiket / Label in Name)
+  ise sesle kumanda eden kullanıcının ekranda gördüğü metni söyleyerek
+  düğmeye basabilmesini ister. Ad görünen metni içeriyor. Eylem başta: Türkçe
+  ekran okuyucu kullanıcısı önce ne yapacağını duyar; 2.5.3 yalnızca "içersin"
+  der, etiketin başta olması ise en iyi uygulamadır -- burada bilinçli bir
+  ödünleşme.
+- **`aria-pressed` kaldırıldı.** Adı durumla birlikte değişen bir düğmede
+  ikisi birden "Duraklat, geçiş düğmesi, basılı" gibi çelişkili okunur (ARIA
+  APG Button deseni: etiketi değişen düğmede `aria-pressed` kullanılmaz).
+  Durum artık adın kendisinde.
+- **Yüklenirken de "Duraklat".** O sırada ikinci dokunuş oturumu durduruyor
+  (tıklama işleyicisi `state.playback.active`'e bakıyor), ad bunu söylemeli;
+  bu yüzden `setPlayActive(true)` ilk `await`'ten önce çağrılıyor.
+- **"Duraklat" gerçek bir duraklatma değil.** Durdurunca ses sıfırlanıyor;
+  seçili ayet çalınan ayette kaldığından tekrar basınca o ayetin başından
+  başlıyor (ayetin ortasından değil). Davranış değişmedi, yalnızca ad ona
+  uyuyor; ayet ortasından devam istenirse ayrı bir iş.
+- **Tek yazım yeri.** `.playing` sınıfı ile eylem sözcüğü yalnızca
+  `setPlayActive`'ten, üç çağrı noktasından (`startPlayback`, `stopPlayback`,
+  `startEzberPlayback`) yazılıyor; görünüm ile ad ayrışamaz.
+
+`test/erisilebilirlik_test.mjs`'e 46 kontrol eklendi (99 → 145): statik
+işaretleme; gerçek `setPlayLabel`/`setPlayActive` (`app.js`'ten kaynak olarak
+çıkarılıp) gerçek `index.html`'e uygulanıyor ve ad, elle yazılmış bir
+hesapla değil, axe-core'un accname uygulamasıyla hesaplanıyor (5 durum:
+yükleniyor, çalıyor, durdu, Ezber çalıyor, Ezber durdu); kaynak kontrolleri
+(tek yazım yeri, üç çağrı noktası, ilk `await`'ten önce, tıklama işleyicisi,
+`els.playBtnAction`). Her parça tek tek bozularak (28 mutasyon:
+`aria-pressed`'in geri gelmesi, `aria-labelledby`'nin eylemi düşürmesi /
+sırasının ters olması / `aria-label`'e dönmesi, `.sr-only` / `aria-hidden` /
+`hidden` / yanlış `id` / düğme dışına taşıma, eylem öğesine `lang="ar"`,
+Oynat/Duraklat yer değiştirmesi, yazım hatası, İngilizce sözcük, üç çağrı
+noktasının her birinin eksilmesi, yükleme sonrasına kayma, `.playing`'in iki
+yerden yazılması, tıklama işleyicisinin hep başlatması, etiket/dil ayrışması)
+testin kırıldığı doğrulandı; değişikliksiz hâl diğer beş test dosyasıyla
+birlikte geçiyor. Alt çubuğun ekran
+görüntüleri (6 durum + boştaki tam sayfa, 430 ve 1200 px, sayfa 1 ve 3: 28
+çift) yamasız ağaçla piksel piksel aynı (0 farklı piksel); durumların
+birbirinden binlerce piksel farklı olduğu ayrıca doğrulandı, yani
+karşılaştırma boş değil. **Sınır:** gerçek bir ekran
+okuyucuyla denenmedi: odaktaki düğmenin adı değişince ("Oynat" → "Duraklat")
+ekran okuyucunun yeni adı duyurup duyurmadığı ve adın Arapça kısmının Arapça
+sesle okunup okunmadığı bilinmiyor (aşağıda 13. madde).
 
 **Modal odak yönetimi.** Yedi modalın (sure, cüz, sayfa, ezber, sure bilgisi,
 konu, arama) hepsi `role="dialog"` + `aria-modal="true"` +
@@ -1079,10 +1137,19 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     sıraya uyar) bir yönteme geçilebilir; o durumda gerçek SVG'ye işaret
     koymak gerektiğinden, kapanışta ve sayfa değişiminde temizlenmesi ayrıca
     sınanmalı.
+13. Oynat düğmesi: Tab ile gelince ekran okuyucu "Oynat, بسم الله الرحمن
+    الرحيم, düğme" gibi okuyor mu (Türkçe eylem Türkçe sesle, ibare Arapça
+    sesle)? Enter/Space/dokunmayla çalmaya başlayınca odaktaki düğmenin
+    yeni adı ("Duraklat …") duyuruluyor mu (bazı ekran okuyucular odaktaki
+    öğenin değişen adını söylemez; öyleyse en azından ayet anonsu yeni
+    içerik veriyor mu), tekrar basınca ad "Oynat"a dönüyor mu, "basılı" /
+    "geçiş düğmesi" gibi bir durum duyulmuyor mu? Sesle kumanda (iOS'ta Ses
+    Kontrolü, Windows'ta Sesli Erişim) "Oynat" dediğinde ya da ekrandaki
+    Arapça ibareyi söylediğinde düğmeye basıyor mu?
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal
-odak yönetimi, ayet gezgini ve alt kopyanın gizlenmesi ayrı ayrı tek
-commit'tir, geri alınabilir.
+odak yönetimi, ayet gezgini, alt kopyanın gizlenmesi ve Oynat düğmesinin adı
+ayrı ayrı tek commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 

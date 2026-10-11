@@ -201,6 +201,7 @@ const els = {
   yazKeyboard: document.getElementById("yaz-keyboard"),
   yazHintText: document.getElementById("yaz-hint-text"),
   playBtn: document.getElementById("play-btn"),
+  playBtnAction: document.getElementById("play-btn-action"),
   playBtnLabel: document.getElementById("play-btn-label"),
   aramaBtn: document.getElementById("arama-btn"),
   aramaModal: document.getElementById("arama-modal"),
@@ -2745,13 +2746,26 @@ function advancePlayback() {
   playAyah(next.surah, next.ayah, state.playback.requestId);
 }
 
-// #play-btn-label düğmenin erişilebilir adıdır ve hem Arapça ibare ("بسم الله…",
-// "صدق الله العظيم") hem Türkçe durum metni ("Yükleniyor…") taşır. Ekran okuyucunun
-// sesi `lang`e göre seçildiğinden metin ve dil HER ZAMAN birlikte değişmeli --
-// etiketi yalnızca burası yazar (test/erisilebilirlik_test.mjs bunu denetler).
+// Oynat düğmesinin erişilebilir adı iki parçanın birleşimidir (aria-labelledby="play-btn-action
+// play-btn-label", araya boşlukla): önce görünmez (.sr-only) Türkçe EYLEM -- #play-btn-action,
+// boştayken "Oynat", çalarken "Duraklat" -- sonra ekranda görünen etiket -- #play-btn-label, hem
+// Arapça ibare ("بسم الله…", "صدق الله العظيم") hem Türkçe durum metni ("Yükleniyor…") taşır. Ad
+// görünen metni içerdiği için (WCAG 2.5.3) etiket addan çıkarılmıyor. Ekran okuyucunun sesi `lang`e
+// göre seçildiğinden etiketin metni ve dili HER ZAMAN birlikte değişmeli -- etiketi yalnızca
+// burası yazar (test/erisilebilirlik_test.mjs bunu denetler).
 function setPlayLabel(text, lang) {
   els.playBtnLabel.textContent = text;
   els.playBtnLabel.lang = lang;
+}
+
+// Düğmenin "çalıyor" durumu: .playing sınıfı (altın dolgu) ve eylem sözcüğü TEK yerden, birlikte
+// yazılır. Çalan oturum (yüklenirken de: ikinci dokunuş durdurur) "Duraklat"tır -- durdurulunca
+// seçili ayet çalınan ayette kaldığından tekrar basınca o ayetten devam edilir. Ad durumla birlikte
+// değiştiği için aria-pressed KULLANILMIYOR: ad da durum da değişirse ekran okuyucu "Duraklat, geçiş
+// düğmesi, basılı" gibi çelişkili okur (ARIA APG: etiketi değişen düğmede aria-pressed olmaz).
+function setPlayActive(active) {
+  els.playBtn.classList.toggle("playing", active);
+  els.playBtnAction.textContent = active ? "Duraklat" : "Oynat";
 }
 
 async function startPlayback() {
@@ -2761,8 +2775,7 @@ async function startPlayback() {
   state.playback.active = true;
   state.playback.reciter = "husary"; // the main play button is always Husary
   state.playback.ezber = null; // in case a previous Ezber->Dinle session left this set
-  els.playBtn.classList.add("playing");
-  els.playBtn.setAttribute("aria-pressed", "true");
+  setPlayActive(true);
 
   if (!state.recitationCache.husary) {
     setPlayLabel("Yükleniyor…", "tr");
@@ -2794,8 +2807,7 @@ function stopPlayback() {
   if (state.playback.audio) state.playback.audio.pause();
   state.playback.lastWordId = null;
   if (state.currentPageSvg) updateWordHighlight(state.currentPageSvg, state.currentPageWordSegments, null);
-  els.playBtn.classList.remove("playing");
-  els.playBtn.setAttribute("aria-pressed", "false");
+  setPlayActive(false);
   setPlayLabel("بسم الله الرحمن الرحيم", "ar");
 }
 
@@ -2830,8 +2842,7 @@ async function startEzberPlayback(reciter, surah, from, to, repeat, repeatAll) {
   stopPlayback(); // Ezber can't run alongside normal playback -- same <audio>
   state.playback.active = true;
   state.playback.reciter = reciter;
-  els.playBtn.classList.add("playing");
-  els.playBtn.setAttribute("aria-pressed", "true");
+  setPlayActive(true);
   setPlayLabel("صدق الله العظيم", "ar");
   state.playback.requestId += 1;
   const requestId = state.playback.requestId;

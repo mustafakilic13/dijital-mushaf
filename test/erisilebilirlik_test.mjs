@@ -22,7 +22,12 @@
 // dilimi (üst SVG'nin klonu, tüm metin katmanıyla) aria-hidden olmalı, gerçek
 // üst dilim/panel ağaçta kalmalı, kapanınca hiçbir işaret kalmamalı, alt
 // dilime tıklama (inert/pointer-events yok) ve içindeki metnin
-// seçilebilirliği (klon sadık) bozulmamalı.
+// seçilebilirliği (klon sadık) bozulmamalı; (7) Oynat düğmesinin erişilebilir
+// adı: ad = "<Türkçe eylem> <görünen Arapça etiket>" (aria-labelledby; boşta
+// "Oynat", çalarken ve yüklenirken "Duraklat"), ekrandaki metni içeriyor (WCAG
+// 2.5.3), aria-pressed yok (ad durumla birlikte değişiyor), eylem sözcüğü ile
+// .playing sınıfı tek fonksiyondan (setPlayActive) yazılıyor; ad, axe-core'un
+// accname uygulamasıyla HESAPLANIYOR (elle yazılmış bir ad değil).
 //
 // ÖNEMLİ SINIR: axe-core burada jsdom üzerinde çalışıyor -- gerçek bir
 // tarayıcının erişilebilirlik ağacını DEĞİL, yalnızca DOM/ARIA yapısını
@@ -500,6 +505,103 @@ const ARABIC_LETTER_RE = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]
   check('renderWordMealCardsHTML: Arapça kelime lang="ar" taşıyor, Türkçe karşılığı (.wbw-tr) taşımıyor', /<span class="wbw-ar" lang="ar">كِتَٰبٌ<\/span>/.test(cardsHTML) && /<span class="wbw-tr">kitap<\/span>/.test(cardsHTML));
 }
 
+// -- Oynat düğmesinin erişilebilir adı: Türkçe eylem + görünen etiket ----------------------------------------
+// Ad eskiden YALNIZCA görünen Arapça ibareydi ("بسم الله الرحمن الرحيم", çalarken "صدق الله العظيم") ve düğme ayrıca
+// aria-pressed taşıyordu: gerçek Chromium'da ad ibareden, durum "pressed=false/true"dan ibaretti; düğmenin ne
+// yaptığını söyleyen Türkçe tek sözcük yoktu (yükleme anındaki "Yükleniyor…" hariç). Şimdi ad = "<eylem> <görünen
+// etiket>" (aria-labelledby="play-btn-action play-btn-label"): eylem Türkçe ve görünmez (.sr-only; boştayken
+// "Oynat", çalarken -yüklenirken de, ikinci dokunuş durdurur- "Duraklat"), etiket ekranda görünen metin. Ad görünen
+// metni içeriyor (WCAG 2.5.3: sesle kumanda eden kullanıcı ekrandaki metni söyleyerek düğmeye basabilsin). Ad
+// durumla birlikte değiştiği için aria-pressed YOK (ad da durum da değişirse "Duraklat, geçiş düğmesi, basılı"
+// gibi çelişkili okunur). Gerçek setPlayLabel/setPlayActive (app.js'ten kaynak olarak çıkarılıp) gerçek
+// index.html'e uygulanıyor ve ad, axe-core'un accname uygulamasıyla HESAPLANIYOR (elle yazılmış bir ad hesabı değil).
+playName: {
+  const d = new JSDOM(html, { pretendToBeVisual: true, virtualConsole: new VirtualConsole() }).window.document;
+  const dom = d.defaultView;
+  function accessibleName(el) {
+    const prev = { window: globalThis.window, document: globalThis.document, Node: globalThis.Node, getComputedStyle: globalThis.getComputedStyle };
+    globalThis.window = dom;
+    globalThis.document = d;
+    globalThis.Node = dom.Node;
+    globalThis.getComputedStyle = dom.getComputedStyle.bind(dom);
+    try {
+      axeCore.setup(d.documentElement); // düz ağaç bir anlık görüntü: her ölçümden önce yeniden kuruluyor
+      return axeCore.commons.text.accessibleText(el);
+    } finally {
+      try {
+        axeCore.teardown();
+      } catch (e) {
+        /* kurulum hiç yapılamadıysa kapatacak bir şey yok */
+      }
+      globalThis.window = prev.window;
+      globalThis.document = prev.document;
+      globalThis.Node = prev.Node;
+      globalThis.getComputedStyle = prev.getComputedStyle;
+    }
+  }
+  const btn = d.getElementById("play-btn");
+  const actionEl = d.getElementById("play-btn-action");
+  const labelEl = d.getElementById("play-btn-label");
+  const BESMELE = "بسم الله الرحمن الرحيم";
+  const SADAKA = "صدق الله العظيم";
+
+  // (a) Statik işaretleme
+  check("#play-btn, #play-btn-action ve #play-btn-label var; ikisi de düğmenin içinde", !!btn && !!actionEl && !!labelEl && btn.contains(actionEl) && btn.contains(labelEl));
+  if (!btn || !actionEl || !labelEl || !btn.contains(actionEl) || !btn.contains(labelEl)) break playName; // öğeler yoksa kalan kontroller anlamsız (ve null'a erişip çöker)
+  check('#play-btn type="button"', btn.getAttribute("type") === "button");
+  check("#play-btn aria-pressed TAŞIMIYOR (ad durumla birlikte değişiyor; ikisi birden çelişkili okunur)", !btn.hasAttribute("aria-pressed"));
+  check('#play-btn aria-labelledby="play-btn-action play-btn-label" (önce Türkçe eylem, sonra görünen etiket)', btn.getAttribute("aria-labelledby") === "play-btn-action play-btn-label");
+  check("#play-btn aria-label TAŞIMIYOR (aria-label görünen Arapça ibareyi addan çıkarırdı: WCAG 2.5.3)", !btn.hasAttribute("aria-label"));
+  // (spesifikasyon aria-labelledby ile doğrudan başvurulan gizli öğeyi de adda sayıyor; ama gerçek ekran okuyucuyla
+  // denenmedi -- bu yüzden en az riskli, yaygın kalıp seçildi: görsel olarak gizli ama erişilebilirlik ağacında)
+  check("eylem öğesi görsel olarak gizli (.sr-only), hidden/aria-hidden/display:none DEĞİL", actionEl.classList.contains("sr-only") && !actionEl.hasAttribute("hidden") && !actionEl.hasAttribute("aria-hidden") && !actionEl.closest("[hidden],[aria-hidden]"));
+  check('eylem öğesi Türkçe kapsamında (kendi lang\'ı yok, etkin dil html lang="tr")', !actionEl.hasAttribute("lang") && actionEl.closest("[lang]").getAttribute("lang") === "tr" && d.documentElement.getAttribute("lang") === "tr");
+  check('görünen etiket Arapça kapsamında kalıyor (lang="ar") ve ilk metni besmele', labelEl.getAttribute("lang") === "ar" && labelEl.textContent === BESMELE);
+  check('eylem öğesinin ilk metni "Oynat"', actionEl.textContent === "Oynat");
+  check(`ilk hâlin erişilebilir adı (axe-core accname) "Oynat ${BESMELE}"`, accessibleName(btn) === `Oynat ${BESMELE}`);
+
+  // (b) Davranış: gerçek setPlayLabel/setPlayActive; startPlayback / stopPlayback / startEzberPlayback'in yazdığı dizilerle
+  const setPlayLabelSrc2 = /function setPlayLabel\(text, lang\) \{[\s\S]*?\n\}/.exec(appSource);
+  const setPlayActiveSrc = /function setPlayActive\(active\) \{[\s\S]*?\n\}/.exec(appSource);
+  check("app.js: setPlayLabel ve setPlayActive bulundu", !!setPlayLabelSrc2 && !!setPlayActiveSrc);
+  if (setPlayLabelSrc2 && setPlayActiveSrc) {
+    const els = { playBtn: btn, playBtnAction: actionEl, playBtnLabel: labelEl };
+    const { setPlayLabel, setPlayActive } = new Function("els", `${setPlayLabelSrc2[0]}\n${setPlayActiveSrc[0]}\nreturn { setPlayLabel, setPlayActive };`)(els);
+    const states = [
+      ["startPlayback, veri yüklenirken", () => { setPlayActive(true); setPlayLabel("Yükleniyor…", "tr"); }, "Duraklat", "Yükleniyor…", "tr", true],
+      ["startPlayback, veri geldi, çalıyor", () => setPlayLabel(SADAKA, "ar"), "Duraklat", SADAKA, "ar", true],
+      ["stopPlayback", () => { setPlayActive(false); setPlayLabel(BESMELE, "ar"); }, "Oynat", BESMELE, "ar", false],
+      ["startEzberPlayback (Ezber > Dinle)", () => { setPlayActive(true); setPlayLabel(SADAKA, "ar"); }, "Duraklat", SADAKA, "ar", true],
+      ["stopPlayback (Ezber > Dinle bitti)", () => { setPlayActive(false); setPlayLabel(BESMELE, "ar"); }, "Oynat", BESMELE, "ar", false],
+    ];
+    for (const [what, run, action, label, lang, playing] of states) {
+      run();
+      const name = accessibleName(btn);
+      check(`${what}: ad = "${action} ${label}" (hesaplanan: "${name}")`, name === `${action} ${label}`);
+      check(`${what}: ad Türkçe eylemle BAŞLIYOR ("${action}")`, name.startsWith(`${action} `));
+      check(`${what}: ad ekranda görünen etiketi içeriyor (WCAG 2.5.3)`, name.includes(labelEl.textContent) && labelEl.textContent === label);
+      check(`${what}: etiketin dili metne uyuyor ("${lang}")`, labelEl.getAttribute("lang") === lang);
+      check(`${what}: aria-pressed yok, .playing ${playing ? "var" : "yok"}`, !btn.hasAttribute("aria-pressed") && btn.classList.contains("playing") === playing);
+    }
+  }
+
+  // (c) Kaynak: eylem sözcüğü ve .playing TEK yerden yazılıyor; üç çağrı noktası + tıklama işleyicisiyle tutarlı
+  check("app.js: .playing sınıfı yalnızca setPlayActive içinde yazılıyor (ad ile görünüm ayrışmasın)", (appSource.match(/playBtn\.classList\.(?:add|remove|toggle)\(/g) || []).length === 1 && /function setPlayActive\(active\) \{[\s\S]*?playBtn\.classList\.toggle\("playing", active\)/.test(appSource));
+  check("app.js: eylem sözcüğü (#play-btn-action) yalnızca setPlayActive içinde yazılıyor", (appSource.match(/els\.playBtnAction\.textContent\s*=/g) || []).length === 1);
+  check('app.js: setPlayActive eylemi "Duraklat"/"Oynat" olarak yazıyor', /els\.playBtnAction\.textContent = active \? "Duraklat" : "Oynat";/.test(appSource));
+  check("app.js: düğmeye hiçbir yerde aria-pressed yazılmıyor", !/playBtn\.(?:setAttribute|toggleAttribute|removeAttribute)\(\s*["']aria-pressed/.test(appSource));
+  const startFn = /async function startPlayback\(\) \{[\s\S]*?\n\}\n/.exec(appSource);
+  const stopFn = /function stopPlayback\(\) \{[\s\S]*?\n\}\n/.exec(appSource);
+  const ezberFn = /async function startEzberPlayback\([^)]*\) \{[\s\S]*?\n\}\n/.exec(appSource);
+  check("app.js: startPlayback / stopPlayback / startEzberPlayback bulundu", !!startFn && !!stopFn && !!ezberFn);
+  check("startPlayback: setPlayActive(true) İLK await'ten ÖNCE (veri yüklenirken de çalıyor sayılır: ad 'Duraklat Yükleniyor…', ikinci dokunuş durdurur)", !!startFn && startFn[0].includes("setPlayActive(true)") && startFn[0].includes("await ") && startFn[0].indexOf("setPlayActive(true)") < startFn[0].indexOf("await ") && startFn[0].indexOf("setPlayActive(true)") < startFn[0].indexOf('setPlayLabel("Yükleniyor…"'));
+  check('app.js: els.playBtnAction, index.html\'deki #play-btn-action\'ı bulacak şekilde tanımlı (yoksa setPlayActive ilk durdurmada null.textContent ile çöker)', /\bplayBtnAction: document\.getElementById\("play-btn-action"\),/.test(appSource) && html.includes('id="play-btn-action"'));
+  check("stopPlayback: setPlayActive(false) ve besmele etiketi", !!stopFn && /setPlayActive\(false\)/.test(stopFn[0]) && /setPlayLabel\("بسم الله الرحمن الرحيم", "ar"\)/.test(stopFn[0]));
+  check("startEzberPlayback: setPlayActive(true)", !!ezberFn && /setPlayActive\(true\)/.test(ezberFn[0]));
+  check("app.js: setPlayActive tam 3 yerden çağrılıyor (başlat, durdur, Ezber başlat)", (appSource.match(/setPlayActive\(/g) || []).length === 4); // 3 çağrı + 1 tanım
+  check("tıklama işleyicisi: çalıyorsa durdur, değilse başlat (ad 'Duraklat' iken düğme gerçekten durduruyor)", /els\.playBtn\.addEventListener\("click", \(\) => \{\s*if \(state\.playback\.active\) stopPlayback\(\);\s*else startPlayback\(\);\s*\}\);/.test(appSource));
+}
+
 // -- Statik index.html kabuğu: axe-core genel yapısal tarama ------------------------------------------------
 {
   const dom = new JSDOM(html, { pretendToBeVisual: true });
@@ -513,6 +615,6 @@ if (failures) {
   process.exit(1);
 } else {
   console.log(
-    "All checks passed (nav-announcer yapısı + gecikmeli/tekrar-anons/birleşik-anons mantığı, canlı bölge kapsamı (#page-container canlı değil, panel gövdesi canlı, panel açılış/kapanış anonsu), panel açıkken sayfa metninin ağaçta bir kez görünmesi (alt kopya aria-hidden, gerçek openWordMealStructure/mountClosedPage), showPage huni kontrolü, metin katmanının aria-hiding'siz yapısı, Arapça metin parçalarında lang=\"ar\" (gerçek LineRenderer çıktısı, statik kabuk, CSS'ten türetilen şablon taraması, Oynat etiketi), axe-core yapısal tarama (dil kuralları dahil)). NOT: bunlar otomatik/yapısal kontroller -- gerçek bir ekran okuyucu testinin yerini tutmaz."
+    "All checks passed (nav-announcer yapısı + gecikmeli/tekrar-anons/birleşik-anons mantığı, canlı bölge kapsamı (#page-container canlı değil, panel gövdesi canlı, panel açılış/kapanış anonsu), panel açıkken sayfa metninin ağaçta bir kez görünmesi (alt kopya aria-hidden, gerçek openWordMealStructure/mountClosedPage), showPage huni kontrolü, metin katmanının aria-hiding'siz yapısı, Arapça metin parçalarında lang=\"ar\" (gerçek LineRenderer çıktısı, statik kabuk, CSS'ten türetilen şablon taraması, Oynat etiketi), Oynat düğmesinin erişilebilir adı (Türkçe eylem + görünen etiket, accname ile hesaplanan, aria-pressed yok), axe-core yapısal tarama (dil kuralları dahil)). NOT: bunlar otomatik/yapısal kontroller -- gerçek bir ekran okuyucu testinin yerini tutmaz."
   );
 }
