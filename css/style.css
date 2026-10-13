@@ -21,6 +21,13 @@
   --emerald-deep: #163b34;
   --gold: #a9812e;
   --gold-soft: #c9a24f;
+  /* Metin ve açık renkli yazı taşıyan dolgular için altın: --gold (#a9812e) --shell-bg üzerinde 3,26:1,
+     --paper üzerinde 2,95:1, beyaz yazı altında 3,58:1 -- ikisi de WCAG 1.4.3'ün 4,5:1'inin altında.
+     --gold-deep aynı tonun koyusu: --shell-bg üzerinde 5,16:1, --paper üzerinde 4,67:1, üstüne
+     beyaz yazı koyunca 5,67:1. --gold yalnızca metin olmayan yerlerde kalıyor (kenarlık, odak
+     halkası, vurgu dolgusu); bir metnin rengi ya da yazı taşıyan bir dolgu --gold-deep olmalı
+     (test/erisilebilirlik_test.mjs bunu denetliyor). */
+  --gold-deep: #816223;
   --line: rgba(38, 32, 25, 0.12);
   --shadow: 0 30px 60px -25px rgba(30, 25, 15, 0.35), 0 8px 20px -12px rgba(30, 25, 15, 0.25);
 
@@ -578,9 +585,11 @@ body {
    2nd, 4th, 6th... gets this accent instead (see js/app.js isAltRuku).
    Needs a colour with clearly different LIGHTNESS from --ink, not just a
    different hue -- two similarly-dark colours read as "the same dark ink"
-   at a glance, especially at this glyph size. --gold has ~16x the
-   luminance of --ink, so it reads unmistakably as a distinct colour. */
-.mushaf-page-svg .ayah-num-alt { fill: var(--gold); }
+   at a glance, especially at this glyph size. --gold-deep has ~9x the
+   luminance of --ink, so it still reads as a distinct (brown-gold vs.
+   near-black) colour -- and unlike the old --gold (16x, but only 2.95:1
+   against --paper) the numbers stay legible: 4.67:1. */
+.mushaf-page-svg .ayah-num-alt { fill: var(--gold-deep); }
 .mushaf-page-svg .ayah-highlight {
   fill: color-mix(in srgb, var(--gold-soft) 32%, transparent);
   transition: opacity 0.2s ease;
@@ -771,8 +780,13 @@ body {
   background: color-mix(in srgb, var(--gold) 10%, transparent);
   font-weight: 600;
 }
-.wm-tafsir-content .green { color: #3f7a52; }
-.wm-tafsir-content .brown { color: #8a5a2f; font-weight: 600; }
+/* Kaynak verinin satır içi vurgu renkleri (tafsir-saadi.json'da yaklaşık 7 bin yeşil, 18,8 bin kahve, 6,5 bin
+   mavi parça; 1.738 .translation bloğunun yaklaşık 1.300'ünde de renkli parça var). Yazı iki zeminde okunuyor:
+   panel gövdesi (--shell-bg'nin %5 zümrütle karışımı, ~#ecece4) ve onun üstündeki .translation bloğu (+%10
+   altın, ~#e5e1d2). Renk başına (panel / .translation) oran: yeşil 5,12 / 4,65, kahve 5,12 / 4,66, mavi
+   5,65 / 5,14 -- hepsi >= 4,5:1. Eskiler: yeşil #3f7a52 4,29 / 3,90, kahve #8a5a2f 4,93 / 4,48. */
+.wm-tafsir-content .green { color: #386d49; }
+.wm-tafsir-content .brown { color: #86582e; font-weight: 600; }
 .wm-tafsir-content .blue { color: #2f5f8a; }
 
 /* ---------------------------------------------------------------------
@@ -954,14 +968,14 @@ body {
 .info-section-content li { margin-bottom: 4px; }
 .info-section-content em { color: var(--emerald-deep); font-style: italic; }
 .info-section-content a {
-  color: var(--gold);
+  color: var(--gold-deep);
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, var(--gold) 40%, transparent);
   text-underline-offset: 2px;
 }
 .info-section-content a:hover { text-decoration-color: var(--gold); }
 .info-intro a {
-  color: var(--gold);
+  color: var(--gold-deep);
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, var(--gold) 40%, transparent);
   text-underline-offset: 2px;
@@ -1135,7 +1149,7 @@ body {
   color: #fff;
 }
 .topic-badge--thematic { background: var(--emerald); }
-.topic-badge--ontology { background: var(--gold); }
+.topic-badge--ontology { background: var(--gold-deep); }
 .topic-badge--general { background: var(--ink-soft); }
 
 /* Açıklama metni -- topics-tr.json'un kendi (çevrilmiş) HTML'i, tafsir
@@ -1153,7 +1167,7 @@ body {
 }
 .topic-description topic {
   display: inline;
-  color: var(--gold);
+  color: var(--gold-deep);
   cursor: pointer;
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, var(--gold) 40%, transparent);
@@ -1291,8 +1305,8 @@ body {
    animasyonu -- sadece etiketi değişmiş değil, gerçekten "devam ediyor"
    hissi versin diye. */
 .action-btn--play.playing {
-  background: var(--gold);
-  border-color: var(--gold);
+  background: var(--gold-deep);
+  border-color: var(--gold-deep);
   animation: play-pulse 2.2s ease-in-out infinite;
 }
 @keyframes play-pulse {
@@ -1349,9 +1363,11 @@ body {
   border-radius: 12px;
   padding: 10px 12px;
 }
+/* Odak halkası genel kuraldan geliyor (select/input:focus-visible: 2px --gold, aşağıda). Burada eskiden
+   `outline: none` vardı ve odağı yalnızca kenarlık rengi gösteriyordu (--gold-soft, beyaz alanda 2,4:1:
+   WCAG 1.4.11'in 3:1'inin altında, klavye odağı neredeyse görünmüyordu). */
 .ezber-field select:focus,
 .ezber-field input[type="number"]:focus {
-  outline: none;
   border-color: var(--gold-soft);
 }
 .ezber-range-row {

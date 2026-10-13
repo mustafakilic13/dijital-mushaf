@@ -27,7 +27,14 @@
 // "Oynat", çalarken ve yüklenirken "Duraklat"), ekrandaki metni içeriyor (WCAG
 // 2.5.3), aria-pressed yok (ad durumla birlikte değişiyor), eylem sözcüğü ile
 // .playing sınıfı tek fonksiyondan (setPlayActive) yazılıyor; ad, axe-core'un
-// accname uygulamasıyla HESAPLANIYOR (elle yazılmış bir ad değil).
+// accname uygulamasıyla HESAPLANIYOR (elle yazılmış bir ad değil); (8) renk
+// kontrastı (WCAG 1.4.3 / 1.4.11) ve odak göstergesi: CSS'ten (token'lar,
+// color-mix dahil) türetilen oranlar -- altın metin/dolgu --gold-deep, tefsir
+// yeşil/kahve/mavi yazısı panel ve .translation zeminlerinde, alternatif rüku
+// rakamı kâğıt zeminde >= 4,5:1; dekoratif altınlar (--gold, --gold-soft) metin
+// rengi olamaz; `outline: none` yalnızca yerine başka gösterge konmuş yerlerde.
+// (Gerçek tarayıcıda axe-core color-contrast taraması test'in dışında, elle
+// çalıştırıldı; README'de sayıları var.)
 //
 // ÖNEMLİ SINIR: axe-core burada jsdom üzerinde çalışıyor -- gerçek bir
 // tarayıcının erişilebilirlik ağacını DEĞİL, yalnızca DOM/ARIA yapısını
@@ -602,6 +609,178 @@ playName: {
   check("tıklama işleyicisi: çalıyorsa durdur, değilse başlat (ad 'Duraklat' iken düğme gerçekten durduruyor)", /els\.playBtn\.addEventListener\("click", \(\) => \{\s*if \(state\.playback\.active\) stopPlayback\(\);\s*else startPlayback\(\);\s*\}\);/.test(appSource));
 }
 
+// -- Renk kontrastı (WCAG 1.4.3 / 1.4.11) ve odak göstergesi: CSS'ten türetilen kontroller ----------------------
+// Gerçek Chromium'da axe-core color-contrast + elle (arka planı katman katman birleştiren) denetim, 17 durumda
+// (açılış, 7 modal, ayet paneli + tefsir, klavye ipucu, çalarken, 2. ve 3. sayfa) ve 430/1200 px'te yamadan ÖNCE
+// şu ihlal çiftlerini buldu: beyaz yazı / altın rozet 3,58:1 ("Ontoloji"), altın bağlantı metni / --shell-bg 3,26:1
+// (konu açıklamaları, sure bilgisi), açık yazı / altın dolgu 3,26:1 (çalarken Oynat düğmesi), tefsirdeki yeşil yazı
+// 4,29:1 (panel gövdesinde; .translation bloğunda 3,90:1) ve kahve yazı .translation bloğunda 4,48:1. Ayrıca
+// alternatif rüku rakamları (SVG dolgusu, --gold) --paper üzerinde 2,95:1 idi ve Ezber alanlarında `outline: none`
+// odağı yalnızca --gold-soft kenarlık rengiyle (beyaz üstünde 2,4:1) gösteriyordu. Burada oranlar elle yazılmış
+// sayılarla değil CSS'in kendisinden (token'lar, color-mix, kural kaynak sırası) hesaplanıyor.
+// (Tanımsız bir token ya da çözülemeyen bir renk testi çökertmez; açıklayıcı tek bir FAIL olarak bildirilir.)
+try {
+  const stripped = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const rules = [];
+  for (const m of stripped.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    rules.push({ selectors: m[1].split(",").map((x) => x.trim().replace(/\s+/g, " ")), decls: m[2] });
+  }
+  const declMap = (decls) => {
+    const out = {};
+    for (const m of decls.matchAll(/(?:^|;)\s*([a-z-]+)\s*:\s*([^;]+)/g)) out[m[1]] = m[2].trim();
+    return out;
+  };
+  const tokens = {};
+  for (const r of rules) if (r.selectors.includes(":root")) for (const m of r.decls.matchAll(/--([\w-]+)\s*:\s*([^;]+);/g)) tokens[m[1]] = m[2].trim();
+  // Aynı seçici birden çok yerde geçerse kaynak sırasındaki SON bildirim kazanır (özgüllük eşit olduğunda CSS böyle çözer).
+  const valueOf = (selector, prop) => {
+    let v = null;
+    for (const r of rules) if (r.selectors.includes(selector)) { const d = declMap(r.decls); if (prop in d) v = d[prop]; }
+    return v;
+  };
+  const splitTop = (str) => {
+    const parts = [];
+    let depth = 0, cur = "";
+    for (const ch of str) {
+      if (ch === "(") depth++;
+      if (ch === ")") depth--;
+      if (ch === "," && depth === 0) { parts.push(cur.trim()); cur = ""; } else cur += ch;
+    }
+    parts.push(cur.trim());
+    return parts;
+  };
+  function parseColor(v) {
+    v = v.trim();
+    let m = /^var\(--([\w-]+)\)$/.exec(v);
+    if (m) {
+      if (!(m[1] in tokens)) throw new Error(`CSS token'ı tanımsız: --${m[1]} (:root'ta yok)`);
+      return parseColor(tokens[m[1]]);
+    }
+    if (v === "transparent") return { r: 0, g: 0, b: 0, a: 0 };
+    m = /^#([0-9a-f]{3})$/i.exec(v);
+    if (m) return { r: parseInt(m[1][0] + m[1][0], 16), g: parseInt(m[1][1] + m[1][1], 16), b: parseInt(m[1][2] + m[1][2], 16), a: 1 };
+    m = /^#([0-9a-f]{6})$/i.exec(v);
+    if (m) return { r: parseInt(m[1].slice(0, 2), 16), g: parseInt(m[1].slice(2, 4), 16), b: parseInt(m[1].slice(4, 6), 16), a: 1 };
+    m = /^color-mix\(\s*in srgb\s*,(.*)\)$/.exec(v);
+    if (m) {
+      const [a, b] = splitTop(m[1]);
+      const pa = /\s+([\d.]+)%$/.exec(a), pb = /\s+([\d.]+)%$/.exec(b);
+      const ca = parseColor(pa ? a.slice(0, pa.index) : a), cb = parseColor(pb ? b.slice(0, pb.index) : b);
+      let wa = pa ? Number(pa[1]) / 100 : pb ? 1 - Number(pb[1]) / 100 : 0.5;
+      let wb = pb ? Number(pb[1]) / 100 : 1 - wa;
+      const sum = wa + wb;
+      wa /= sum; wb /= sum;
+      // saydam renk karışımı: renk kanalları alfa ağırlıklı, alfa doğrusal (CSS color-mix, srgb, "premultiplied")
+      const alpha = ca.a * wa + cb.a * wb;
+      if (alpha === 0) return { r: 0, g: 0, b: 0, a: 0 };
+      return { r: (ca.r * ca.a * wa + cb.r * cb.a * wb) / alpha, g: (ca.g * ca.a * wa + cb.g * cb.a * wb) / alpha, b: (ca.b * ca.a * wa + cb.b * cb.a * wb) / alpha, a: alpha };
+    }
+    throw new Error("renk çözülemedi: " + v);
+  }
+  const over = (top, bottom) => ({ r: top.r * top.a + bottom.r * (1 - top.a), g: top.g * top.a + bottom.g * (1 - top.a), b: top.b * top.a + bottom.b * (1 - top.a), a: 1 });
+  const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  const lum = (c) => 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
+  const ratio = (a, b) => { const l1 = lum(a), l2 = lum(b); return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05); };
+  const need = (what, fg, bg, min = 4.5) => {
+    const r = ratio(fg, bg);
+    check(`${what}: ${r.toFixed(2)}:1 (en az ${min}:1)`, r >= min);
+  };
+  const T = (name) => parseColor(`var(--${name})`);
+  const shell = T("shell-bg"), paper = T("paper"), white = parseColor("#fff");
+
+  // (a) token'lar
+  check("CSS token'ları çözüldü (--gold, --gold-soft, --gold-deep, --shell-bg, --paper, --emerald)", ["gold", "gold-soft", "gold-deep", "shell-bg", "paper", "emerald"].every((k) => tokens[k]));
+  if (tokens["gold-deep"]) {
+    const deep = T("gold-deep");
+    need("--gold-deep, --shell-bg üzerinde (bağlantı metni)", deep, shell);
+    need("--gold-deep, --paper üzerinde (alternatif rüku rakamı)", deep, paper);
+    need("beyaz yazı, --gold-deep dolgusunda (Ontoloji rozeti)", white, deep);
+    need("--shell-bg yazısı, --gold-deep dolgusunda (çalarken Oynat düğmesi)", shell, deep);
+    check("--gold-deep hâlâ altın tonunda (--gold ile aynı ton ±6°; koyulaştırılmış, başka renge kaymamış)", (() => {
+      const hue = (c) => { const r = c.r / 255, g = c.g / 255, b = c.b / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b); return mx === mn ? 0 : (mx === r ? ((g - b) / (mx - mn)) % 6 : mx === g ? (b - r) / (mx - mn) + 2 : (r - g) / (mx - mn) + 4) * 60; };
+      return Math.abs(hue(T("gold")) - hue(T("gold-deep"))) <= 6;
+    })());
+  }
+  const deepHex = tokens["gold-deep"];
+
+  // (b) altın metin/dolgu kullanımları --gold-deep'e bağlı
+  for (const sel of [".info-section-content a", ".info-intro a", ".topic-description topic"]) {
+    check(`${sel}: metin rengi var(--gold-deep)`, valueOf(sel, "color") === "var(--gold-deep)");
+    if (valueOf(sel, "color")) need(`${sel}: metin / --shell-bg`, parseColor(valueOf(sel, "color")), shell);
+  }
+  const badgeText = valueOf(".topic-badge", "color");
+  for (const [sel, bgSel] of [[".topic-badge--ontology", ".topic-badge--ontology"], [".topic-badge--thematic", ".topic-badge--thematic"], [".topic-badge--general", ".topic-badge--general"]]) {
+    const bg = valueOf(bgSel, "background");
+    check(`${sel}: arka plan tanımlı`, !!bg && !!badgeText);
+    if (bg && badgeText) need(`${sel}: ${badgeText} yazı / ${bg} dolgu`, parseColor(badgeText), parseColor(bg));
+  }
+  check(".topic-badge--ontology: dolgu var(--gold-deep)", valueOf(".topic-badge--ontology", "background") === "var(--gold-deep)");
+  const playLabel = valueOf(".action-btn-play-label", "color");
+  check(".action-btn--play.playing: dolgu ve kenarlık var(--gold-deep)", valueOf(".action-btn--play.playing", "background") === "var(--gold-deep)" && valueOf(".action-btn--play.playing", "border-color") === "var(--gold-deep)");
+  if (playLabel) {
+    need("Oynat düğmesi, boşta: etiket / zümrüt dolgu", parseColor(playLabel), parseColor(valueOf(".action-btn--play", "background")));
+    need("Oynat düğmesi, çalarken: etiket / altın dolgu", parseColor(playLabel), parseColor(valueOf(".action-btn--play.playing", "background")));
+  }
+  check("alternatif rüku rakamı (.ayah-num-alt): dolgu var(--gold-deep)", valueOf(".mushaf-page-svg .ayah-num-alt", "fill") === "var(--gold-deep)");
+  if (valueOf(".mushaf-page-svg .ayah-num-alt", "fill")) need("alternatif rüku rakamı / --paper", parseColor(valueOf(".mushaf-page-svg .ayah-num-alt", "fill")), paper);
+
+  // (c) tefsir yeşil/kahve/mavi yazısı: iki gerçek zeminde (panel gövdesi; üstündeki .translation bloğu)
+  {
+    const panelBg = valueOf(".word-meal-panel-inner", "background");
+    const translationBg = valueOf(".wm-tafsir-content .translation", "background");
+    check("panel gövdesi ve .translation zeminleri CSS'te bulundu", !!panelBg && !!translationBg);
+    if (panelBg && translationBg) {
+      const panel = over(parseColor(panelBg), shell);
+      const translation = over(parseColor(translationBg), panel);
+      for (const cls of ["green", "brown", "blue"]) {
+        const col = valueOf(`.wm-tafsir-content .${cls}`, "color");
+        check(`.wm-tafsir-content .${cls}: renk tanımlı`, !!col);
+        if (col) {
+          need(`tefsir .${cls} / panel gövdesi`, parseColor(col), panel);
+          need(`tefsir .${cls} / .translation bloğu`, parseColor(col), translation);
+        }
+      }
+      need("tefsir gövde metni (--ink) / .translation bloğu", T("ink"), translation);
+    }
+  }
+
+  // (d) dekoratif altınlar metin rengi olamaz; altın dolgu yalnızca yazı taşımayan yerlerde
+  const colorDecl = [];
+  const goldBg = [];
+  const isDecorativeGold = (v) => /^var\(--gold(?:-soft)?\)$/.test(v) || /^#(?:a9812e|c9a24f)$/i.test(v);
+  for (const r of rules) {
+    const d = declMap(r.decls);
+    if (d.color && isDecorativeGold(d.color)) colorDecl.push(r.selectors.join(", "));
+    for (const prop of ["background", "background-color"]) if (d[prop] && isDecorativeGold(d[prop])) goldBg.push(r.selectors.join(", "));
+  }
+  check(`dekoratif altın (--gold / --gold-soft / #a9812e / #c9a24f) hiçbir metin rengi (color:) olarak kullanılmıyor${colorDecl.length ? " -- kullanan: " + colorDecl.join(" | ") : ""}`, colorDecl.length === 0);
+  const GOLD_BG_OK = [".yaz-key--hint"]; // yalnızca 💡 emojisi taşıyan klavye tuşu: yazı kontrastı söz konusu değil
+  check(`dekoratif altın dolgu (background: --gold / --gold-soft) yalnızca yazı taşımayan izinli yerlerde${goldBg.length ? " -- bulunan: " + goldBg.join(" | ") : ""}`, goldBg.every((x) => GOLD_BG_OK.includes(x)) && goldBg.length === GOLD_BG_OK.length);
+
+  // (e) odak göstergesi
+  const outlineNone = [];
+  for (const r of rules) {
+    const d = declMap(r.decls);
+    if (d.outline && /^(none|0)(\s|$)/.test(d.outline)) outlineNone.push(r.selectors.join(", "));
+  }
+  // izinli: kapsayıcı odaklarında (halka içerideki öğede/:focus-visible'da) ve arama giriş alanında (halkayı .arama-form:focus-within çiziyor)
+  const OUTLINE_NONE_OK = [".modal-sheet:focus", ".word-meal-panel:focus", ".arama-input"];
+  check(`\`outline: none\` yalnızca yerine başka gösterge konmuş yerlerde (${OUTLINE_NONE_OK.join(", ")})${outlineNone.length ? " -- bulunan: " + outlineNone.join(" | ") : ""}`, outlineNone.length === OUTLINE_NONE_OK.length && OUTLINE_NONE_OK.every((x) => outlineNone.includes(x)));
+  check(".ezber-field select/input:focus: outline kapatılmıyor (halka genel select/input:focus-visible kuralından geliyor)", (() => {
+    const sel = '.ezber-field select:focus';
+    const sel2 = '.ezber-field input[type="number"]:focus';
+    const found = rules.filter((r) => r.selectors.includes(sel) || r.selectors.includes(sel2));
+    return found.length > 0 && found.every((r) => !("outline" in declMap(r.decls)));
+  })());
+  check("genel odak halkası: select/input/button:focus-visible -> 2px solid var(--gold)", (() => {
+    const r = rules.find((x) => x.selectors.includes("select:focus-visible") && x.selectors.includes("input:focus-visible") && x.selectors.includes("button:focus-visible"));
+    return !!r && /^2px solid var\(--gold\)$/.test(declMap(r.decls).outline || "");
+  })());
+  need("odak halkası (--gold) / --shell-bg (WCAG 1.4.11, metin olmayan öğe)", T("gold"), shell, 3);
+} catch (e) {
+  check(`renk kontrastı denetimi çalışamadı: ${e.message}`, false);
+}
+
 // -- Statik index.html kabuğu: axe-core genel yapısal tarama ------------------------------------------------
 {
   const dom = new JSDOM(html, { pretendToBeVisual: true });
@@ -615,6 +794,6 @@ if (failures) {
   process.exit(1);
 } else {
   console.log(
-    "All checks passed (nav-announcer yapısı + gecikmeli/tekrar-anons/birleşik-anons mantığı, canlı bölge kapsamı (#page-container canlı değil, panel gövdesi canlı, panel açılış/kapanış anonsu), panel açıkken sayfa metninin ağaçta bir kez görünmesi (alt kopya aria-hidden, gerçek openWordMealStructure/mountClosedPage), showPage huni kontrolü, metin katmanının aria-hiding'siz yapısı, Arapça metin parçalarında lang=\"ar\" (gerçek LineRenderer çıktısı, statik kabuk, CSS'ten türetilen şablon taraması, Oynat etiketi), Oynat düğmesinin erişilebilir adı (Türkçe eylem + görünen etiket, accname ile hesaplanan, aria-pressed yok), axe-core yapısal tarama (dil kuralları dahil)). NOT: bunlar otomatik/yapısal kontroller -- gerçek bir ekran okuyucu testinin yerini tutmaz."
+    "All checks passed (nav-announcer yapısı + gecikmeli/tekrar-anons/birleşik-anons mantığı, canlı bölge kapsamı (#page-container canlı değil, panel gövdesi canlı, panel açılış/kapanış anonsu), panel açıkken sayfa metninin ağaçta bir kez görünmesi (alt kopya aria-hidden, gerçek openWordMealStructure/mountClosedPage), showPage huni kontrolü, metin katmanının aria-hiding'siz yapısı, Arapça metin parçalarında lang=\"ar\" (gerçek LineRenderer çıktısı, statik kabuk, CSS'ten türetilen şablon taraması, Oynat etiketi), Oynat düğmesinin erişilebilir adı (Türkçe eylem + görünen etiket, accname ile hesaplanan, aria-pressed yok), renk kontrastı ve odak göstergesi (CSS'ten hesaplanan oranlar, --gold-deep, tefsir renkleri, outline: none izin listesi), axe-core yapısal tarama (dil kuralları dahil)). NOT: bunlar otomatik/yapısal kontroller -- gerçek bir ekran okuyucu testinin yerini tutmaz."
   );
 }

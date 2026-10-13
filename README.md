@@ -824,12 +824,115 @@ dokunmayla. Sure Bilgisi'nden "Mushaf'a Git" ile sayfa
 değişirse açan sure başlığı düğmesi yeniden kurulmuş olur; modal kapanınca
 odak `<body>`'ye düşebilir.
 
+**Renk kontrastı ve odak göstergesi.** Başsız Chromium'da (430 ve 1200 px)
+axe-core'un `color-contrast` kuralı ve arka planı katman katman birleştiren
+(yarı saydam dolguları üst üste bindiren) elle bir denetim 17 durumda
+çalıştırıldı: açılış, yedi modalın hepsi (sure, cüz, sayfa, Ezber, arama, konu,
+Sure Bilgisi -- sonuncusu Fâtiha ve Bakara için), ayet paneli (kelime meali,
+tefsir; tefsirin renkli parçaları için ayrıca sentetik bir blok), ayet
+gezgininin klavye ipucu, çalarken, 2. ve 3. sayfa.
+Yamadan ÖNCE axe 430 px'te 5, 1200 px'te 10 ihlal buldu; elle denetim 1.844 /
+1.830 metin öğesinin 23 / 22'sini WCAG 1.4.3'ün 4,5:1 eşiğinin altında buldu;
+alt rüku rakamları (SVG yolları: ne axe ne elle denetim bunları görür, dolgu
+rengi ayrıca ölçüldü) `--paper` üzerinde 2,95:1'di. Şimdi iki genişlikte de üç
+denetimde 0 ihlal (axe'in "belirsiz" bıraktıkları -- çoğu görünmez metin
+katmanı satırları, yani şeffaf yazı, kontrast uygulanmaz -- elle denetimle
+ayrıca ölçüldü). Düzeltmeler (WCAG göreli parlaklığıyla; önce -> sonra):
+
+- **Altın bağlantı metni** (Sure Bilgisi'nde `.info-section-content a` ve
+  `.info-intro a`; konu açıklamalarındaki `<topic>` bağlantıları): `--gold`
+  #a9812e, `--shell-bg` üzerinde 3,26:1 -> yeni `--gold-deep` #816223: 5,16:1.
+- **"Ontoloji" rozeti:** beyaz yazı / `--gold` dolgu 3,58:1 -> `--gold-deep`
+  dolgu 5,67:1.
+- **Çalarken Oynat düğmesi** (`.playing`; etiket rengi `--shell-bg`): `--gold`
+  dolgu 3,26:1 -> `--gold-deep` 5,16:1.
+- **Alt rüku rakamları** (`.ayah-num-alt`): `--gold` / `--paper` 2,95:1 ->
+  `--gold-deep` 4,67:1.
+- **Tefsirin satır içi renkleri** (`tafsir-saadi.json`'da yaklaşık 7 bin yeşil,
+  18,8 bin kahve, 6,5 bin mavi parça; 1.738 `.translation` bloğunun
+  1.292'sinde renkli parça var): yazı iki zeminde okunuyor, panel gövdesi ve
+  üstündeki `.translation` bloğu; ikisinde de ölçüldü (panel / blok): yeşil
+  #3f7a52 4,29 / 3,90:1 -> #386d49 5,12 / 4,65:1; kahve #8a5a2f 4,93 / 4,48:1
+  -> #86582e 5,12 / 4,66:1; mavi #2f5f8a zaten yeterli (5,65 / 5,14:1),
+  değişmedi.
+- **Ezber alanlarının odağı:** aşağıda.
+
+Kararlar:
+
+- **`--gold-deep` yeni bir token; `--gold`'un yerine geçmiyor.** Aynı tonun
+  koyusu (ton farkı <= 6°, testte denetleniyor). `--gold` ve `--gold-soft`
+  kenarlık, odak halkası, ayet vurgusu gibi metin olmayan yerlerde kalıyor;
+  test onların bir metin rengi ya da yazı taşıyan dolgu olmasını yasaklıyor,
+  yani yarın eklenecek bir "altın yazı" kendiliğinden yakalanır.
+- **Bu yama GÖRÜNÜR bir değişiklik.** Bağlantılar, rozet, çalan düğme ve alt
+  rüku rakamları eskisinden koyu bir bronz altın; tefsirde yeşil ve kahve
+  hafifçe koyulaştı (en çok 13/255 kanal farkı). Tek commit; beğenilmezse
+  `git revert` yeter.
+- **Ödünleşme: alt rüku rakamı.** Rakam artık okunuyor ama sayfanın
+  mürekkebinden ayrışması azaldı: `--ink`'e karşı oran 4,50:1 -> 2,84:1,
+  parlaklık oranı yaklaşık 16 kat -> 9 kat. "Bronz" ile "siyaha yakın" ayrımı
+  hâlâ var (ekran görüntüsünde gözle incelendi) ama eskisi kadar keskin değil;
+  yalnızca `.ayah-num-alt` satırı `--gold`'a döndürülürse okunabilirlik
+  2,95:1'e geri düşer.
+
+**Ezber alanlarında odak halkası.** `.ezber-field select:focus` ve
+`input[type="number"]:focus` kuralları `outline: none` taşıyordu; odağı
+yalnızca kenarlık rengi gösteriyordu (`--gold-soft`, beyaz alanda 2,40:1).
+Başsız Chromium'da gerçek Tab tuşuyla, 9 alanın her biri için (Dinle 5, Oku 2,
+Yaz 2; 430 ve 1200 px) ölçüldü: önce hesaplanan `outline` yok; odaklı kenarlık
+odaksıza göre 1,89:1, modal zeminine göre 2,18:1 (WCAG 1.4.11: en az 3:1). Şimdi
+`outline: none` kalktı, genel `select/input:focus-visible` kuralı (2px düz
+`--gold`, 2px aralıklı) geçerli: halka / modal zemini 3,26:1; `:focus-visible`
+9/9 alanda eşleşiyor, sayfa hatası 0. Odaksız alanların görünümü 18 görüntü
+çiftinde piksel piksel aynı; yalnızca odaklı hâl değişti.
+
+`test/erisilebilirlik_test.mjs`'e 42 kontrol eklendi (145 -> 187). Oranlar elle
+yazılmış sayılarla değil CSS'in kendisinden hesaplanıyor (token'lar,
+`color-mix`, aynı seçicide son bildirimin kazanması): `--gold-deep`'in
+zeminlerde ve dolgularda >= 4,5:1 olması ve `--gold` ile aynı tonda kalması;
+altı kullanım yerinin (üç bağlantı, rozet, çalan düğme, alt rüku rakamı)
+`--gold-deep`'e bağlı olması; tefsir yeşil/kahve/mavisinin panel ve
+`.translation` zeminlerinde >= 4,5:1 olması; `--gold` / `--gold-soft` / düz
+hex'in hiçbir `color:` değerinde ve izin listesi dışında hiçbir `background`'da
+kullanılmaması; `outline: none`'ın yalnızca yerine başka gösterge konmuş üç
+yerde (`.modal-sheet:focus`, `.word-meal-panel:focus`, `.arama-input`)
+bulunması; Ezber kuralının outline'ı kapatmaması; genel halkanın 2px `--gold`
+olması ve modal zemininde >= 3:1. Her parça tek tek bozularak (23 mutasyon:
+`--gold-deep`'in silinmesi / `--gold`'a eşitlenmesi / açılması / başka tona
+kayması, altı kullanım yerinin her birinin eski altına dönmesi, tefsir yeşil,
+kahve ve mavisinin eski ya da açık değere dönmesi, `.translation` zemininin
+koyulaşması, yeni bir kuralda `--gold-soft` / düz hex / altın dolgu, Ezber'de
+`outline: none`'ın geri gelmesi, başka bir yerde yeni `outline: none`,
+izin listesindeki bir yerin `outline: none`'ı kaybetmesi, genel halkanın
+incelmesi / kalkması, çalan etiketin koyu altına dönmesi) testin kırıldığı
+doğrulandı; değişikliksiz hâl diğer beş test dosyasıyla birlikte geçiyor.
+Görünüm: 17 durumun ekran görüntüleri (430 ve 1200 px; ses sessiz WAV,
+animasyonlar kapalı) yamasız ağaçla piksel piksel karşılaştırıldı: her
+genişlikte 12 durum birebir aynı, 5'inde fark var (konu modalı, çalan düğme,
+Sure Bilgisi, tefsir, alt rüku rakamları) ve fark piksellerinin tamamı rengi
+değişen öğelerin kutularının (±3 px) içinde. Tek istisna 1200 px'te konu
+modalının arkasındaki tefsir renkleri: perdenin bulanıklığı (`backdrop-filter:
+blur`) 4 pikseli kutunun hemen dışına yaydı (kanal farkı 1/255).
+
+**Sınırlar:** gerçek bir ekran okuyucu ya da gerçek cihaz çalıştırılmadı;
+kontrast ekran okuyucuyu ilgilendirmez ama güneş altında telefon ekranı,
+Windows Yüksek Karşıtlık (zorlanmış renkler) ve iOS "Kontrastı Artır" gibi
+sistem modlarındaki görünüm sınanmadı (aşağıda 14. madde). Tarama 17 durumla
+sınırlı: renkler CSS kuralı başına tanımlı olduğundan her sure aynı sonucu
+vermeli, ama 114 Sure Bilgisi metni ve tefsirin tamamı ayrı ayrı taranmadı.
+Genel odak halkasının rengi `--gold`: modal zemininde 3,26:1 (ölçüldü), `--paper`
+zeminine düşen bir halka için 2,95:1 olurdu; bu yama genel halkayı
+değiştirmedi. Konu açıklamalarındaki `<topic>` bağlantıları (az önce
+koyulaşanlar) hâlâ klavyeyle odaklanamıyor; ayrı bir iş.
+
 **Otomatik doğrulama, gerçek cihaz testinin YERİNE DEĞİL.**
 `test/erisilebilirlik_test.mjs`, yukarıdaki ikisini + genel ARIA
 etiketlerini hem kaynak metin üzerinden hem [axe-core](https://github.com/dequelabs/axe-core)
 ile jsdom'a monte edilmiş DOM üzerinde tarıyor (yalnızca yapısal/ARIA
 kuralları -- renk kontrastı gibi gerçek düzen/görünürlük gerektiren
-kurallar jsdom'da güvenilir olmadığından çalıştırılmıyor). Bu ortamda
+kurallar jsdom'da güvenilir olmadığından axe ile çalıştırılmıyor; kontrast
+CSS'ten hesaplanan oranlarla denetleniyor, gerçek Chromium'daki axe taraması
+yukarıdaki "Renk kontrastı" paragrafında). Bu ortamda
 gerçek bir ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) ÇALIŞTIRILAMADI --
 bir GUI tarayıcı bile kurulamadı (Ubuntu 24.04'te chromium yalnızca snap
 paketi olarak dağıtılıyor ve bu sandbox'ta snapd çalışmıyor; Puppeteer'ın
@@ -1146,10 +1249,16 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     "geçiş düğmesi" gibi bir durum duyulmuyor mu? Sesle kumanda (iOS'ta Ses
     Kontrolü, Windows'ta Sesli Erişim) "Oynat" dediğinde ya da ekrandaki
     Arapça ibareyi söylediğinde düğmeye basıyor mu?
+14. Görünüm: telefonda düşük parlaklıkta ya da güneş altında, ayrıca Windows
+    Yüksek Karşıtlık / iOS "Kontrastı Artır" açıkken bağlantılar (Sure Bilgisi,
+    konu açıklamaları), "Ontoloji" rozeti, çalan Oynat düğmesi ve alt rüku
+    rakamları okunuyor mu; alt rüku rakamı sayfanın siyahından hâlâ ayırt
+    ediliyor mu (bilinçli ödünleşme, yukarıdaki "Renk kontrastı" paragrafı)?
+    Ezber alanlarına Tab ile gelince odak halkası net görünüyor mu?
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal
-odak yönetimi, ayet gezgini, alt kopyanın gizlenmesi ve Oynat düğmesinin adı
-ayrı ayrı tek commit'tir, geri alınabilir.
+odak yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı ve
+renk kontrastı / Ezber odak halkası ayrı ayrı tek commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 
