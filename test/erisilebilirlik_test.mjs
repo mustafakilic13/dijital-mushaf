@@ -777,6 +777,13 @@ try {
     return !!r && /^2px solid var\(--gold\)$/.test(declMap(r.decls).outline || "");
   })());
   need("odak halkası (--gold) / --shell-bg (WCAG 1.4.11, metin olmayan öğe)", T("gold"), shell, 3);
+  // Konu açıklamalarındaki bağlantılar (<topic data-id>, js/topics.js markTopicLinks) klavyeyle odaklanabiliyor: halka
+  // genel halkayla aynı ve konu modalının zemini (.modal-sheet = --shell-bg) üzerinde yukarıdaki oranla sınanıyor.
+  check(".topic-description topic[data-id]:focus-visible: halka genel halkayla aynı (2px solid var(--gold)), outline kapatılmıyor", (() => {
+    const r = rules.find((x) => x.selectors.includes(".topic-description topic[data-id]:focus-visible"));
+    return !!r && /^2px solid var\(--gold\)$/.test(declMap(r.decls).outline || "");
+  })());
+  check(".modal-sheet zemini var(--shell-bg) (konu bağlantısı halkasının kontrastı bu zemine göre sınanıyor)", valueOf(".modal-sheet", "background") === "var(--shell-bg)");
 } catch (e) {
   check(`renk kontrastı denetimi çalışamadı: ${e.message}`, false);
 }

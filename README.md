@@ -308,7 +308,11 @@ nadir (2512 konudan yalnızca 17'sinde dolu); açıklama metni içine gömülü
 gezinmeden geçiyor -- ayrı bir tıklama yolu değil,
 `setupTopicsModal`'daki tek bir genel `[data-id]` yakalayıcısı üçünü de
 (Ana Konu/İlişkili Konu/Alt Konu çipleri VE açıklama içi bağlantılar)
-kapsıyor.
+kapsıyor. Açıklama içi bağlantılar klavyeyle de açılıyor: çizim anında
+`role="link" tabindex="0"` alıyorlar (`js/topics.js`, `markTopicLinks`) ve
+Enter tıklamaya çevriliyor; her gezinme adımından sonra odak modalın
+kapsayıcısına alınıyor (bkz. "Erişilebilirlik", "Konu açıklamalarındaki
+bağlantılar").
 
 Aynı ayete aynı isimde birden fazla konu bağlı olabiliyor -- QUL'un
 taksonomisinde, mesela "Abdest" hem Genel hem Tematik ayrı birer kayıt,
@@ -333,7 +337,9 @@ referansı ve açıklama içindeki her `<topic data-id>` gerçek bir
 `topic_id`'ye çözülüyor, hiçbir kayıt kendi ana konusu değil, her
 `ayahs` girdisi geçerli bir sure:ayet çifti -- artı ayet panelindeki
 isme-göre-tekilleştirme mantığının (`ayahTopicsRowHTML`) aynalanmış bir
-kopyası, tüm etiketli ayetlere karşı doğrulanıyor.
+kopyası, tüm etiketli ayetlere karşı doğrulanıyor. Aynı dosya
+`markTopicLinks`'i de sınıyor (verideki her `<topic>` etiketinin iki bilinen
+biçimden biri olması dahil); klavye davranışı `test/topic_links_test.mjs`'te.
 
 (Eski not, hâlâ açık: kuranmeali.com'dan izin gelirse, onların -- Süleyman
 Ateş Meali tabanlı -- fihristini QUL'unkine ek/ayrı bir seçenek olarak
@@ -923,7 +929,111 @@ vermeli, ama 114 Sure Bilgisi metni ve tefsirin tamamı ayrı ayrı taranmadı.
 Genel odak halkasının rengi `--gold`: modal zemininde 3,26:1 (ölçüldü), `--paper`
 zeminine düşen bir halka için 2,95:1 olurdu; bu yama genel halkayı
 değiştirmedi. Konu açıklamalarındaki `<topic>` bağlantıları (az önce
-koyulaşanlar) hâlâ klavyeyle odaklanamıyor; ayrı bir iş.
+koyulaşanlar) bu yamada klavyeyle odaklanamıyordu; ayrı bir iş olarak bir
+sonraki paragrafta ele alındı.
+
+**Konu açıklamalarındaki bağlantılar (klavye).** Konu modalının açıklama
+metninde `<topic data-id="N">…</topic>` biçiminde iç bağlantılar var (271
+konuda 461 adet; tıklanınca o konuya gidiyor). Tarayıcı `<topic>`'i
+tanımıyor: bu öğeler odaklanamıyor ve erişilebilirlik ağacında rolsüz. Başsız
+Chromium'da gerçek Tab/Enter/Space ile ve CDP erişilebilirlik ağacıyla (430 ve
+1200 px; "Allah" konusu, açıklamasında "Kur'an" ve "İslam") yamadan ÖNCE
+ölçüldü: `tabIndex` -1, ağaçta rol "none" (ad yok), Tab durağı 0 -- klavye ve
+ekran okuyucu kullanıcısı için düz metin; bağlantı yalnızca fareyle ya da
+dokunmayla çalışıyordu. İkinci bulgu çiplerde (gerçek `<button>`): "Gayb (54)"
+çipine Enter basınca başlık değişiyor ama gövde baştan basıldığı için basılan
+çip DOM'dan kalkıyor ve odak `<body>`'ye düşüyordu; yeni konunun adını
+duyuracak bir odak değişimi yoktu, sonraki Tab görünümün ortasındaki bir çipe
+("Gayb (Görünmeyen Âlem)"), Shift+Tab Kapat'a gidiyordu.
+
+Şimdi (aynı sahne, aynı ölçüm, 430 ve 1200 px'te aynı sonuç): iki bağlantı
+`tabIndex` 0, ağaçta rol "link", ad "Kur'an" ve "İslam"; Tab sırası Geri,
+Kapat, Kur'an, İslam, çipler (2 yeni durak, DOM sırasıyla). Odaklıyken halka
+düz 2px `rgb(169, 129, 46)` (`--gold`), 2px aralıklı, `:focus-visible`
+eşleşiyor; ekran görüntüsünden örneklenen halka pikseli (232 piksel, tam
+`#A9812E`) ile zemin (`rgb(247, 244, 236)`) arasındaki oran 3,26:1 (WCAG
+1.4.11: en az 3:1). Bağlantıda Enter: "Allah" -> "Kur'an", Geri görünür, odak
+modal kapsayıcısında (başlığın okunması beklenen davranış; gerçek ekran
+okuyucuyla sınanmadı). Space: hiçbir şey olmuyor, odak bağlantıda kalıyor. Çipe Enter: başlık "Gayb", odak kapsayıcıda
+(artık `<body>` değil), sonraki Tab Geri düğmesine gidiyor. Fareyle tıklama
+eskisi gibi.
+
+Tarama (gerçek Chromium, 430 px, yalnızca Tab ve Enter): açıklamasında en az
+bir `data-id`'li bağlantı olan 271 konunun her birinde DOM'daki bağlantılar
+veriyle (id, sıra, metin) aynı, Tab durakları veri sırasındaki bağlantılar ve
+461 bağlantının her birine Tab'la gelip Enter'a basınca başlık hedef konunun
+adı, Geri görünür, odak kapsayıcıda; Geri aynı konuya döndürüyor (2.635 Tab
+basışı, sayfa hatası 0). Görünüm: odaksız açıklama kırpması ve tüm modalin
+ekran görüntüsü 430 ve 1200 px'te yamasız ağaçla piksel piksel aynı (4 çift, 0
+farklı piksel); yalnızca odaklı hâl ve davranış yeni.
+
+Kararlar:
+
+- **`role="link"` + `tabindex="0"`, çizim anında eklenir** (`js/topics.js`,
+  `markTopicLinks`; `markArabicSpans` ile aynı yöntem, veri dosyasına
+  dokunulmuyor). `<a href>` değil: gezinmenin URL'si yok, iç bir yığın
+  (`state.topicsModal.stack`) var; uydurma bir `href` olmayan bir adres vaat
+  ederdi.
+- **Yalnızca Enter açar** (ARIA APG "Link" deseni; yerel `<a>` da böyle):
+  Space etkinleştirmez. Shift/Ctrl/Alt/Meta+Enter yakalanmıyor (tarayıcı ve
+  ekran okuyucu kısayollarına dokunulmaz). İşleyici `topic[data-id]` ile
+  sınırlı: düğmelerde (çip, "Mushaf'ta Ayete Git") Enter'ı yutmuyor, yoksa
+  yerel Enter->click ile çift tetiklenirdi; `data-id`'siz `<topic>`'e de
+  dokunmuyor. İşleyici tıklamayı yeniden kullanıyor: fare, dokunma ve klavye
+  aynı tek yoldan (yığına ekle + odağı al) geçiyor.
+- **Her gezinme adımından sonra odak modalın kapsayıcısına alınır**
+  (`pushTopicsModalTopic`; modal açılırken yapılanın aynısı). Bu çipleri de
+  kapsıyor, yani yama onların davranışını da değiştiriyor (eskiden `<body>`).
+- **Halka genel halkayla aynı** (2px `--gold`, yalnızca `:focus-visible`;
+  fareyle tıklamada halka çıkmıyor).
+- **Görünür bir değişiklik değil** (odaksız hâl piksel piksel aynı). Tek
+  commit; beğenilmezse `git revert` yeter.
+
+`test/topic_links_test.mjs` (yeni, jsdom + axe-core, 53 kontrol): app.js'ten
+GERÇEK `openModal` bloğu ile GERÇEK `<topics-modal>` bloğu çıkarılıp gerçek
+`index.html`, `topics.js`, `modal-odak.js` ve `data/topics-tr.json` ile
+çalıştırılıyor. "Allah" konusunda rol/`tabindex`, Tab sırası, odaklanabilirlik,
+Enter ile gezinme, Geri; Enter'ın YAPMAMASI gerekenler (Space, Tab, ok tuşu,
+Shift/Ctrl/Alt/Meta+Enter, basılı tutulan Enter, çip ve "Mushaf'ta Ayete Git"
+düğmesi, `data-id`'siz `<topic>`); çip ve fareyle gezinmede odağın
+kapsayıcıya alınması; 271 konunun 461 bağlantısının TAMAMI için tarama; axe-core
+ARIA/`aria-command-name` kuralları (bu öğelere gerçekten uygulandığı da
+denetleniyor, boş geçmiyor). `test/topics_test.mjs`'e 13 kontrol eklendi
+(33 -> 46): `markTopicLinks` birim testleri (boş, tek, çoklu, çıplak `<topic>`,
+iki kez uygulama, `markArabicSpans` ile sıra bağımsızlığı) ve veri taraması
+(her `<topic>` etiketi iki bilinen biçimden biri: 461 `data-id`'li + 48 çıplak;
+işaretlenen sayı 461; çıplaklara ve metnin geri kalanına dokunulmuyor).
+`test/erisilebilirlik_test.mjs`'e 2 kontrol (187 -> 189): odak halkası kuralı
+genel halkayla aynı ve `.modal-sheet` zemini `--shell-bg` (yani yukarıdaki
+3,26:1 hesabı bu zemin için geçerli). Her parça tek tek bozularak 26 mutasyon
+denendi, hepsi en az bir testi kırıyor: `markTopicLinks`'in hiçbir şey
+yapmaması / `role`'ü ya da `tabindex`'i düşürmesi / yanlış rol / `-1` /
+çıplak `<topic>`'i de işaretlemesi / yalnızca ilkini işaretlemesi; render
+yolunda çağrılmaması, `import`'un ya da `<topics-modal>` işaretinin
+kalkması; işleyicinin `keyup`'a bağlanması, Space'in ya da dört değiştirici
+tuştan her birinin etkinleştirmesi (4 ayrı mutasyon), `preventDefault`'un
+düşmesi, seçicinin `[data-id]` ya da `topic`'e genişlemesi; odağın
+alınmaması ya da gövdeye alınması; halka kuralının silinmesi / `--gold-soft` /
+`outline: none` / 1px; modal zemininin değişmesi. İşlevsel olarak aynı olan
+mutasyonlar (odağın render'dan önce/sonra alınması, işleyicinin gövde yerine
+kapsayıcıya bağlanması) denenmedi. Mutasyonsuz hâl (yamanın kendisi) 12 test
+dosyasının hepsiyle geçiyor (11 mevcut + yeni `topic_links_test`).
+
+**Sınırlar:** gerçek bir ekran okuyucu çalıştırılmadı (aşağıda 15. madde).
+Chromium'un erişilebilirlik ağacı "link" rolünü ve adı doğruladı, ama ekran
+okuyucunun bunu "bağlantı" diye okuması ve `role="link"` taşıyan özel bir
+öğeye Enter/çift dokunuşu iletmesi (özellikle iOS VoiceOver, Android
+TalkBack) gerçek cihazla doğrulanmalı; jsdom'da düzen, gerçek Tab ve yerel
+Enter->click yok (testlerin başlığında yazıyor). Veride 48 `<topic>` etiketi
+`data-id` taşımıyor (hedefsiz): tıklanınca hiçbir şey olmuyor, bu yüzden
+odaklanabilir yapılmadı; ama CSS onları hâlâ bağlantı gibi gösteriyor (altı
+çizili altın) -- görünüm ve davranış uyuşmuyor, ayrı bir karar (düz metin gibi
+göstermek ya da adına göre bir konuya çözmek). Ölçüm sırasında yamayla ilgisiz
+bir bulgu daha çıktı ve DEĞİŞTİRİLMEDİ: konu modalının Geri düğmesi kökte de
+görünüyor (`hidden` özniteliği `.info-detail-back { display: flex }` ile
+ezilmiş; hesaplanan `display: flex`, 32x32, ilk Tab durağı) ve bir adım geri
+alıp köke dönünce odak `<body>`'ye düşüyor (yamasız ve yamalı ağaçta aynı).
+Ayrı bir yama.
 
 **Otomatik doğrulama, gerçek cihaz testinin YERİNE DEĞİL.**
 `test/erisilebilirlik_test.mjs`, yukarıdaki ikisini + genel ARIA
@@ -1078,6 +1188,7 @@ test/search_test.mjs        Arama saf mantığı (Node)
 test/arama_ui_test.mjs       Arama modalı arayüzü (jsdom)
 test/erisilebilirlik_test.mjs Anons bölgesi, panel açıkken tek sayfa metni (alt kopya aria-hidden) + axe-core yapısal tarama (jsdom)
 test/modal_odak_test.mjs        Modal odak yönetimi: işaretleme, Tab döngüsü, açan öğeye dönüş, app.js bağlantısı (jsdom)
+test/topic_links_test.mjs       Konu açıklamalarındaki <topic> bağlantıları: role/tabindex, Enter, odak, 461 bağlantının taraması, axe-core (jsdom)
 test/ayet_gezgini_test.mjs         Ayet gezgini: işaretleme, CSS, saf yardımcılar, denetleyici, app.js bağlantısı ve sırası, axe-core (jsdom)
 test/sw_test.mjs              Servis worker: sahte self/caches ile (Node)
 ```
@@ -1255,10 +1366,20 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     rakamları okunuyor mu; alt rüku rakamı sayfanın siyahından hâlâ ayırt
     ediliyor mu (bilinçli ödünleşme, yukarıdaki "Renk kontrastı" paragrafı)?
     Ezber alanlarına Tab ile gelince odak halkası net görünüyor mu?
+15. Konu modalı (ayet panelinde bir konu etiketi -> "Allah" gibi bir konu):
+    açıklamadaki "Kur'an" ve "İslam" Tab ile gelince ekran okuyucu "Kur'an,
+    bağlantı" gibi okuyor mu (bağlantı sayısı/konumu duyuluyorsa doğru mu)?
+    Enter (dokunmatik ekran okuyucuda çift dokunuş) konuya götürüyor mu ve
+    ardından "Kur'an, iletişim kutusu" gibi yeni başlık duyuluyor mu? Space
+    hiçbir şey yapmıyor mu, çipe Enter basınca da başlık duyuluyor mu? Odak
+    halkası bağlantının çevresinde net görünüyor mu? `data-id`'siz (hedefsiz)
+    bağlantılar bu okumada Tab durağı olmadığı hâlde altı çizili görünüyor:
+    kullanıcıyı yanıltıyor mu?
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal
-odak yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı ve
-renk kontrastı / Ezber odak halkası ayrı ayrı tek commit'tir, geri alınabilir.
+odak yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı,
+renk kontrastı / Ezber odak halkası ve konu bağlantılarının klavye erişimi
+ayrı ayrı tek commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 

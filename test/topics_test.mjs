@@ -20,6 +20,7 @@ import {
   topicCategoryLabels,
   buildTopicsIndex,
   markArabicSpans,
+  markTopicLinks,
 } from "../js/topics.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -234,6 +235,70 @@ check('markArabicSpans: iki kez uygulamak sonucu değiştirmiyor (lang="ar" ikil
   check("işaretlemeden sonra lang'sız hiçbir .ar span kalmıyor", unmarked === 0);
   check(`işaretlenen parça sayısı veridekiyle birebir aynı (${markedTotal} / ${arSpanTotal})`, markedTotal === arSpanTotal);
   check("açıklamalarda .ar span'ları DIŞINDA Arapça harf yok (yani tüm Arapça metin işaretleniyor)", strayArabic === 0);
+}
+
+// -- markTopicLinks (WCAG 2.1.1 / 4.1.2: açıklamadaki iç bağlantılar klavyeyle odaklanabilmeli, bağlantı rolü taşımalı) ----
+// Açıklamalardaki <topic data-id="N"> tarayıcı için bilinmeyen bir öğe: Tab'la odaklanamıyor ve erişilebilirlik
+// ağacında rolü yok ("none"; gerçek Chromium'da ölçüldü). Yardımcı yalnızca TAM `<topic data-id="N">` kalıbını işaretliyor.
+// Bu yüzden aşağıda verideki HER <topic> etiketinin ya bu kalıpta ya da çıplak `<topic>` olduğu doğrulanıyor -- ileride
+// başka nitelikli bir etiket gelirse (ör. data-id'den sonra class) sessizce işaretsiz kalmasın, burada kırılsın.
+check('markTopicLinks: boş/null -> ""', markTopicLinks("") === "" && markTopicLinks(null) === "" && markTopicLinks(undefined) === "");
+check(
+  "markTopicLinks: tek bağlantı -> role=\"link\" tabindex=\"0\"",
+  markTopicLinks('a <topic data-id="61">Kur\'an</topic> b') === 'a <topic data-id="61" role="link" tabindex="0">Kur\'an</topic> b'
+);
+check("markTopicLinks: data-id'siz <topic>'e dokunmuyor (hedefi yok, odak durağı olmamalı)", markTopicLinks("a <topic>x</topic> b") === "a <topic>x</topic> b");
+check(
+  "markTopicLinks: birden çok bağlantı, çıplak <topic>, <b> ve Arapça parça iç içe; metne başka dokunuş yok",
+  markTopicLinks('<b>x</b> <topic data-id="3">t</topic> <span class="ar">ب</span> <topic>y</topic> <topic data-id="47">u</topic>') ===
+    '<b>x</b> <topic data-id="3" role="link" tabindex="0">t</topic> <span class="ar">ب</span> <topic>y</topic> <topic data-id="47" role="link" tabindex="0">u</topic>'
+);
+check("markTopicLinks: bağlantı içermeyen metne dokunmuyor", markTopicLinks("<b>x</b> düz metin") === "<b>x</b> düz metin");
+check("markTopicLinks: iki kez uygulamak sonucu değiştirmiyor (role/tabindex ikilenmiyor)", (() => {
+  const once = markTopicLinks('<topic data-id="61">Kur\'an</topic>');
+  return markTopicLinks(once) === once && (once.match(/role=/g) || []).length === 1 && (once.match(/tabindex=/g) || []).length === 1;
+})());
+check("markTopicLinks: markArabicSpans ile hangi sırayla uygulanırsa uygulansın aynı sonuç (render yolu birbirine bağımlı değil)", (() => {
+  const s = '<topic data-id="5">a</topic> <span class="ar">ب</span>';
+  return markTopicLinks(markArabicSpans(s)) === markArabicSpans(markTopicLinks(s));
+})());
+{
+  let tagged = 0;
+  let bare = 0;
+  let otherForms = 0;
+  let markedTotal = 0;
+  let unmarked = 0;
+  let bareTouched = 0;
+  let textChanged = 0;
+  let topicsWithLink = 0;
+  let maxInOne = 0;
+  for (const rec of data) {
+    const d = rec.description || "";
+    let inThis = 0;
+    for (const tag of d.match(/<topic\b[^>]*>/g) || []) {
+      if (/^<topic data-id="\d+">$/.test(tag)) {
+        tagged++;
+        inThis++;
+      } else if (tag === "<topic>") bare++;
+      else otherForms++;
+    }
+    if (inThis) topicsWithLink++;
+    maxInOne = Math.max(maxInOne, inThis);
+    const marked = markTopicLinks(d);
+    markedTotal += (marked.match(/<topic data-id="\d+" role="link" tabindex="0">/g) || []).length;
+    if (/<topic data-id="\d+">/.test(marked)) unmarked++;
+    if ((marked.match(/<topic>/g) || []).length !== (d.match(/<topic>/g) || []).length) bareTouched++;
+    // işaretleme dışında metne dokunulmadı: eklenen nitelikler çıkarılınca özgün açıklama geri geliyor
+    if (marked.replace(/ role="link" tabindex="0"/g, "") !== d) textChanged++;
+  }
+  check(`verideki her <topic> etiketi ya '<topic data-id="N">' ya da çıplak '<topic>' (${tagged} + ${bare}; başka biçim: ${otherForms})`, otherForms === 0 && tagged > 0);
+  // Sayılar README'de ve app.js/topics.js yorumlarında anılıyor; veri değişirse bu iki sayı bilerek kırılır:
+  // çıplak (hedefsiz) bağlantıların ne olacağı kararı da o zaman yeniden gözden geçirilmeli.
+  check(`verideki sayılar belgelenenle aynı: 461 data-id'li bağlantı (271 konuda, en çok 6), 48 çıplak (bulunan: ${tagged} / ${bare}, ${topicsWithLink} konu, en çok ${maxInOne})`, tagged === 461 && bare === 48 && topicsWithLink === 271 && maxInOne === 6);
+  check("işaretlemeden sonra işaretsiz data-id'li <topic> kalmıyor", unmarked === 0);
+  check(`işaretlenen bağlantı sayısı veridekiyle birebir aynı (${markedTotal} / ${tagged})`, markedTotal === tagged);
+  check("çıplak <topic>'lere dokunulmuyor (odak durağı olmamalı)", bareTouched === 0);
+  check("işaretleme dışında hiçbir açıklamanın metnine dokunulmuyor (eklenen nitelikler çıkarılınca özgün açıklama geri geliyor)", textChanged === 0);
 }
 
 if (failures) {

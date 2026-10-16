@@ -37,6 +37,7 @@ import {
   parseRelatedTopicsField,
   topicCategoryLabels,
   markArabicSpans,
+  markTopicLinks,
 } from "./topics.js";
 
 const state = {
@@ -2279,6 +2280,7 @@ function setupSurahInfoModal() {
 // ediyor, renderTopicsModalView de her seferinde yığının TEPESİNDEKİ
 // konuyu #topics-modal-body'ye baştan basıyor -- böylece kaç adım
 // gidilirse gidilsin geri her zaman tam bir adım geri götürüyor.
+// <topics-modal>
 // Bir konu çipinin HTML'i -- adı + parantez içinde o konuya bağlı ayet
 // sayısı (182 konuda 0). Ana Konu/İlişkili Konu/Alt Konu çiplerinde
 // (topicChipsHTML) VE ayet panelindeki "Konular" etiketlerinde
@@ -2349,7 +2351,7 @@ function topicDetailBodyHTML(topicId) {
     .join("")}</div>`;
 
   const descriptionHTML = t.description
-    ? `<div class="wm-section"><div class="wm-section-label">Açıklama</div><div class="topic-description">${markArabicSpans(t.description)}</div></div>`
+    ? `<div class="wm-section"><div class="wm-section-label">Açıklama</div><div class="topic-description">${markTopicLinks(markArabicSpans(t.description))}</div></div>`
     : "";
 
   // Aynı id iki farklı ana-konu alanında birden görünmüyor (bkz.
@@ -2408,6 +2410,11 @@ function openTopicsModal(topicId) {
 function pushTopicsModalTopic(topicId) {
   state.topicsModal.stack.push(topicId);
   renderTopicsModalView();
+  // Gövde baştan basıldı: etkinleştirilen çip ya da bağlantı DOM'dan kalktı ve odak <body>'ye düşerdi (Chromium'da
+  // ölçüldü: yeni konunun adını duyuracak bir odak değişimi yok, Tab bir sonraki görünümün ortasından sürüyor). Modal
+  // açılırkenki gibi odağı kapsayıcıya al: yeni başlık ("Gayb, iletişim kutusu") okunur, Tab görünümün başından
+  // (Geri düğmesi) sürer. Fareyle/dokunmayla de aynı yol; kapsayıcıda odak halkası yok (.modal-sheet:focus).
+  modalFocus.enter(els.topicsModal);
 }
 
 function popTopicsModalTopic() {
@@ -2447,7 +2454,21 @@ function setupTopicsModal() {
     const id = parseInt(nav.getAttribute("data-id"), 10);
     if (Number.isInteger(id)) pushTopicsModalTopic(id);
   });
+
+  // Açıklamadaki <topic data-id> bağlantıları odaklanabiliyor (markTopicLinks: role="link" tabindex="0") ama bir
+  // <button> değiller: Enter'ı kendileri tıklamaya çevirmiyor. Yerel bir <a> gibi YALNIZCA Enter ile açılır
+  // (Space değil; ARIA APG Link deseni). Tıklamayı yeniden kullanmak fare ve klavyeyi tek yola bağlıyor: yukarıdaki
+  // [data-id] yakalayıcısı (yığına ekle + odağı kapsayıcıya al) iki durumda da aynı. data-id'siz <topic>
+  // odaklanamaz, bu seçiciye girmez.
+  els.topicsModalBody.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+    const link = e.target.closest && e.target.closest("topic[data-id]");
+    if (!link) return;
+    e.preventDefault();
+    link.click();
+  });
 }
+// </topics-modal>
 
 // Uygulama açık/görünür olduğu sürece ekranın kararıp kilitlenmesini
 // önler (mushaf okurken ekran sürekli kapanmasın diye). Desteklenmeyen

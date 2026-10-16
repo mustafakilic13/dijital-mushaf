@@ -147,6 +147,17 @@ export function markArabicSpans(html) {
   return html.replace(/<span class="ar">/g, '<span class="ar" lang="ar">');
 }
 
+// Açıklamalardaki iç bağlantılar (<topic data-id="N">…</topic>; 273 konuda 461 adet) tarayıcı için bilinmeyen bir
+// öğe: Tab ile odaklanamıyor ve erişilebilirlik ağacında yok sayılıyor (rol "none"), yani klavye ve ekran okuyucu
+// kullanıcısı için düz metin. Bağlantı olarak işaretler (role="link" tabindex="0"); Enter'a basınca açılması
+// app.js'te setupTopicsModal'da. data-id'siz <topic>'lere (48 adet) dokunmaz: hedefleri yok, tıklanınca hiçbir
+// şey olmuyor, odak durağı olmamalı. Veri dosyasına dokunmaz. Tam eşleşme yeterli ve güvenli: verideki <topic>
+// etiketleri yalnızca `<topic data-id="N">` ya da `<topic>` biçiminde (bkz. test/topics_test.mjs).
+export function markTopicLinks(html) {
+  if (!html) return "";
+  return html.replace(/<topic data-id="(\d+)">/g, '<topic data-id="$1" role="link" tabindex="0">');
+}
+
 // One pass over the flat array building three lookups:
 //  - byId: topic_id -> record
 //  - byAyah: "surah:ayah" -> [topic_id, ...], source order

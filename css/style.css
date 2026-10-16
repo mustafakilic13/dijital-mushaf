@@ -1174,6 +1174,14 @@ body {
   text-underline-offset: 2px;
 }
 .topic-description topic:hover { text-decoration-color: var(--gold); }
+/* Klavye odağı: yalnızca gerçek bağlantılarda (data-id'li; markTopicLinks tabindex="0" veriyor, data-id'siz <topic>
+   odaklanamaz). Halka, genel select/input/button:focus-visible kuralıyla aynı (2px --gold; modal zemininde 3,26:1,
+   WCAG 1.4.11'in 3:1'i -- test/erisilebilirlik_test.mjs'te hesaplanıyor). */
+.topic-description topic[data-id]:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
 .topic-description b { color: var(--emerald-deep); }
 .topic-description .ar {
   font-family: var(--font-arabic);
