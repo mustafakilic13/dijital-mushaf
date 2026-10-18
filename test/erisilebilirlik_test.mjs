@@ -619,6 +619,7 @@ playName: {
 // odağı yalnızca --gold-soft kenarlık rengiyle (beyaz üstünde 2,4:1) gösteriyordu. Burada oranlar elle yazılmış
 // sayılarla değil CSS'in kendisinden (token'lar, color-mix, kural kaynak sırası) hesaplanıyor.
 // (Tanımsız bir token ya da çözülemeyen bir renk testi çökertmez; açıklayıcı tek bir FAIL olarak bildirilir.)
+// Aynı CSS çözümlemesi (f) bölümünde genel `[hidden]` kuralını da sınıyor (renkle ilgisi yok, ama aynı kural listesi).
 try {
   const stripped = css.replace(/\/\*[\s\S]*?\*\//g, "");
   const rules = [];
@@ -784,6 +785,31 @@ try {
     return !!r && /^2px solid var\(--gold\)$/.test(declMap(r.decls).outline || "");
   })());
   check(".modal-sheet zemini var(--shell-bg) (konu bağlantısı halkasının kontrastı bu zemine göre sınanıyor)", valueOf(".modal-sheet", "background") === "var(--shell-bg)");
+
+  // (f) `hidden` özniteliği her zaman kazanmalı: gizli öğe ekranda, Tab sırasında ve erişilebilirlik ağacında kalmamalı
+  // (WCAG 2.4.3, 4.1.2). Gerçek Chromium'da yamadan ÖNCE iki yerde bir sınıf kuralının `display: flex`i `hidden`i eziyordu:
+  // konu modalının Geri düğmesi (.info-detail-back; kökte hiç gizlenmiyor, ilk Tab durağıydı) ve Ezber sure seçici açılınca
+  // gizlenmesi gereken sekme çubuğu (.tab-bar; dokununca seçicinin üstüne sıkışmış bir sekme paneli biniyordu).
+  // jsdom CSS özgüllüğünü ve !important'ı hesaplamıyor: kural kaynak metninden sınanıyor; gerçek kaskad ölçümü README'de.
+  check("genel `[hidden]` kuralı var ve tam olarak `display: none !important` (sınıf kuralları `hidden` özniteliğini eziyordu)", (() => {
+    const r = rules.filter((x) => x.selectors.length === 1 && x.selectors[0] === "[hidden]");
+    return r.length === 1 && declMap(r[0].decls).display === "none !important";
+  })());
+  const displayImportant = rules.filter((r) => /!important/.test(declMap(r.decls).display || "") && !(r.selectors.length === 1 && r.selectors[0] === "[hidden]"));
+  check(
+    `başka hiçbir kural \`display: ... !important\` vermiyor (\`[hidden]\`i geçersiz kılabilirdi); izinli yalnızca \`hidden\` SINIFI (yükleme perdesi)${displayImportant.length ? " -- bulunan: " + displayImportant.map((r) => r.selectors.join(", ")).join(" | ") : ""}`,
+    displayImportant.every((r) => r.selectors.every((x) => /\.hidden$/.test(x)))
+  );
+  // Geri düğmesi kökte artık gerçekten gizli: başlık satırı onun yüksekliğinden (32px) kısalmamalı, yoksa içerik kökle bir
+  // adım içerisi arasında 8 px kayar (gerçek Chromium'da ölçüldü: satır 48 -> 40 px).
+  check(
+    ".topics-modal-header-start: min-height, Geri düğmesinin yüksekliğine (.info-detail-back height) eşit (Geri kökte gizlenince başlık satırı kısalmasın)",
+    (() => {
+      const h = valueOf(".info-detail-back", "height");
+      const m = valueOf(".topics-modal-header-start", "min-height");
+      return !!h && h === m;
+    })()
+  );
 } catch (e) {
   check(`renk kontrastı denetimi çalışamadı: ${e.message}`, false);
 }

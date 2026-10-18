@@ -8,14 +8,19 @@
 // Tab görünümün ortasından sürüyor). Düzeltme üç parça:
 //   - js/topics.js markTopicLinks: data-id'li <topic>'e role="link" tabindex="0" (data-id'siz 48 tanesine dokunmaz);
 //   - app.js setupTopicsModal: bağlantıda YALNIZCA Enter tıklama sayılır (APG "Link" deseni; Space değil);
-//   - app.js pushTopicsModalTopic: her gezinme adımından sonra odak modalın kapsayıcısına alınır (modal açılırkenki gibi).
+//   - app.js pushTopicsModalTopic: her gezinme adımından sonra odak modalın kapsayıcısına alınır (modal açılırkenki gibi);
+//   - app.js popTopicsModalTopic (Geri): aynı kural. Geri düğmesi kökte `hidden` oluyor ve Chromium odaktaki öğe gizlenince
+//     odağı <body>'ye düşürüyordu (yamasız ağaçta da öyleydi: ekran okuyucu nerede olduğunu kaybeder, Tab sayfanın başından
+//     sürer); ara adımda Geri görünür kalıyor ama başlık sessizce değişirdi. (Geri'nin kökte hiç gizlenmemesi ayrı bir CSS
+//     hatasıydı: test/erisilebilirlik_test.mjs'teki genel `[hidden]` kuralı kontrolleri.)
 //
 // Burada kontrol edilenler:
 //   (1) kaynak bağlantıları: app.js'in import'u, render yolunda markTopicLinks'in kullanılması, <topics-modal> bloğu;
 //   (2) GERÇEK openModal/closeModal bloğu + <topics-modal> bloğu, gerçek index.html, topics.js, modal-odak.js ve
 //       data/topics-tr.json ile jsdom'da: Allah konusu üzerinde ayrıntılı senaryo (rol/tabindex, Tab sırası, odaklanabilirlik,
 //       Enter ile gezinme, Geri, Enter'ın YAPMAMASI gerekenler: Space/Tab/değiştirici tuşlar/data-id'siz <topic>/düğmeler,
-//       çip ve fareyle gezinmede odağın kapsayıcıya alınması) ve 271 konunun 461 bağlantısının TAMAMI için tarama
+//       çip ve fareyle gezinmede odağın kapsayıcıya alınması), Geri'de odak (kök, ara adım, odak Geri'de olmasa da,
+//       kökte Geri'nin odağı çalmaması) ve 271 konunun 461 bağlantısının TAMAMI için tarama
 //       (DOM = veri, Tab durakları = veri sırası, Enter -> hedef konunun adı, Geri -> aynı konu);
 //   (3) axe-core: <topic role="link"> öğeleri ARIA kurallarına uyuyor ve "komut adı" kuralı bu öğelere GERÇEKTEN
 //       uygulanıyor (boş geçmiyor).
@@ -87,6 +92,14 @@ const MODAL_END = appSource.indexOf("function setupModals()");
 check("app.js: modal odak bloğu (modalFocus .. closeAllModals) bulundu", MODAL_START > 0 && MODAL_END > MODAL_START);
 const ESCAPE_SRC = /function escapeHtml\(s\) \{[\s\S]*?\n\}/.exec(appSource);
 check("app.js: escapeHtml bulundu", !!ESCAPE_SRC);
+check(
+  "app.js: popTopicsModalTopic: erken dönüş (kök) -> pop -> render -> odağı kapsayıcıya al (modalFocus.enter(els.topicsModal)), bu sırayla",
+  /function popTopicsModalTopic\(\) \{\s*if \(state\.topicsModal\.stack\.length <= 1\) return;\s*state\.topicsModal\.stack\.pop\(\);\s*renderTopicsModalView\(\);[^}]*modalFocus\.enter\(els\.topicsModal\);\s*\}/.test(appSource)
+);
+{
+  const back = new JSDOM(html).window.document.getElementById("topics-modal-back");
+  check("index.html: #topics-modal-back başlangıçta hidden (kök görünümde Geri yok) ve gerçek bir <button>", !!back && back.hasAttribute("hidden") && back.tagName === "BUTTON");
+}
 
 if (TOPICS_BLOCK && MODAL_START > 0 && MODAL_END > MODAL_START && ESCAPE_SRC) {
   const MODAL_IDS = ["surah-modal", "juz-modal", "page-modal", "ezber-modal", "surah-info-modal", "topics-modal", "arama-modal"];
@@ -273,6 +286,53 @@ if (TOPICS_BLOCK && MODAL_START > 0 && MODAL_END > MODAL_START && ESCAPE_SRC) {
     }
   }
 
+  // -- (2c) Geri (pop) ve odak --------------------------------------------------------------------------------
+  // jsdom, odaktaki öğe gizlenince odağı kendiliğinden düşürmüyor; bu yüzden "odak kapsayıcıda" kontrolü Geri'nin
+  // odakta KALMAMASINI da sınıyor (düzeltme olmadan activeElement hâlâ gizlenen düğme olurdu).
+  const kuran = data.find((t) => t.name === "Kur'an");
+  const islam = data.find((t) => t.name === "İslam");
+  check("veri: 'Kur'an' ve 'İslam' konuları var", !!kuran && !!islam);
+  if (allah && kuran && islam) {
+    const h = harness();
+    h.api.openTopicsModal(allah.topic_id);
+    const stackLen = () => h.state.topicsModal.stack.length;
+
+    // (A) bir adım içeride, odak Geri'de: kök görünüme dönülünce Geri gizlenir -> odak kapsayıcıya
+    h.api.pushTopicsModalTopic(kuran.topic_id);
+    h.els.topicsModalBack.focus();
+    check("(A) sahne: Kur'an konusunda, Geri görünür ve odakta", h.title() === "Kur'an" && h.backVisible() && h.D.activeElement === h.els.topicsModalBack);
+    h.els.topicsModalBack.click();
+    check("(A) Geri: Allah'a (kök) dönüyor, Geri gizli, yığın 1", h.title() === "Allah" && !h.backVisible() && stackLen() === 1);
+    check("(A) Geri: odak gizlenen Geri'de kalmadı, <body>'ye de düşmedi: modal kapsayıcısında", h.D.activeElement === h.els.topicsModal && h.D.activeElement !== h.D.body);
+    check("(A) Geri: Tab sırası görünümün başından (Geri gizli, ilk durak Kapat)", tabbablesIn(h.els.topicsModal)[0] === h.els.topicsModal.querySelector(".modal-close"));
+
+    // (B) iki adım içeride: ara adıma dönüş. Geri görünür kalıyor ama başlık değişiyor -> odak yine kapsayıcıya
+    h.api.pushTopicsModalTopic(kuran.topic_id);
+    h.api.pushTopicsModalTopic(islam.topic_id);
+    check("(B) sahne: İslam konusunda, yığın 3", h.title() === "İslam" && stackLen() === 3);
+    h.els.topicsModalBack.focus();
+    h.els.topicsModalBack.click();
+    check("(B) Geri: Kur'an'a (ara adım) dönüyor, Geri hâlâ görünür, yığın 2", h.title() === "Kur'an" && h.backVisible() && stackLen() === 2);
+    check("(B) Geri: odak Geri'de kalmadı, modal kapsayıcısında (başlık değişimi okunur)", h.D.activeElement === h.els.topicsModal);
+    check("(B) Geri: Tab sırası görünümün başından (ilk durak Geri düğmesi)", tabbablesIn(h.els.topicsModal)[0] === h.els.topicsModalBack);
+    h.els.topicsModalBack.click();
+    check("(B) ikinci Geri: kök, Geri gizli, odak kapsayıcıda", h.title() === "Allah" && !h.backVisible() && stackLen() === 1 && h.D.activeElement === h.els.topicsModal);
+
+    // (C) Geri'ye odak verilmeden de (Safari/iOS düğmeye odak vermez; ya da odak başka yerdeyken) aynı sonuç
+    h.api.pushTopicsModalTopic(kuran.topic_id);
+    h.D.body.focus();
+    h.D.activeElement.blur();
+    check("(C) sahne: odak <body>'de", h.D.activeElement === h.D.body);
+    h.els.topicsModalBack.click();
+    check("(C) Geri (odak başka yerdeyken): kök, odak kapsayıcıda", h.title() === "Allah" && h.D.activeElement === h.els.topicsModal);
+
+    // (D) kökte popTopicsModalTopic hiçbir şey yapmaz ve odağı ÇALMAZ (erken dönüş, enter()'den önce)
+    const chip = h.els.topicsModalBody.querySelector(".topic-chip");
+    chip.focus();
+    h.api.popTopicsModalTopic();
+    check("(D) kökte pop: başlık 'Allah' kalıyor, Geri gizli, yığın 1, odak çalınmıyor (çip odakta)", h.title() === "Allah" && !h.backVisible() && stackLen() === 1 && h.D.activeElement === chip);
+  }
+
   // -- (2b) Tarama: 271 konunun 461 bağlantısının TAMAMI --------------------------------------------------------
   {
     const root = allah ? allah.topic_id : data[0].topic_id;
@@ -360,6 +420,6 @@ if (failures) {
   process.exit(1);
 } else {
   console.log(
-    "All checks passed (<topic data-id> bağlantıları: role/tabindex, Tab sırası, odaklanabilirlik, YALNIZCA Enter ile gezinme, değiştirici tuş/Space/Tab/düğme/data-id'siz <topic> dokunulmazlığı, çip ve bağlantıda odağın kapsayıcıya alınması, 271 konunun 461 bağlantısının taraması, axe-core). NOT: jsdom'da düzen/gerçek Tab/yerel Enter->click yok -- gerçek ekran okuyucu testinin yerini tutmaz."
+    "All checks passed (<topic data-id> bağlantıları: role/tabindex, Tab sırası, odaklanabilirlik, YALNIZCA Enter ile gezinme, değiştirici tuş/Space/Tab/düğme/data-id'siz <topic> dokunulmazlığı, çip ve bağlantıda odağın kapsayıcıya alınması, Geri'de odak (kök/ara adım/odak başka yerdeyken/kökte pop no-op), 271 konunun 461 bağlantısının taraması, axe-core). NOT: jsdom'da düzen/gerçek Tab/yerel Enter->click yok -- gerçek ekran okuyucu testinin yerini tutmaz."
   );
 }

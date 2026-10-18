@@ -37,6 +37,15 @@
 
 * { box-sizing: border-box; }
 
+/* `hidden` özniteliği her zaman kazansın. Tarayıcının kendi [hidden] kuralı özgüllük olarak en zayıfı: bir sınıf
+   kuralı `display: flex` verince `hidden` sessizce eziliyor, öğe ekranda, Tab sırasında ve erişilebilirlik ağacında
+   kalıyor. Gerçek Chromium'da iki yerde böyleydi: konu modalının Geri düğmesi (kökte hiç gizlenmiyordu) ve Ezber sure
+   seçici açılınca gizlenmesi gereken sekme çubuğu (görünür kalıyordu; bir sekmeye dokununca seçicinin üstüne sıkışmış
+   bir sekme paneli biniyordu). Aşağıdaki sınıfa özel `[hidden]` kuralları bu genel kural varken gereksiz ama zararsız;
+   asıl amaç, yeni bir sınıfa `display` verilince `hidden`in yine ezilmemesi. Satır içi `style.display` kullanan kod yok
+   (olsaydı bu kural onu da ezerdi). `.hidden` SINIFI (yükleme perdesi) ayrı bir şey, `hidden` özniteliğiyle ilgisi yok. */
+[hidden] { display: none !important; }
+
 html, body {
   height: 100%;
   margin: 0;
@@ -1117,6 +1126,8 @@ body {
   gap: 2px;
   min-width: 0;
   flex: 1;
+  /* Geri düğmesi (32px) kökte gizlenince satır kısalmasın: içerik kökle bir adım içerisi arasında 8 px kaymasın. */
+  min-height: 32px;
 }
 .topics-modal-header-start h2 {
   flex: 1;

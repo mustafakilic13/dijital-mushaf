@@ -2421,6 +2421,10 @@ function popTopicsModalTopic() {
   if (state.topicsModal.stack.length <= 1) return;
   state.topicsModal.stack.pop();
   renderTopicsModalView();
+  // Geri'ye basılan düğme kökte gizleniyor (odaktayken gizlenince odak <body>'ye düşerdi: ekran okuyucu nerede
+  // olduğunu kaybeder, Tab sayfanın başından sürer); ara adımlarda görünür kalıyor ama başlık sessizce değişirdi.
+  // İkisinde de pushTopicsModalTopic'teki gibi odağı kapsayıcıya al: yeni başlık okunur, Tab görünümün başından sürer.
+  modalFocus.enter(els.topicsModal);
 }
 
 function resetTopicsModal() {

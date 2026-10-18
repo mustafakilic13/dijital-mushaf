@@ -1029,11 +1029,94 @@ Enter->click yok (testlerin başlığında yazıyor). Veride 48 `<topic>` etiket
 odaklanabilir yapılmadı; ama CSS onları hâlâ bağlantı gibi gösteriyor (altı
 çizili altın) -- görünüm ve davranış uyuşmuyor, ayrı bir karar (düz metin gibi
 göstermek ya da adına göre bir konuya çözmek). Ölçüm sırasında yamayla ilgisiz
-bir bulgu daha çıktı ve DEĞİŞTİRİLMEDİ: konu modalının Geri düğmesi kökte de
-görünüyor (`hidden` özniteliği `.info-detail-back { display: flex }` ile
-ezilmiş; hesaplanan `display: flex`, 32x32, ilk Tab durağı) ve bir adım geri
+bir bulgu daha çıktı ve bu yamada DEĞİŞTİRİLMEDİ: konu modalının Geri düğmesi
+kökte de görünüyor (`hidden` özniteliği `.info-detail-back { display: flex }`
+ile ezilmiş; hesaplanan `display: flex`, 32x32, ilk Tab durağı) ve bir adım geri
 alıp köke dönünce odak `<body>`'ye düşüyor (yamasız ve yamalı ağaçta aynı).
-Ayrı bir yama.
+Ayrı bir yama olarak sonraki paragrafta ele alındı.
+
+**`hidden` özniteliği ve konu modalının Geri düğmesi.** Yukarıdaki bulgunun
+kaynağı tek bir hata sınıfı çıktı: tarayıcının kendi `[hidden] { display: none }`
+kuralı özgüllük olarak en zayıfı; bir sınıf kuralı `display: flex` verince
+`hidden` sessizce eziliyor, öğe ekranda, Tab sırasında ve erişilebilirlik
+ağacında kalıyor. Başsız Chromium'da (430 ve 1200 px; 26 arayüz durumu: açılış,
+ayet paneli, 7 modal ve alt sekmeleri/görünümleri, Sure Bilgisi ayrıntısı,
+Ezber Yaz klavyesi; her durumda `hidden` özniteliği taşıyıp hesaplanan
+`display`'i `none` olan olmayan öğeler tarandı) yamadan ÖNCE iki yerde böyleydi:
+
+- **Konu modalının Geri düğmesi.** Kökte (konuya ayet panelinden girilmiş, hiç
+  adım atılmamış) `hidden` var ama hesaplanan `display: flex`, 32x32 görünür;
+  erişilebilirlik ağacında "Geri dön, düğme"; ilk Tab durağı; basınca hiçbir şey
+  olmuyor (kökte geri alınacak adım yok). Kod yorumu "yalnızca birden fazla adım
+  gidilmişse görünür" diyordu, davranış tersiydi.
+- **Ezber modalı, sure seçici açıkken.** Dinle/Oku/Yaz sekme çubuğu (`#ezber-tabs`,
+  `.tab-bar { display: flex }`) `hidden` olduğu halde 41 px görünüyor, ağaçta
+  "tablist", 3 fazladan Tab durağı; bir sekmeye dokununca seçicinin üstüne
+  sıkışmış bir sekme paneli biniyordu (Oku paneli 51 px, seçici 450 px'e küçülüyor).
+
+Odak tarafı: Geri'ye basınca (fare ya da Tab+Enter) köke dönüldüğünde odak
+`<body>`'ye düşüyordu (Chromium, odaktaki öğenin `hidden` özniteliği kurulunca
+odağı bırakıyor); ara adıma dönüşte (3. -> 2. görünüm) odak Geri'de kalıyor ama
+başlık sessizce değişiyordu.
+
+Şimdi (yamadan önce -> sonra, 430 px; 1200 px'te davranış aynı, yalnızca mutlak
+konum ve yükseklikler farklı: başlık yine 28 px sola kayıyor, sekme çubuğu yine
+41 px, seçici 516 -> 557 px):
+
+- Konu modalı kök: Geri `display` flex -> none, 32x32 -> 0x0; ağaçta "Geri dön,
+  düğme" -> yok sayılıyor; ilk üç Tab durağı Geri, Kapat, bağlantı -> Kapat,
+  bağlantı, bağlantı; başlığın sol kenarı 47 -> 19 px.
+- Geri'den sonra odak: köke dönüş (fare) `<body>` -> diyalog; köke dönüş
+  (Tab+Enter) `<body>` -> diyalog; ara adım Geri -> diyalog (sonraki Tab Geri'ye).
+- Ezber sure seçici açıkken: sekme çubuğu `display` flex, 41 px -> none, 0 px;
+  ağaçta tablist -> yok sayılıyor; Tab durakları 3 azalıyor; seçici 501 -> 542 px.
+- Tarama: 26 durum x 2 genişlik, "hidden ama görünür" öğe 2 -> 0.
+
+Karar ve ödünleşmeler:
+
+- **Genel kural: `[hidden] { display: none !important; }`** (`css/style.css`'in
+  başında). Her sınıf için ayrı `[hidden]` kuralı yazmak (mevcut desen:
+  `.modal-sheet[hidden]`, `.arama-clear[hidden]`, ...) yeni bir sınıf eklenince
+  aynı hatayı tekrar doğuruyor; bu ikisi tam böyle çıktı. Bedeli: `hidden`
+  taşıyan bir öğe artık bir sınıf kuralıyla gösterilemez (gösterilecekse `hidden`
+  kalkar). `js/` altında satır içi `style.display` kullanan kod yok (arandı), yani
+  `!important` onu ezmiyor. `hidden` SINIFI (yükleme perdesi) ayrı bir şey,
+  dokunulmadı; sınıfa özel mevcut `[hidden]` kuralları da duruyor (zararsız,
+  silmek gürültü olurdu).
+- **Başlık satırına `min-height: 32px`** (`.topics-modal-header-start`). Geri
+  (32 px) kökte gerçekten gizlenince satır 48 -> 40 px'e kısalıp içeriği 8 px
+  yukarı kaydırıyordu (ölçüldü); satır yüksekliği sabit tutuluyor.
+- **Geri'den sonra odak modalın kapsayıcısına** (`popTopicsModalTopic`;
+  `pushTopicsModalTopic`'in aynısı). Kökte Geri gizleneceği için odak kaybolmasın,
+  ara adımda da yeni başlık okunsun diye. Ödünleşme: ara adımda art arda Geri'ye
+  basmak klavyede her seferinde Tab + Enter gerektiriyor (eskiden odak Geri'de
+  kalıyor, tek tuş yetiyordu). Başlık değişiminin duyulması bu maliyete değer
+  görüldü; gerçek ekran okuyucuyla sınanmadı.
+
+Görünür değişiklik yalnızca iki yerde. 26 durumun ekran görüntüleri (430 ve
+1200 px) yamasız ağaçla karşılaştırıldı: Konu modalı kökte yalnızca 66x12 px'lik
+başlık köşesi değişiyor (Geri oku gidiyor, başlık sola kayıyor; içerik yerinde) ve
+Ezber sure seçicide sekme çubuğu gidiyor, liste 41 px yukarı çıkıyor. Diğer 24
+durum piksel piksel aynı (430 px'te yalnızca arama modalının boş durumunda 43
+piksellik, en çok 8/255'lik bir gölge farkı çıktı; yamasız ağacın iki ayrı
+koşusunda da çıktığı için yamayla ilgisiz).
+
+Testler: `test/topic_links_test.mjs` 53 -> 68 kontrol (Geri bölümü: kök, ara adım,
+odak başka yerdeyken, kökte `popTopicsModalTopic`'in odağı çalmaması;
+`popTopicsModalTopic`'in kaynakta sırası; Geri düğmesinin başlangıçta `hidden`
+olması); `test/erisilebilirlik_test.mjs` 189 -> 192 (genel `[hidden]` kuralı tam
+olarak `display: none !important`; başka hiçbir kural `display: ... !important`
+vermiyor, izinli yalnızca `.hidden` sınıfı; başlık satırının `min-height`'ı Geri
+düğmesinin yüksekliğine eşit). jsdom CSS kaskadını hesaplamıyor: kural kaynak
+metninden sınanıyor, gerçek kaskad ölçümü yukarıdaki Chromium taraması. 11
+mutasyon denendi (genel kuralın silinmesi / `!important`siz yazılması /
+`.info-detail-back` ya da `.tab-bar`'ın `!important` alması; `min-height`'ın
+kalkması ya da 40 px olması; Geri'de odağın alınmaması / kökte de alınması /
+gövdeye alınması / Geri'de bırakılması; Geri düğmesinin başlangıçta `hidden`
+olmaması): hepsi yakalandı (11/11), her biri en az bir testi kırıyor. Mutasyonsuz hâl 12 test
+dosyasının hepsiyle geçiyor. **Sınırlar:** gerçek ekran okuyucu çalıştırılmadı
+(aşağıda 15. ve 16. madde); `hidden` taraması 26 durumla sınırlı (genel kural
+dışarıda kalan bir ezilmeyi de kapatır, ama onlar ölçülmedi).
 
 **Otomatik doğrulama, gerçek cihaz testinin YERİNE DEĞİL.**
 `test/erisilebilirlik_test.mjs`, yukarıdaki ikisini + genel ARIA
@@ -1188,7 +1271,7 @@ test/search_test.mjs        Arama saf mantığı (Node)
 test/arama_ui_test.mjs       Arama modalı arayüzü (jsdom)
 test/erisilebilirlik_test.mjs Anons bölgesi, panel açıkken tek sayfa metni (alt kopya aria-hidden) + axe-core yapısal tarama (jsdom)
 test/modal_odak_test.mjs        Modal odak yönetimi: işaretleme, Tab döngüsü, açan öğeye dönüş, app.js bağlantısı (jsdom)
-test/topic_links_test.mjs       Konu açıklamalarındaki <topic> bağlantıları: role/tabindex, Enter, odak, 461 bağlantının taraması, axe-core (jsdom)
+test/topic_links_test.mjs       Konu açıklamalarındaki <topic> bağlantıları: role/tabindex, Enter, odak, Geri düğmesi/odak, 461 bağlantının taraması, axe-core (jsdom)
 test/ayet_gezgini_test.mjs         Ayet gezgini: işaretleme, CSS, saf yardımcılar, denetleyici, app.js bağlantısı ve sırası, axe-core (jsdom)
 test/sw_test.mjs              Servis worker: sahte self/caches ile (Node)
 ```
@@ -1374,12 +1457,17 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     hiçbir şey yapmıyor mu, çipe Enter basınca da başlık duyuluyor mu? Odak
     halkası bağlantının çevresinde net görünüyor mu? `data-id`'siz (hedefsiz)
     bağlantılar bu okumada Tab durağı olmadığı hâlde altı çizili görünüyor:
-    kullanıcıyı yanıltıyor mu?
+    kullanıcıyı yanıltıyor mu? Kökte hiç "Geri dön" düğmesi duyulmuyor mu; bir
+    ya da iki adım gidip Geri'ye basınca önceki konunun başlığı ("Allah,
+    iletişim kutusu") duyuluyor mu, odak sayfanın başına kaçmıyor mu?
+16. Ezber, "Sure Seç" açıkken: Dinle/Oku/Yaz sekmeleri artık okunmuyor ve Tab
+    durağı değil mi (yalnızca seçici içeriği)? Seçiciden dönünce sekmeler geri
+    geliyor mu?
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal
 odak yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı,
-renk kontrastı / Ezber odak halkası ve konu bağlantılarının klavye erişimi
-ayrı ayrı tek commit'tir, geri alınabilir.
+renk kontrastı / Ezber odak halkası, konu bağlantılarının klavye erişimi ve
+`hidden` kuralı / Geri düğmesi ayrı ayrı tek commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 
