@@ -1168,7 +1168,10 @@ body {
    js/topics.js'in header yorumu). <topic data-id> başka bir konuya iç
    bağlantı -- tıklaması setupTopicsModal'daki genel [data-id]
    yakalayıcısından geçiyor; .ar, metin içine gömülü tekil Arapça
-   kelime/ifadeler (unicode-bidi:isolate, LTR cümle akışını bozmadan). */
+   kelime/ifadeler (unicode-bidi:isolate, LTR cümle akışını bozmadan).
+   data-id'siz <topic> (verideki 48 etiket; bir konu adı ya da çekimli hâli,
+   hedefi yok) bağlantı gibi GÖSTERİLMEZ: tıklayana hiçbir şey olmuyor ve
+   klavyeyle odaklanamıyor (markTopicLinks), düz metin gibi görünüyor. */
 .topic-description {
   font-family: var(--font-ui);
   font-size: 14.5px;
@@ -1176,7 +1179,7 @@ body {
   color: var(--ink);
   direction: ltr;
 }
-.topic-description topic {
+.topic-description topic[data-id] {
   display: inline;
   color: var(--gold-deep);
   cursor: pointer;
@@ -1184,7 +1187,7 @@ body {
   text-decoration-color: color-mix(in srgb, var(--gold) 40%, transparent);
   text-underline-offset: 2px;
 }
-.topic-description topic:hover { text-decoration-color: var(--gold); }
+.topic-description topic[data-id]:hover { text-decoration-color: var(--gold); }
 /* Klavye odağı: yalnızca gerçek bağlantılarda (data-id'li; markTopicLinks tabindex="0" veriyor, data-id'siz <topic>
    odaklanamaz). Halka, genel select/input/button:focus-visible kuralıyla aynı (2px --gold; modal zemininde 3,26:1,
    WCAG 1.4.11'in 3:1'i -- test/erisilebilirlik_test.mjs'te hesaplanıyor). */

@@ -1026,9 +1026,10 @@ okuyucunun bunu "bağlantı" diye okuması ve `role="link"` taşıyan özel bir
 TalkBack) gerçek cihazla doğrulanmalı; jsdom'da düzen, gerçek Tab ve yerel
 Enter->click yok (testlerin başlığında yazıyor). Veride 48 `<topic>` etiketi
 `data-id` taşımıyor (hedefsiz): tıklanınca hiçbir şey olmuyor, bu yüzden
-odaklanabilir yapılmadı; ama CSS onları hâlâ bağlantı gibi gösteriyor (altı
-çizili altın) -- görünüm ve davranış uyuşmuyor, ayrı bir karar (düz metin gibi
-göstermek ya da adına göre bir konuya çözmek). Ölçüm sırasında yamayla ilgisiz
+odaklanabilir yapılmadı; ama CSS onları bu yamada hâlâ bağlantı gibi
+gösteriyordu (altı çizili altın) -- görünüm ve davranış uyuşmuyordu; ayrı bir
+yama olarak aşağıda ele alındı ("Hedefsiz `<topic>` etiketleri"). Ölçüm
+sırasında yamayla ilgisiz
 bir bulgu daha çıktı ve bu yamada DEĞİŞTİRİLMEDİ: konu modalının Geri düğmesi
 kökte de görünüyor (`hidden` özniteliği `.info-detail-back { display: flex }`
 ile ezilmiş; hesaplanan `display: flex`, 32x32, ilk Tab durağı) ve bir adım geri
@@ -1117,6 +1118,47 @@ olmaması): hepsi yakalandı (11/11), her biri en az bir testi kırıyor. Mutasy
 dosyasının hepsiyle geçiyor. **Sınırlar:** gerçek ekran okuyucu çalıştırılmadı
 (aşağıda 15. ve 16. madde); `hidden` taraması 26 durumla sınırlı (genel kural
 dışarıda kalan bir ezilmeyi de kapatır, ama onlar ölçülmedi).
+
+**Hedefsiz `<topic>` etiketleri (düz metin).** Verideki 48 `<topic>` etiketi
+(47 konuda; 45'i aynı açıklamada gerçek bağlantılarla birlikte, 2 konuda
+("Ramazan", "Cûdi Dağı") yalnız onlar) `data-id` taşımıyor: bir konu adı ya da
+çekimli hâli ("vücut azaları", "İsrailoğulları", "Hicrî takvimde", "Kadir
+gecesinin"), hedefleri yok. CSS ise `.topic-description topic` ile hepsine
+bağlantı stili veriyordu. Başsız Chromium'da (430 ve 1200 px; "Kalp", "Altın
+Buzağı", "Ramazan", "Cûdi Dağı" ve açılıştaki "Allah" konuları: 6 gerçek
+bağlantı, 5 hedefsiz etiket) yamadan ÖNCE ölçüldü: hedefsiz etiket gerçek
+bağlantıyla birebir aynı hesaplanan stildeydi (`rgb(129, 98, 35)` altın, altı
+çizili, `cursor: pointer`, üstüne gelince alt çizgi parlıyor) ama `tabIndex`
+-1, ağaçta rolsüz ve tıklayınca hiçbir şey olmuyor: fareyle gezene "tıklanır"
+vaadi veren, tıklanınca sessiz kalan bir görünüm.
+
+Şimdi: bağlantı stili yalnızca `topic[data-id]`'ye veriliyor (`css/style.css`:
+ana kural, `:hover` ve `:focus-visible`); hedefsizler çevresindeki metnin
+stilini alıyor (`rgb(38, 32, 25)`, altı çizgisiz, `cursor: auto`, üstüne gelince
+değişiklik yok). 6 gerçek bağlantının hesaplanan stili önce/sonra birebir aynı;
+5 hedefsiz etiketin her biri değişti; 430 ve 1200 px'te aynı sonuç. Ekran
+görüntüsü karşılaştırması (5 görünüm x 2 genişlik): yalnızca gerçek bağlantı
+içeren "Allah" açıklaması piksel piksel aynı (0 piksel); diğer dördünde farklı
+piksellerin sınır kutusu hedefsiz etiketin kendisi kadar (430 px: "vücut
+azaları" 88x14 px, "İsrailoğulları" 84x18 px); gerçek bağlantılar aynı kalıyor.
+
+Karar: **düz metin**, adına göre bir konuya çözmek değil. 48 etiketin 19'u
+normalleştirilmiş adıyla (Türkçe küçük harf, boşluk sadeleştirme) tam olarak bir
+konu adına denk geliyor, 7'si birden çok konuya ("hava olayları" -> 284 ve 1216,
+"Mescid-i Haram" -> 52 ve 1723), 22'si hiçbirine ("Kıyamet gününe", "Hicrî
+takvimin": çekimli hâller; "gök cisimleri"); yani çözme yarım kalırdı ve çoklu
+eşleşmede keyfi bir seçim gerektirirdi. Veri dosyasına dokunulmuyor.
+
+`test/erisilebilirlik_test.mjs`'e 2 kontrol eklendi (192 -> 194):
+`.topic-description topic` ile başlayan her seçici `[data-id]` kapsamlı;
+bağlantı stili (`topic[data-id]`'de altı çizili, `cursor: pointer`, `:hover`)
+yerinde. Aynı dosyadaki renk kontrastı döngüsünün seçicisi `topic[data-id]`'ye
+taşındı. Her parça tek tek bozularak 6 mutasyon denendi (ana kural ve hover
+kuralı kapsamsız, alt çizgi, imleç, renk, ayrı bir `topic:not([data-id])`
+kuralı), hepsi yakalandı; mutasyonsuz hâl 12 test dosyasının hepsiyle geçiyor.
+Görünür değişiklik yalnızca hedefsiz etiketlerde; tek commit, beğenilmezse
+`git revert` yeter. Gerçek ekran okuyucu çalıştırılmadı: bu etiketler zaten
+odaklanamıyordu ve ağaçta rolsüzdü, değişen yalnızca görünüm.
 
 **Otomatik doğrulama, gerçek cihaz testinin YERİNE DEĞİL.**
 `test/erisilebilirlik_test.mjs`, yukarıdaki ikisini + genel ARIA
@@ -1455,9 +1497,9 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     Enter (dokunmatik ekran okuyucuda çift dokunuş) konuya götürüyor mu ve
     ardından "Kur'an, iletişim kutusu" gibi yeni başlık duyuluyor mu? Space
     hiçbir şey yapmıyor mu, çipe Enter basınca da başlık duyuluyor mu? Odak
-    halkası bağlantının çevresinde net görünüyor mu? `data-id`'siz (hedefsiz)
-    bağlantılar bu okumada Tab durağı olmadığı hâlde altı çizili görünüyor:
-    kullanıcıyı yanıltıyor mu? Kökte hiç "Geri dön" düğmesi duyulmuyor mu; bir
+    halkası bağlantının çevresinde net görünüyor mu? Hedefsiz etiketler (ör.
+    "Kalp" konusunda "vücut azaları") düz metin olarak okunuyor, cümlenin
+    akışını bozmuyor mu? Kökte hiç "Geri dön" düğmesi duyulmuyor mu; bir
     ya da iki adım gidip Geri'ye basınca önceki konunun başlığı ("Allah,
     iletişim kutusu") duyuluyor mu, odak sayfanın başına kaçmıyor mu?
 16. Ezber, "Sure Seç" açıkken: Dinle/Oku/Yaz sekmeleri artık okunmuyor ve Tab
@@ -1466,8 +1508,9 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal
 odak yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı,
-renk kontrastı / Ezber odak halkası, konu bağlantılarının klavye erişimi ve
-`hidden` kuralı / Geri düğmesi ayrı ayrı tek commit'tir, geri alınabilir.
+renk kontrastı / Ezber odak halkası, konu bağlantılarının klavye erişimi,
+`hidden` kuralı / Geri düğmesi ve hedefsiz konu etiketlerinin düz metin
+görünümü ayrı ayrı tek commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 

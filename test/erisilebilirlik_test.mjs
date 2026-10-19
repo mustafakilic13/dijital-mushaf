@@ -705,7 +705,7 @@ try {
   const deepHex = tokens["gold-deep"];
 
   // (b) altın metin/dolgu kullanımları --gold-deep'e bağlı
-  for (const sel of [".info-section-content a", ".info-intro a", ".topic-description topic"]) {
+  for (const sel of [".info-section-content a", ".info-intro a", ".topic-description topic[data-id]"]) {
     check(`${sel}: metin rengi var(--gold-deep)`, valueOf(sel, "color") === "var(--gold-deep)");
     if (valueOf(sel, "color")) need(`${sel}: metin / --shell-bg`, parseColor(valueOf(sel, "color")), shell);
   }
@@ -810,6 +810,22 @@ try {
       return !!h && h === m;
     })()
   );
+
+  // (g) Hedefsiz <topic> (data-id'siz; verideki 48 etiket) bağlantı gibi görünmemeli: tıklayana hiçbir şey olmuyor ve
+  // klavyeyle odaklanamıyor (markTopicLinks dokunmuyor). Gerçek Chromium'da yamadan ÖNCE bunlar gerçek bağlantıyla birebir
+  // aynı stildeydi (altın, altı çizili, el imleci, üstüne gelince vurgu). Bağlantı stili yalnızca topic[data-id]'ye veriliyor.
+  // Kural kaynak metninden sınanıyor (jsdom'da hesaplanan stil güvenilir değil); gerçek Chromium ölçümü README'de.
+  const topicSelectors = rules.flatMap((r) => r.selectors).filter((x) => /^\.topic-description topic\b/.test(x));
+  const unscoped = topicSelectors.filter((x) => !/^\.topic-description topic\[data-id\]/.test(x));
+  check(
+    `.topic-description topic kuralları yalnızca [data-id]'li bağlantıyı hedefliyor (data-id'siz <topic> düz metin gibi görünür)${unscoped.length ? " -- kapsamsız: " + unscoped.join(" | ") : ""}`,
+    topicSelectors.length >= 3 && unscoped.length === 0
+  );
+  check("bağlantı stili topic[data-id]'de duruyor: altı çizili, el imleci ve üstüne gelince vurgu", (() => {
+    const base = rules.find((r) => r.selectors.includes(".topic-description topic[data-id]"));
+    const d = base ? declMap(base.decls) : {};
+    return d["text-decoration"] === "underline" && d.cursor === "pointer" && rules.some((r) => r.selectors.includes(".topic-description topic[data-id]:hover"));
+  })());
 } catch (e) {
   check(`renk kontrastı denetimi çalışamadı: ${e.message}`, false);
 }
