@@ -18,7 +18,9 @@
 // The .text HTML (paragraph breaks, plus colour/typeface spans marking
 // Qur'an quotations, key terms, editorial notes, etc.) is passed through
 // as-is -- see app.js's tafsirContentHTML, which deliberately does NOT
-// escape it.
+// escape it. The one change resolveTafsirText makes is the language
+// marking of markTafsirLanguages below (lang="ar" on the Arabic quotations,
+// the data's wrong lang labels on Turkish phrases corrected).
 //
 // A second source (Diyanet's Kur'an Yolu Tefsiri) was removed along with
 // its data file after Diyanet's permissions office explicitly declined a
@@ -98,10 +100,61 @@ export function loadTafsirData(id) {
 }
 
 // `data` -> one ayah's tafsir HTML (following a single group-redirect hop
-// if needed), or null if there's no entry / the data hasn't loaded yet.
+// if needed), language-marked by markTafsirLanguages, or null if there's no
+// entry / the data hasn't loaded yet.
 export function resolveTafsirText(data, surah, ayah) {
   if (!data) return null;
   let entry = data[`${surah}:${ayah}`];
   if (typeof entry === "string") entry = data[entry];
-  return entry && entry.text ? entry.text : null;
+  return entry && entry.text ? markTafsirLanguages(entry.text) : null;
+}
+
+// Sa'dî tefsirinin dil işaretleri (WCAG 3.1.2, Dil Parçaları). Belge dili `tr`; ekran okuyucu ve TTS sesi `lang`e
+// göre seçiyor. Veri (QUL exportu, her parçaya otomatik dil tespiti uygulanmış) iki yönde yanlış:
+//  1. Metin içi Arapça alıntılar ("إياك : Sana", ayet metinleri; 99 girdide 157 metin düğümü) çoğunlukla işaretsiz
+//     -- yani Türkçe sesle okunuyor (127'si `tr`, 3'ü `da`/`eu`/`fa`); yalnızca 27'si `ar` etiketli.
+//  2. Kısa Türkçe parçalar ("(takva sahiplerine)", "(evlerinden)", "Daha sonra Yüce Allah:"; 454 girdide 652 düğüm)
+//     yanlışlıkla az/ku/de/hi-Latn/... etiketli. Tefsirin çevirisi Türkçe, yani `tr` ve `ar` dışındaki her etiket bir
+//     tespit hatası; otomatik dil değiştiren ekran okuyucu bu parçaları başka bir dilin sesiyle okurdu.
+// Çizim anında (veri dosyasına dokunmadan):
+//  - `tr`/`ar` dışındaki lang değerleri `tr` yapılır;
+//  - `lang="ar"` altında OLMAYAN her Arapça yazı bloğu (aralarında yalnızca boşluk olan Arapça sözcükler) kendi
+//    <span lang="ar">'ı içine alınır. Görünüm değişmez: yeni span'ın sınıfı/stili yok, `dir` eklenmiyor (çift yönlü
+//    sıralama olduğu gibi kalır), metin ve diğer etiketler aynı;
+//  - zaten `lang="ar"` olan öğenin içi yeniden sarılmaz, yani iki kez uygulamak sonucu değiştirmez.
+// Etiketler p/div/span ve yalnızca class/lang öznitelikleri (bkz. test/tafsir_dil_test.mjs, veri varsayımlarını da
+// orada doğruluyor), bu yüzden tam bir HTML ayrıştırıcı yerine etiket/metin ayırıp açık etiketlerin dilini bir yığında
+// izlemek yeterli ve güvenli. Arama sonuçlarındaki tefsir özeti de (düz metin + <mark>) aynı işlevden geçiyor.
+const ARABIC_CHARS = "\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF";
+const ARABIC_RUN_RE = new RegExp(`[${ARABIC_CHARS}]+(?:[\\s\u200C\u200D]+[${ARABIC_CHARS}]+)*`, "g");
+const HTML_TOKEN_RE = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)([^<>]*)>|[^<]+/g;
+const VOID_TAGS = new Set(["br", "hr", "img", "wbr", "input"]);
+const LANG_ATTR_RE = /(\slang=")([^"]*)(")/;
+
+export function markTafsirLanguages(html) {
+  if (!html) return "";
+  let lang = "tr"; // şu an etkin dil (belge dili ile başlar)
+  const outer = []; // açık her öğenin ÖNCEKİ dili: kapanışta geri yüklenir
+  return String(html).replace(HTML_TOKEN_RE, (token, closing, name, attrs) => {
+    if (name === undefined) {
+      return lang === "ar" ? token : token.replace(ARABIC_RUN_RE, '<span lang="ar">$&</span>');
+    }
+    if (closing) {
+      if (outer.length) lang = outer.pop();
+      return token;
+    }
+    let tag = token;
+    let own = null;
+    const m = LANG_ATTR_RE.exec(attrs);
+    if (m) {
+      own = m[2] === "ar" ? "ar" : "tr";
+      if (own !== m[2]) tag = token.replace(LANG_ATTR_RE, `$1${own}$3`);
+    }
+    // HTML'de "/>" yalnızca void etiketlerde anlamlı (<span/> tarayıcıda açık öğedir), bu yüzden yalnızca ada bakılıyor
+    if (!VOID_TAGS.has(name.toLowerCase())) {
+      outer.push(lang);
+      if (own) lang = own;
+    }
+    return tag;
+  });
 }

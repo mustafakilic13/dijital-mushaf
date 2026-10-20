@@ -261,7 +261,9 @@ gibi biçimlendirme etiketleri **kaçışsız (escape edilmeden)** DOM'a
 yazılıyor -- veri önceden HTML enjeksiyonuna karşı tarandı (yalnızca
 `p`/`div`/`span`, yalnızca `class`/`lang` öznitelikleri; `<script>`,
 olay-işleyici özniteliği (`onclick` vb.) yok) ve kullanıcı girdisi
-içermiyor.
+içermiyor. Çizim anında yalnızca dil işaretleri düzeltiliyor
+(`markTafsirLanguages`, `js/tafsir.js`; bkz. "Sa'dî tefsirinin dil
+işaretleri"): metin ve diğer etiketler olduğu gibi geçiyor.
 
 ## Konu Fihristi
 
@@ -556,10 +558,9 @@ ayet paneli, konu modalı, arama, ezber) her birinde DOM'da 610-791 Arapça
 metin düğümü vardı ve durumlar boyunca taranan toplam 9.567 kaydın 9.554'ü
 dilsizdi (yalnızca arama modalındaki 13'ü işaretliydi); şimdi hepsi
 tarayıcının kendi `:lang(ar)` eşleşmesinde Arapça. Ekran
-görüntüleri ve metin katmanı satırlarının ölçüleri değişmedi. Kapsam dışı:
-Sa'dî tefsiri metinlerinin içindeki seyrek Arapça alıntılar (verideki ~12
-bin dizenin 99'unda Arapça harf var) hâlâ işaretsiz -- satır içi HTML'in
-içinden ayıklamak daha büyük bir iş.
+görüntüleri ve metin katmanı satırlarının ölçüleri değişmedi. Sa'dî tefsiri
+metinlerindeki Arapça alıntılar bu yamada kapsam dışıydı; sonradan ele alındı,
+bkz. aşağıdaki "Sa'dî tefsirinin dil işaretleri".
 
 **Oynat düğmesinin erişilebilir adı.** Düğmenin adı yalnızca ekrandaki Arapça
 ibareydi ("بسم الله الرحمن الرحيم"; çalarken "صدق الله العظيم", veri
@@ -1160,6 +1161,76 @@ Görünür değişiklik yalnızca hedefsiz etiketlerde; tek commit, beğenilmezs
 `git revert` yeter. Gerçek ekran okuyucu çalıştırılmadı: bu etiketler zaten
 odaklanamıyordu ve ağaçta rolsüzdü, değişen yalnızca görünüm.
 
+**Sa'dî tefsirinin dil işaretleri.** `data/tafsir-saadi.json` (QUL exportu)
+her parçaya otomatik dil tespiti uygulanmış geliyor ve belge dili `tr`
+olduğundan iki yönde yanlış (WCAG 3.1.2). (1) Metin içi Arapça alıntılar
+("إياك : Sana", ayet metinleri) çoğunlukla işaretsiz: 99 girdide 157 metin
+düğümü; gerçek Chromium'da tarayıcının kendi `:lang(ar)` eşleşmesiyle yalnızca
+27'si Arapça, 130'u değil (127'si `tr`, 3'ü `da`/`eu`/`fa`), yani Türkçe sesle
+okunmaya çalışılır. (2) Kısa Türkçe parçalar yanlışlıkla başka dilde etiketli:
+59.121 Latin harfli düğümün 652'si `tr` değil ("(takva sahiplerine)"
+`hi-Latn`, "(evlerinden)" `de`, "(peygamber)" `sn`; 454 girdide 653 etiketli
+öğe, 59 farklı değer, en sık `az` 151 ve `ku` 131). Bunların hepsi Türkçe:
+tefsirin çevirisi Türkçe, yani `tr` ve `ar` dışındaki her etiket bir tespit
+hatası. Sesi `lang`e göre seçen ve otomatik dil değiştirme açık olan bir ekran
+okuyucu bu parçaları başka bir dilin sesiyle okuyabilir (cihazda denenmedi).
+Arama sonuçlarındaki tefsir özeti düz metinden kurulduğu için (etiketler
+atılınca `lang` de gidiyor) denenen 3 sorguda (Mâide 5:3, Nisâ 4:82, Zuhruf
+43:57) Arapça parçayı `:lang(ar)` olmadan gösteriyordu.
+
+Düzeltme çizim anında, veri dosyası değişmeden: `js/tafsir.js`'te
+`markTafsirLanguages(html)`; `resolveTafsirText` (ayet panelinin tefsir
+bölümü) ve arama özeti (`js/arama.js`, `tafsirRowHTML`) bunun içinden geçiyor.
+`tr`/`ar` dışındaki her `lang` değeri `tr` oluyor; `lang="ar"` altında
+olmayan her Arapça yazı bloğu (aralarında yalnızca boşluk olan Arapça
+sözcükler, ayet ayraçları ﴾ ﴿ dahil; 136 blok) kendi `<span lang="ar">`'ı
+içine alınıyor -- sınıfsız ve `dir`siz, yani çift yönlü sıralama ve stil
+olduğu gibi kalıyor; zaten `lang="ar"` olan öğenin içi yeniden sarılmıyor,
+dolayısıyla iki kez uygulamak sonucu değiştirmiyor. İşlev tam bir HTML
+ayrıştırıcı değil: etiketleri ve metni ayırıp açık etiketlerin dilini bir
+yığında izliyor; bu yüzden test, verinin yalnızca `p`/`div`/`span`, yalnızca
+`class`/`lang`, çift tırnaklı ve dengeli olduğunu da doğruluyor (ileride başka
+bir biçim gelirse sessizce yanlış çalışmasın).
+
+Ölçüm (gerçek Chromium; 1.739 girdinin tamamı gerçek `resolveTafsirText`
+yoluyla ve tarayıcının kendi `:lang()` eşleşmesiyle; yamadan önce -> sonra):
+Arapça yazılı düğümlerden `:lang(ar)` olan 27/157 -> 163/163 (karma düğümler
+bölündüğü için 163); Türkçe düğümlerden `:lang(tr)` olan 58.469/59.121 ->
+59.127/59.127; `tr`/`ar` dışı `lang`li öğe 653 -> 0; tüm girdileri işlemek
+125 ve 364 ms (iki ölçüm; girdi başına 0,07-0,21 ms), çıktı 7.852.830 ->
+7.855.826 bayt. Gerçek ayet
+paneli yolunda 7 örnek girdi (Fâtiha, Bakara 1/14/29, Âl-i İmrân 196, Enfâl 1,
+Şuarâ 123; 430 ve 1200 px; verinin ilgili girdisi sayfa 1'deki "1:1" yerine
+konarak): yeni işaretlenen girdilerde Arapça düğümler 0/2, 0/4, 0/9, 1/2 ->
+hepsi Arapça; panel genişliği/yüksekliği ve metin uzunluğu birebir aynı. Ekran
+görüntüleri: 14'ün 12'si piksel piksel aynı; yalnızca Bakara 29'da (yeni
+işaretlenen, harekeli Arapça blokların bulunduğu tek örnek) kenar yumuşatma
+farkı var -- 430 px'te tek satırda 208 piksel, 1200 px'te üç satırda 785
+piksel, en büyük kanal farkı 51-53/255 -- ama Arapça blokların genişlikleri
+(94,469 / 130,469 / 125,953 px ...) ve yükseklikleri önce/sonra birebir aynı,
+yani düzen değişmiyor; farkın kaynağı ayrıca doğrulanmadı (muhtemelen
+`lang="ar"` ile harf-işaret konumlandırmasının Arapça dil sistemiyle
+yapılması). Arama özetinde 3 sorgunun üçünde Arapça parça 0/1 -> 1/1
+`:lang(ar)`.
+
+Testler: yeni `test/tafsir_dil_test.mjs` (52 kontrol): birim kontrolleri (iç
+içe etiketler, void/dengesiz etiket, öznitelik değerine dokunmama, tekrar
+uygulama), veri varsayımları, 1.739 girdilik tam tarama (gerçek jsdom
+ayrıştırıcısıyla her metin düğümünün etkin dili: Arapça yazılı -> `ar`, Latin
+yazılı -> `tr`; metin birebir aynı; eklenen sarmalayıcılar geri alınınca özgün
+veri geri geliyor), `resolveTafsirText` (çapa / yönlendirmeli / yok), arama
+özetlerinin 8.022 gerçek penceresinde tarama ve app.js/arama.js kablolaması;
+`test/arama_ui_test.mjs`'e 9 kontrol (140 -> 149; 3 gerçek sorgu). Kodun her
+parçası tek tek bozularak 14 mutasyon denendi (yanlış etiketin düzeltilmemesi
+ya da `ar`'a çevrilmesi, bağlam atlamasının ve kapanıştaki dil geri
+yüklemesinin kalkması, sözcükler arası boşluk köprüsü, ayet ayracı aralığı,
+etiket içine bakma, void etiket, yığının hiç tutulmaması, `dir="rtl"`, iki
+kablolama, iki veri varsayımı), hepsi yakalandı; mutasyonsuz hâl 13 test
+dosyasının hepsiyle geçiyor (önceki 12 + yeni `tafsir_dil_test`). Tek commit,
+beğenilmezse `git revert` yeter. Gerçek ekran okuyucu çalıştırılmadı: ölçülen,
+tarayıcının `lang` eşleşmesi ve DOM; hangi sesin seçileceği cihaza ve ekran
+okuyucunun ayarına bağlı (aşağıdaki kontrol listesi, madde 2).
+
 **Otomatik doğrulama, gerçek cihaz testinin YERİNE DEĞİL.**
 `test/erisilebilirlik_test.mjs`, yukarıdaki ikisini + genel ARIA
 etiketlerini hem kaynak metin üzerinden hem [axe-core](https://github.com/dequelabs/axe-core)
@@ -1314,6 +1385,7 @@ test/arama_ui_test.mjs       Arama modalı arayüzü (jsdom)
 test/erisilebilirlik_test.mjs Anons bölgesi, panel açıkken tek sayfa metni (alt kopya aria-hidden) + axe-core yapısal tarama (jsdom)
 test/modal_odak_test.mjs        Modal odak yönetimi: işaretleme, Tab döngüsü, açan öğeye dönüş, app.js bağlantısı (jsdom)
 test/topic_links_test.mjs       Konu açıklamalarındaki <topic> bağlantıları: role/tabindex, Enter, odak, Geri düğmesi/odak, 461 bağlantının taraması, axe-core (jsdom)
+test/tafsir_dil_test.mjs        Sa'dî tefsiri dil işaretleri: birim, veri varsayımları, 1739 girdilik tam tarama, panel ve arama özeti yolu (jsdom)
 test/ayet_gezgini_test.mjs         Ayet gezgini: işaretleme, CSS, saf yardımcılar, denetleyici, app.js bağlantısı ve sırası, axe-core (jsdom)
 test/sw_test.mjs              Servis worker: sahte self/caches ile (Node)
 ```
@@ -1425,7 +1497,11 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
    otomatik dil değiştirme seçeneği açık olmalı -- NVDA'da Konuşma
    ayarlarında, VoiceOver/TalkBack'te ses paketlerinde bakılacak). Aynı
    kontrolü üst çubuktaki Arapça sure adında, Oynat düğmesinde ve sure
-   listesinde de yap.
+   listesinde de yap. Ayet panelinde Tefsir bölümünü açınca da (ör. Fâtiha:
+   "إياك : Sana") Arapça alıntılar Arapça sesle, "(takva sahiplerine)" gibi
+   parantezli Türkçe ifadeler Türkçe sesle okunuyor mu (verideki hatalı
+   `hi-Latn`/`de` gibi etiketler yamadan önce başka bir dilin sesini
+   seçtirebilirdi)?
 3. Bir ayete dokununca (fareyle tıklayınca) "<Sure> <ayet> detayı açıldı"
    duyuluyor mu; panel gövdesinin ilk içeriği en fazla bir kez okunuyor mu
    (yeni eklenen bir canlı bölgenin ilk içeriğini bazı ekran okuyucular
@@ -1509,8 +1585,9 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal
 odak yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı,
 renk kontrastı / Ezber odak halkası, konu bağlantılarının klavye erişimi,
-`hidden` kuralı / Geri düğmesi ve hedefsiz konu etiketlerinin düz metin
-görünümü ayrı ayrı tek commit'tir, geri alınabilir.
+`hidden` kuralı / Geri düğmesi, hedefsiz konu etiketlerinin düz metin
+görünümü ve Sa'dî tefsirinin dil işaretleri ayrı ayrı tek commit'tir, geri
+alınabilir.
 
 ### Kelime tahlili
 

@@ -55,6 +55,7 @@ import {
   escapeHtml,
 } from "./search.js";
 import { buildWordMealCards } from "./wordmeal.js";
+import { markTafsirLanguages } from "./tafsir.js";
 
 export const RECENT_KEY = "quran-reader-arama-recent-v1";
 export const DEBOUNCE_MS = 120;
@@ -295,13 +296,16 @@ export function setupArama(deps) {
     );
   }
 
+  // Özet düz metinden kuruluyor (etiketler atıldığı için verideki lang işaretleri de gitti): içindeki Arapça
+  // alıntılar lang="ar" almalı (WCAG 3.1.2), yoksa Türkçe sesle okunur. Aynı işaretleyici ayet panelindeki
+  // tefsir metninde de çalışıyor (js/tafsir.js).
   function tafsirRowHTML(item, terms) {
     const entry = tafsir.get().data[`${item.surah}:${item.ayah}`];
     const plain = htmlToPlainText(entry && entry.text);
     return (
       `<button type="button" class="modal-item arama-ayah" data-act="go-ayah" data-surah="${item.surah}" data-ayah="${item.ayah}">` +
       `<span class="arama-ayah-ref">${esc(matcher.label(item.surah))} · ${item.surah}:${item.ayah}</span>` +
-      `<span class="arama-snippet">${snippetHTML(plain, terms, { maxLen: 260, lead: 80 })}</span></button>`
+      `<span class="arama-snippet">${markTafsirLanguages(snippetHTML(plain, terms, { maxLen: 260, lead: 80 }))}</span></button>`
     );
   }
 

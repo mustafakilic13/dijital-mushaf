@@ -421,6 +421,37 @@ function makeEnv(deps = {}) {
   check("modal yeniden açılınca da tefsir otomatik dahil (düğme yok)", !e.tafsirBtn() && e.sections().includes("Tefsir (Sa'dî)") && e.loads.tafsir === 1);
 }
 {
+  // Tefsir özetinde Arapça alıntılar lang="ar" almalı (WCAG 3.1.2): özet düz metinden kuruluyor, etiketler atılınca verideki
+  // lang işaretleri de gidiyor; işaretsiz Arapça Türkçe sesle okunur. Sorgular gerçek veriden seçildi: tek sonuç ve özet
+  // penceresi (ilk eşleşmeden ~80 karakter önce başlayan 260 karakter) bir Arapça sözcük içeriyor.
+  const e = makeEnv();
+  e.openBtn.click();
+  const ARABIC = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+  for (const [q, ref] of [["vermektedir Leşten", "5:3"], ["verilen tedebbür", "4:82"], ["tercüme edilen", "43:57"]]) {
+    await e.type(q);
+    if (e.tafsirBtn()) e.tafsirBtn().click(); // yalnızca ilk sorguda (sonra tefsir oturum boyunca açık)
+    await waitFor(() => e.tafsirReady());
+    const rows = e.sectionRows("Tefsir (Sa'dî)", "go-ayah");
+    const snip = rows[0] && rows[0].querySelector(".arama-snippet");
+    check(`tefsir özeti "${q}": tek sonuç, ${ref}`, rows.length === 1 && `${rows[0].dataset.surah}:${rows[0].dataset.ayah}` === ref && !!snip);
+    if (!snip) continue;
+    const walker = snip.ownerDocument.createTreeWalker(snip, 4 /* NodeFilter.SHOW_TEXT */);
+    let arNodes = 0;
+    let arBad = 0;
+    let latInAr = 0;
+    let n;
+    while ((n = walker.nextNode())) {
+      const inAr = !!n.parentElement.closest('[lang="ar"]');
+      if (ARABIC.test(n.nodeValue)) {
+        arNodes++;
+        if (!inAr) arBad++;
+      } else if (inAr && /[A-Za-zçğıöşü]/.test(n.nodeValue)) latInAr++;
+    }
+    check(`tefsir özeti "${q}": özette Arapça var ve HER Arapça metin düğümü lang="ar" içinde (${arNodes} düğüm)`, arNodes >= 1 && arBad === 0);
+    check(`tefsir özeti "${q}": Türkçe metin lang="ar" içine alınmıyor, vurgu (<mark>) yerinde`, latInAr === 0 && snip.querySelector("mark.arama-hit") !== null);
+  }
+}
+{
   // Arapça sorguda tefsir aranmaz (Türkçe metin), açık olsa bile
   const e = makeEnv();
   e.openBtn.click();
