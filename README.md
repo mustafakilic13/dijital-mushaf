@@ -444,9 +444,11 @@ Testler (`test/search_test.mjs` -- Node, bağımlılıksız; `test/arama_ui_test
 kaynak metin üzerinden de denetler):
 
 ```bash
-cd test && npm install
+cd test && npm ci
 node search_test.mjs && node arama_ui_test.mjs
 ```
+
+Bütün testler tek komutla: `npm test` (bkz. "Testler ve CI").
 
 ## Erişilebilirlik
 
@@ -1379,7 +1381,13 @@ tools/patch_word_meal.py      word-meal.json'daki bilinen QUL hatalarını düze
 tools/raw-data/           Ham build girdileri (bkz. Veriyi güncellemek) + QCF_SurahHeader_COLOR-Regular.woff2
                           (sadece build_data.py'nin sure başlığı SVG'lerini üretmek için okuduğu
                           kaynak; tarayıcı hiç yüklemiyor, bkz. madde 5 yukarıda)
-test/full_corpus_test.mjs  604 sayfayı Node'da render edip doğrulayan test
+.github/workflows/test.yml   CI: push (main), çekme isteği ve elle: `npm ci && npm test` (bkz. "Testler ve CI")
+test/package.json            Test bağımlılıkları (jsdom, axe-core, wawoff2) ve betikler (`npm test`, `test:fast`, `test:corpus`)
+test/package-lock.json        Kilit dosyası (depoda; `npm ci` bunu kurar)
+test/run_all.mjs             Tüm *_test.mjs dosyalarını sırayla çalıştıran koşucu (`npm test`)
+test/run_all_test.mjs         Koşucunun testi: sahte test dizinleriyle çıkış kodları, zaman aşımı, Ctrl+C, Actions çıktısı (Node)
+test/ci_test.mjs               CI yapısı: kilit dosyası/package.json uyumu, iş akışı, testlerin bağımlılıkları (Node)
+test/full_corpus_test.mjs  604 sayfayı Node'da render edip DOĞRULAYAN test: hizalama, xScale, kashida, başlık yüksekliği, Ezber->Yaz birimleri (jsdom)
 test/search_test.mjs        Arama saf mantığı (Node)
 test/arama_ui_test.mjs       Arama modalı arayüzü (jsdom)
 test/erisilebilirlik_test.mjs Anons bölgesi, panel açıkken tek sayfa metni (alt kopya aria-hidden) + axe-core yapısal tarama (jsdom)
@@ -1388,6 +1396,11 @@ test/topic_links_test.mjs       Konu açıklamalarındaki <topic> bağlantılar�
 test/tafsir_dil_test.mjs        Sa'dî tefsiri dil işaretleri: birim, veri varsayımları, 1739 girdilik tam tarama, panel ve arama özeti yolu (jsdom)
 test/ayet_gezgini_test.mjs         Ayet gezgini: işaretleme, CSS, saf yardımcılar, denetleyici, app.js bağlantısı ve sırası, axe-core (jsdom)
 test/sw_test.mjs              Servis worker: sahte self/caches ile (Node)
+test/topics_test.mjs            Konu Fihristi: ayrıştırma yardımcıları + tüm verinin referans bütünlüğü taraması (Node)
+test/juz_subdivisions_test.mjs    Cüz/hizb/rub/manzil veri tutarlılığı ve gezinme mantığı (Node)
+test/recitation_playback_test.mjs  Sesli okuma motoru: sıradaki ayet, kelime zamanı, ses adresi (Node)
+test/surah_header_cut_test.mjs      Kelime meali panelinin sayfa kesimi sure başlığının içine düşmüyor (Node)
+test/surah_info_links_test.mjs       Sure Bilgisi bağlantıları: parseInfoLink + 114 surenin taraması (Node)
 ```
 
 ## Çalıştırma
@@ -1430,6 +1443,117 @@ tarayıcı konsolunu kontrol etmekte fayda var.
 **GitHub Pages:** Bu klasörü olduğu gibi bir repoya koyup Pages'i
 `main`/`root`'tan yayınlaman yeterli — build adımı yok. (GitHub Pages
 `.wasm`'ı doğru MIME type'la sunuyor, `serve.py`'ye gerek yok.)
+
+## Testler ve CI
+
+**Tek komut.** `cd test && npm ci && npm test`. `test/run_all.mjs`, `test/`
+altındaki her `*_test.mjs` dosyasını KENDİ Node sürecinde (çalışma dizini
+`test/`) sırayla çalıştırıyor: testler birbirinin global durumunu (jsdom
+pencereleri, değiştirilmiş zamanlayıcılar) bozamıyor, biri çökerse ya da
+takılırsa kalanlar yine çalışıyor, sonda hepsinin özeti çıkıyor. Bir test,
+çıkış kodu 0 **ve** çıktısında `FAIL` ile başlayan satır yoksa geçmiş
+sayılıyor (ikinci koşul, "FAIL yazıp 0 ile çıkan" bir hatanın yeşil
+görünmesini önlüyor). Geçen testlerin çıktısı gösterilmiyor (`-v` ile
+gösterilir); başarısız olanınki olduğu gibi basılıyor (300 satırı aşarsa
+baştan ve sondan kırpılarak). Çıkış kodu: 0 hepsi geçti; 1 en az biri
+başarısız oldu, çöktü ya da süre sınırını (test başına 300 sn) aştı; 2
+hatalı kullanım (bilinmeyen seçenek ya da test adı, çalıştırılacak test
+kalmadı -- yazım hatası yüzünden "hiçbir test çalışmadı ama sonuç yeşil"
+çıkmasın); 130 Ctrl+C. Süre sınırını aşan ya da Ctrl+C ile kesilen test önce
+SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
+öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
+`--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
+`npm run test:fast` (tam tarama hariç, ≈ 52 sn) ve `npm run test:corpus`
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 16 dosyanın hepsi ≈
+108 sn sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-68 sn,
+arama arayüzü 19 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn).
+
+**Tam tarama testi artık gerçekten doğruluyor.** `test/full_corpus_test.mjs`
+604 sayfanın tamamını Node'da (jsdom + gerçek HarfBuzz + gerçek font) render
+ediyordu ama yalnızca rapor basıyordu: bir sayfa istisna fırlatsa bile
+sayılıp yazılıyor, çıkış kodu 0 kalıyordu -- yani hiçbir bozulmayı
+yakalayamazdı. jsdom'un "canvas yok" uyarısı da (8.932 kez; `render.js`
+`measureTextWidth` bu yüzden karakter başına tahmine düşüyor, bu yol yalnız
+seçilebilir metin katmanının genişliğini etkiliyor, aşağıdaki ölçümleri
+değil) 98 bin satırlık çıktıya yol açıyordu; artık sayılıp tek satırda
+bildiriliyor, başka türden bir jsdom hatası gelirse test başarısız oluyor.
+Şimdi 15 kontrol var: 604 sayfa hatasız render ediliyor; hizalı satırlar
+sütunu ne eksik ne fazla dolduruyor (8.790 hizalı satırdan yalnız bilinen 4'ü
+150 birimden fazla kısa, 1'i fazla uzun); xScale sıkıştırması taban
+düzeyinde (2.955 satır, en kötü 0,770, ortalama 0,9383); kashida
+uygulanıyor (genişletilen 5.835 satırın 3.322'sinde) ve boşluklar taban
+düzeyinde genişliyor (ortalama 1,95, en çok 4,66 kat); 114 sure başlığı
+satırı 114 ayrı sureye ait; başlıklı 98 sayfanın toplam yüksekliği
+16.735-31.805 aralığında; Ezber->Yaz'ın 325.585 harf biriminin hepsi,
+belgelenmiş tek istisna (sayfa 451, kelime 61960) dışında, metinden
+hesaplanan sayıyla aynı. Eşikler bu yamadan önceki tabandan (main `228be5d`)
+türetildi (en fazla 3.100 sıkışan satır, en kötü xScale >= 0,75, ortalama
+>= 0,92, en az 3.000 kashidalı satır, boşluk ortalaması <= 2,2 ve en çok
+<= 6, başlıklı sayfa yüksekliği [16.000, 32.500], >= 325.000 birim, bilinen
+satırlar +100 birim payla). Bunlar REGRESYON bekçisi, "doğru düzen" tanımı
+değil: düzeni bilerek değiştirirseniz (sure başlığı yüksekliği, kashida
+kuralları...) dosya başındaki sabitleri yeni ölçüme göre güncelleyin; bilinen
+bir satır/istisna düzelirse test başarısız olmuyor, yalnız "listeden
+çıkarılabilir" notu düşüyor. Dosya artık çalışma dizininden bağımsız (eskiden
+`cd test` şarttı), ≈ 58-68 sn sürüyor. Sınır: ölçülenler sütun doluluğu,
+sıkıştırma, kashida kullanımı, başlık yüksekliği ve birim bölütleri;
+kashidanın görsel kalitesi (hangi harfte ne kadar uzatıldığı) ve gerçek
+tarayıcıdaki SVG çizimi ölçülmüyor. (Bu sınırın bir kısmı ölçülerek bulundu:
+kashida hiç uygulanmasa bile satırlar boşluk açılarak doluyor ve ilk
+sürümdeki hiçbir kontrol kırılmıyordu -- kashida/boşluk kontrolleri bu
+yüzden eklendi.)
+
+**Bağımlılıklar kilitli.** `test/package-lock.json` artık depoda (daha önce
+`.gitignore`'daydı): `npm ci` her yerde aynı sürümleri kuruyor -- jsdom
+25.0.1, axe-core 4.14.0, wawoff2 2.0.1, geçişli paketlerle 63 paket, ≈ 2 sn.
+axe-core'un yeni bir sürümü kuralları değiştirip testleri kendiliğinden
+kıramaz. Güncellemek için `cd test && npm update` ve kilit dosyasını
+commit'lemek yeter. Kilit dosyasındaki 63 adresin hepsi `registry.npmjs.org`.
+
+**CI (GitHub Actions).** `.github/workflows/test.yml`: `main`'e her push'ta,
+her çekme isteğinde ve elle (`workflow_dispatch`) Node 22'de `npm ci && npm
+test`; yetki yalnız `contents: read`; iş zaman aşımı 20 dk; aynı çekme
+isteğinin eski koşusu yenisi gelince iptal ediliyor; `actions/checkout@v7`
+ve `actions/setup-node@v7` (npm önbelleği kilit dosyasına bağlı). Başarısız
+bir test Actions'ta dosyaya bağlı hata notu (`::error`) ve iş özetinde
+tablo olarak görünüyor.
+
+**Bunlar gerçek bir Actions koşusunun yerine DEĞİL.** Bu ortamdan GitHub'a
+push yapılamadı, yani iş akışı Actions'ta çalıştırılmadı. Yapılanlar:
+actionlint 1.7.12 temiz (bilerek bozulmuş bir kopyada 2 hata veriyor, yani
+denetçi çalışıyor); temiz bir klonda Node 22.22.0 / npm 10.9.4 ile `npm ci &&
+npm test` geçiyor (16 dosya, 108 sn); `test/ci_test.mjs` (53 kontrol)
+iş akışının ve bağımlılık dosyalarının en olası kırılma noktalarını koruyor:
+kilit dosyası ile `package.json` uyumu (aksi hâlde `npm ci` hata verir),
+yalnız `registry.npmjs.org` adresleri ve sha512 özetleri, `.gitignore`'un
+kilit dosyasını yutmaması, iş akışında yetki / zaman aşımı / `npm ci` sırası /
+önbellek yolu / sürüm etiketleri / Node sürümü, testlerin `package.json`'da
+olmayan bir pakete bağlanmaması. İlk gerçek koşu push'tan sonra Actions
+sekmesinde görülecek; `checkout` ve `setup-node` (önbellek dahil) adımları
+yalnızca orada çalışır. Yavaş bir çalıştırıcıda ilk sürpriz zamana bağlı
+eşikler olabilir: `search_test`'te 6 duvar saati eşiği var, ölçülen değerlerin
+en az ≈ 7 katı pay bırakıyor (en sıkısı tefsirde tek arama: 12,7-14,5 ms <
+100 ms).
+
+Testler: yeni `test/run_all_test.mjs` (56 kontrol: sahte test dizinleriyle
+çıkış kodları, keşif kuralları, `--only`/`--skip`/`--list`/`-v`, hatalı
+kullanım, zaman aşımı + SIGKILL + öksüz süreç, Ctrl+C, çıktı kırpma, Actions
+çıktısı, gerçek dizin keşfi) ve `test/ci_test.mjs` (53 kontrol); `full_corpus_test`
+artık 15 kontrol. Her parça tek tek bozularak 45 mutasyon denendi, hepsi
+yakalandı: tam tarama için 10 (xScale'in hiç uygulanmaması ya da %20 fazla
+sıkıştırması, sure başlığından sonraki boşluğun +800 / -1500 olması, boş
+Ezber->Yaz bölütleri, hançer elifin ayrı birim sayılması, başlıklı sayfalarda
+istisna, beklenmeyen jsdom hatası, eksik sayfa, kashidanın kapanması);
+koşucu için 18 (çıkış kodları, FAIL satırı yoklaması, zaman aşımı ve
+SIGKILL'e yükseltme, bilinmeyen ad doğrulaması, çıktı gizleme, çalışma
+dizini, Actions kaçışları ve özet dosyası, Ctrl+C, çıktı üst sınırı, keşif
+kuralları, `--skip`, ilk başarısızlıkta durma); CI yapısı için 17 (kilit
+dosyası uyumsuzluğu, ayna adresi, eksik özet, `.gitignore`, zaman aşımı,
+yetki, `npm install`, `@main`, önbellek yolu, eski Node, `npm test` komutu,
+bildirilmemiş paket, bozuk betik adı, `working-directory`, eksik iş akışı /
+kilit dosyası / tetikleyici). Mutasyonsuz hâl 16 test dosyasının hepsiyle
+geçiyor (önceki 14 + yeni 2); uygulama koduna (`js/`, `css/`, HTML, `sw.js`)
+dokunulmadı. Tek commit, beğenilmezse `git revert` yeter.
 
 ## Sayfa boyutlandırma mantığı
 

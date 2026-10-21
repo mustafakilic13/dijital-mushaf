@@ -2,7 +2,12 @@
   "name": "mushaf-tests",
   "private": true,
   "type": "module",
-  "description": "Run: npm install && node full_corpus_test.mjs",
+  "description": "Dijital Mushaf testleri. Çalıştırma: npm ci && npm test",
+  "scripts": {
+    "test": "node run_all.mjs",
+    "test:fast": "node run_all.mjs --skip full_corpus",
+    "test:corpus": "node full_corpus_test.mjs"
+  },
   "devDependencies": {
     "jsdom": "^25.0.0",
     "wawoff2": "^2.0.1"
