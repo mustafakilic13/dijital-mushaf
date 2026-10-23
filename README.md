@@ -4,6 +4,16 @@ QUL (Quranic Universal Library) verileriyle, `digitalkhatt.org/digitalmushaf`
 ile aynı teknikle birebir sayfa görünümlü bir mushaf okuyucu. Derleme adımı
 yok — düz HTML/CSS/JS, GitHub Pages'te doğrudan çalışır.
 
+Canlı: https://mustafakilic13.github.io/dijital-mushaf/
+
+**Özellikler.** 604 sayfalık matbu mushaf görünümü (metin seçilip
+kopyalanabiliyor); Cüz / Hizb / Rub / Menzil / Sure / Sayfa gezinmesi ve ayet
+seçimi ("Gezinme"); ayet panelinde kelime meali, meal ve Sa'dî tefsiri
+("Ayet detay paneli"); Konu Fihristi; Sure Bilgisi; arama ("Arama"); kelime
+vurgulu sesli okuma ("Sesli okuma"); ezber -- dinle / oku / yaz ("Ezber");
+klavye ve ekran okuyucu erişimi ("Erişilebilirlik"); kurulabilir, çevrimdışı
+çalışan bir PWA ("PWA ve çevrimdışı önbellekleme").
+
 ## Nasıl çalışır (mimari)
 
 Bu iş göründüğünden çok daha karmaşık, çünkü **tarayıcının normal metin
@@ -37,10 +47,21 @@ kaynak kodu) referans alınarak şu boru hattı kuruldu:
    birebir aynı teknikle çiziyor. Bu sayede CSS/font boyutlandırma
    belirsizliği tamamen ortadan kalkıyor.
 
+Ayet sonu işaretlerinin içindeki numaralar rükûya göre dönüşümlü renkleniyor:
+bir surenin 1., 3., 5. rükûsu normal mürekkeple, 2., 4., 6. rükûsu ikinci
+renkle (`--gold-deep`) çiziliyor. Hangi ayetin hangi rükûda olduğu
+`data/ruku.json`'dan geliyor (114 sure, toplam 558 rükû; her sure için
+`[başlangıç ayeti, surenin kaçıncı rükûsu]` çiftleri); karar `js/app.js`
+`isAltRuku`'da, boyama `js/render.js`'te yalnızca ayetin son kelimesinin
+sonundaki işaret ve numara glyph'leri üzerinde yapılıyor.
+
 Bkz. `THIRD_PARTY_NOTICES.md` — atıf ve MIT lisans metni.
 
-Sonuç: 604 sayfanın tamamı Node.js üzerinden otomatik test edildi (bkz.
-`test/`), sıfır hata, sıfır satır hedef genişliğin dışında kaldı.
+Sonuç: 604 sayfanın tamamı Node.js üzerinden render edilip ölçülüyor (bkz.
+`test/full_corpus_test.mjs` ve "Testler ve CI"): hiçbir sayfa hata vermiyor;
+hizalanan 8.790 satırın yalnızca 5'i sütun genişliğinden (16.200 birim) 150
+birimden (≈ %1) fazla sapıyor -- 4'ü kısa, 1'i uzun kalıyor ve testte tek tek,
+bilinen istisna olarak listeli.
 
 ## Gezinme
 
@@ -49,6 +70,25 @@ her biri o an neredeysen onu gösteriyor ve dokununca ilgili listeyi/sayfa
 girişini açıyor (Sure/Cüz listeleri açılınca mevcut konumu otomatik
 ortalıyor). Sure modalında bir sureye/ayete dokunmak açık olan tüm ayet
 akordeonlarını da kapatır.
+
+**Cüz düğmesi dört birimi birden gösteriyor:** cüz numarasının yanında o anki
+**hizb**, **rub'** (hizbin dörtte biri) ve **menzil** numarası da küçük
+göstergeler olarak duruyor (`#hizb-btn-value`, `#rub-btn-value`,
+`#manzil-btn-value`; 360 px'ten dar ekranlarda üç temel düğme rahat sığsın
+diye gizleniyor). Düğmeye dokununca
+açılan modalde dört sekme var -- Cüz (30), Hizb (60), Rub (240), Menzil (7);
+her satır numarayı, birimin başladığı sureyi ve "S:A'den başlar · sayfa N"
+bilgisini gösteriyor, dokununca o birimin ilk ayeti seçilip sayfasına gidiliyor
+(`goToJuzNum` / `goToHizbNum` / `goToRubNum` / `goToManzilNum`, hepsi ortak
+`goToUnitNum`'a çıkıyor). Göstergeler seçili ayetin birimini izliyor (henüz
+ayet seçilmemişse sayfanın birimini); modal açılınca geçerli birim her sekmede
+listenin ortasına kaydırılıyor, kapanınca modal Cüz sekmesine dönüyor. Dört
+veri dosyası (`data/juz.json`, `hizb.json`, `rub.json`, `manzil.json`) aynı
+şekle sahip -- `{ "n": { "firstVerseKey": "S:A", "page": N } }` -- bu yüzden
+tek bir kod yolu hepsine yetiyor (`unitForAyah`, `populateUnitList`).
+**Sayfa** düğmesi ise bir sayfa numarası alanı, − / + düğmeleri ve bir sayfa
+kaydırıcısı olan modal açıyor. `test/juz_subdivisions_test.mjs` bu verinin
+tutarlılığını ve gezinme mantığını doğruluyor.
 
 **Sayfa çevirme yönü** iki farklı girdi için kasıtlı olarak farklı: parmakla
 **kaydırma** gerçek bir mushaf sayfasını çevirme hareketini taklit ediyor
@@ -449,6 +489,105 @@ node search_test.mjs && node arama_ui_test.mjs
 ```
 
 Bütün testler tek komutla: `npm test` (bkz. "Testler ve CI").
+
+## Sesli okuma (Oynat)
+
+Alt çubuktaki **Oynat** düğmesi, seçili ayetten (seçili ayet yoksa sayfanın
+ilk ayetinden) başlayıp Kur'an'ın sonuna kadar kesintisiz okuyor; çalan kelime
+sayfada vurgulanıyor ve sayfa, okuma ilerledikçe kendiliğinden çevriliyor.
+Çalarken düğme **Duraklat** oluyor; durdurunca seçili ayet çalınan ayette
+kaldığından tekrar basınca oradan devam ediliyor (düğmenin erişilebilir adı
+için bkz. "Erişilebilirlik"). Okuma 114:6'da bitiyor, başa sarmıyor.
+
+- **Ses.** Ayet sesleri uzaktan geliyor:
+  `https://audio-cdn.tarteel.ai/quran/<okuyucu>/SSSAAA.mp3` (sure ve ayet
+  üçer haneli). QUL'un exportunda 6236 ayetin hepsi tam bu kalıpta olduğundan
+  adres ayet başına saklanmıyor, `js/app.js` `recitationAudioUrl`'de yeniden
+  kuruluyor (`tools/build_recitation.py`, kalıba uymayan tek kayıtta bile
+  üretimi durduruyor). Okuyucular `RECITERS`'te: **Husarî (Mücevved)** ve
+  **Abdülbâsıt Abdüssamed (Mücevved)**. Ana Oynat düğmesi her zaman Husarî'yi
+  çalıyor; ikincisi yalnızca Ezber > Dinle'de seçilebiliyor. Çalınan sesler
+  servis worker'ın ses önbelleğine giriyor (bkz. "PWA ve çevrimdışı
+  önbellekleme").
+- **Kelime vurgusu.** `data/recitation-husary-mujawwad.json` ve
+  `data/recitation-abdulsamad-mujawwad.json`, her ayet için `[ayette kelime
+  sırası, başlangıç ms, bitiş ms]` üçlülerini taşıyor (QUL'un "Recitations and
+  segments" exportundan `tools/build_recitation.py` ile üretildi; ilk
+  kullanımda tembel yükleniyor, o sırada düğme "Yükleniyor…" diyor). Çalan
+  sesin `currentTime`'ı her animasyon karesinde (`syncHighlightLoop`) bu
+  aralıklarla eşleştirilip (`wordIdAtTime`) o kelimenin glyph'lerinin arkasına
+  vurgu çiziliyor (`updateWordHighlight`). Eşleştirme sıraya değil ZAMANA
+  bakıyor: bazı ayetlerde okuyucu bir kelimeyi ya da öbeği tekrarladığı için
+  aynı sıra numarası iki kez geçiyor. Birkaç ayette okunan bölüt sayısı
+  mushaftaki kelime sayısından bir fazla; karşılığı olmayan o son bölüt,
+  yanlış kelimeyi vurgulamasın diye sessizce yok sayılıyor.
+- **İstiâze ve besmele.** Fâtiha'nın 1. ayetinden önce eûzü klibi
+  (`audio/euzuhusari.mp3`, `audio/euzuabdulsamad.mp3` -- depoda duran iki
+  küçük dosya), Tevbe dışındaki her surenin 1. ayetinden önce de besmele
+  çalıyor; besmele ayrı bir klip değil, okuyucunun kendi 1:1 kaydı
+  (`introAudioFor`). Bunlar sayfadaki metne ait olmadığından o sırada hiçbir
+  kelime vurgulanmıyor.
+- **Tek ses motoru.** Oynat, Ezber > Dinle ve Oku/Yaz'ın "ayet tamamlanınca
+  oku" adımı aynı `<audio>` öğesini paylaşıyor; biri başlayınca diğeri
+  duruyor. `state.playback.requestId` bir "bu oturum hâlâ geçerli mi"
+  bekçisi: durdurma ya da yeniden başlatma, uçuştaki eski bir devamın (sayfa
+  yüklemesi, ses başlatma) yeni oturuma karışmasını engelliyor.
+  `test/recitation_playback_test.mjs` sıradaki ayet mantığını
+  (`nextAyahRef`), kelime zamanlamasını ve ses adresi kurmayı doğruluyor.
+
+## Ezber (Dinle / Oku / Yaz)
+
+Alt çubuktaki **Ezber** düğmesi üç sekmeli bir modal açıyor. Üçünde de bir
+**sure** (ayrı bir alt panelden seçiliyor; seçince aralık o surenin tamamına
+ayarlanıyor) ve bir **başlangıç / bitiş ayeti** isteniyor. Modal son
+kullanılan ayarlarla açılıyor (hiç kullanılmadıysa seçili ayetle: o ayetin
+suresi, başlangıç = bitiş = o ayet); aralık geçersizse (başlangıç > bitiş ya
+da surenin ayet sayısını aşıyor) Türkçe bir uyarı gösterilip başlanmıyor. Her
+sekmenin son ayarları (aralık, tekrar sayıları, okuyucu) tarayıcıda
+hatırlanıyor (`localStorage`, `quran-reader-ezber-v1`; özel pencerede ya da
+depolama kapalıyken sessizce atlanıyor).
+
+- **Dinle** -- birikimli tekrar. Kârî (Husarî / Abdülbâsıt Abdüssamed),
+  **Ayet Tekrar Sayısı** (her ayet kaç kez okunsun) ve **Aynısını Tekrar
+  Sayısı** (tüm aralık kaç kez baştan alınsın) seçiliyor; ikisi de 1-99. Sıra:
+  eûzü, besmele, 1. ayet (tekrar sayısı kadar), sonra aralığın başından o
+  ayete kadar her ayet bir kez ("tekrar zinciri"), sonra 2. ayet (tekrar
+  sayısı kadar) ve yine başından 2. ayete kadar zincir... -- yani zincir her
+  ayette uzuyor. Aralık bitince "Aynısını Tekrar" sayısı kadar baştan
+  alınıyor, sonra duruyor. Besmele, Fâtiha ve Tevbe'nin 1. ayetinden başlayan
+  aralıklar dışında her turun ve her zincirin başında çalıyor
+  (`ezberBasmalaNeeded`). Aşama makinesi `startEzberPlayback` /
+  `ezberAdvance`'te (`euzu → besmele → ayah × tekrar → review-besmele →
+  review-ayah ...`); kelime vurgusu, sayfa takibi ve ses önbelleği normal
+  Oynat'la aynı. Çalarken Oynat düğmesi "Duraklat" oluyor ve etiketinde
+  "صدق الله العظيم" yazıyor; ikinci basış durduruyor.
+- **Oku** -- sırayla kelime açma. Sıradaki ayet ve aralıkta henüz sırası
+  gelmemiş ayetler (sayfada görünenler) kâğıt renginde yuvarlatılmış
+  kapaklarla gizleniyor; tamamlananlar açık kalıyor. Sıradaki ayetin üzerine
+  dokununca sıradaki KELİME açılıyor ve Türkçe karşılığı (kelime meali
+  verisinden) ~1,5 sn bir baloncukta gösteriliyor. Ayetin son kelimesi açılınca ayet bir kez (Husarî,
+  vurgusuz) okunuyor ve sıradaki ayete geçiliyor; son ayetten sonra oturum
+  kendiliğinden bitiyor. Başka ayetlere ya da boşluğa dokunmak yok sayılıyor.
+- **Yaz** -- sırayla harf yazma. Aynı gizleme, ama birim kelime değil harf
+  (bir temel harf ve ona bağlı işaretler, `splitIntoUnits`) ve girdi
+  ekrandaki Arapça sanal klavyeden: basılan tuş sıradaki harfle eşleşirse o
+  harf açılıyor, eşleşmezse HİÇBİR şey olmuyor (hata ya da ceza yok).
+  Eşleştirme kulakla ayırt edilmeyen yazım farklarını aynı sayıyor: tüm elif
+  biçimleri (`أ إ آ ٱ`) `ا`, `ة` `ه`, `ؤ` `و`, `ئ ى` `ي` (`ezberBaseChar`).
+  💡 tuşu, sıradaki kelimenin Türkçe anlamını klavyenin üstünde gösterip
+  gizliyor. Ayet tamamlanınca Oku'daki gibi okunup sıradakine geçiliyor.
+  Klavye, alt çubuğun GERÇEK (ölçülen) yüksekliğinin hemen üstünde duruyor ve
+  sayfanın altında o kadar boşluk ayırıyor (`--yaz-keyboard-space`); böylece
+  son satırlar klavyenin altında kalmıyor.
+
+Oku ve Yaz oturumları sürerken Ezber düğmesi **Bitir**'e dönüşüyor (basınca
+kapaklar kalkıyor, klavye ve baloncuk kayboluyor, ses duruyor) ve ayet gezgini
+gizleniyor -- orada ayete dokunmak kelime açmak demek, panel açmak değil (bkz.
+"Erişilebilirlik"). Yaz'ın harf birimleri sayfa çizilirken (`js/render.js`)
+hesaplanıyor ve her biri satırda ölçülmüş bir x aralığına bağlı;
+`test/full_corpus_test.mjs`, Kur'an'ın 325.585 harf biriminin hepsini metinden
+hesaplanan sayıyla karşılaştırıyor (bilinen tek istisna: sayfa 451, kelime
+61960).
 
 ## Erişilebilirlik
 
@@ -1347,7 +1486,8 @@ doğruluyor.
 index.html            Uygulama kabuğu
 sw.js                   Servis worker -- ses/kabuk/veri önbellekleme (bkz. "PWA ve çevrimdışı önbellekleme")
 manifest.json            PWA manifesti ("Ana ekrana ekle") + icons/ (192/512/maskable, geçici simge)
-serve.py               .wasm'ı doğru Content-Type ile sunan yerel geliştirme sunucusu
+THIRD_PARTY_NOTICES.md  Üçüncü taraf kod ve yazı tipleri: atıf ve lisans metinleri
+.nojekyll                 Boş dosya: GitHub Pages'in Jekyll işlemesini kapatır
 css/style.css          Görünüm (kağıt/zümrüt paleti, bkz. aşağı)
 js/justify.js          Kaşide/gerdirme algoritması (DigitalKhatt'tan uyarlandı)
 js/render.js            HarfBuzz şekillendirme + SVG glyph çizimi + ayet vurgusu
@@ -1364,9 +1504,12 @@ js/app.js               Sayfa yükleme, önbellek, gezinme, modaller, ayet seçi
 data/mushaf.json         604 sayfa × satır × kelime (QUL'dan üretildi, ~3MB)
 data/surahs.json          Sure adları/metadata (Türkçe isim dahil) + başlık glyph'i
 data/surah-pages.json     Sure → başlangıç sayfası
-data/juz.json              Cüz → başlangıç sayfası
+data/juz.json              Cüz → ilk ayet + başlangıç sayfası ({ "n": { firstVerseKey, page } })
+data/hizb.json, rub.json, manzil.json   Hizb (60) / rub' (240) / menzil (7), juz.json ile aynı şekil (bkz. "Gezinme")
+data/ruku.json              Her sure için rükû başlangıçları (558 rükû): ayet numarası rengi dönüşümlü (bkz. "Nasıl çalışır")
 data/ayahs.json             Her ayet → [sayfa, ilkKelimeId, sonKelimeId]
 data/page-first-ayah.json    Sayfa → o sayfadaki ilk ayet [sure, ayet]
+data/recitation-husary-mujawwad.json, recitation-abdulsamad-mujawwad.json   Sesli okuma kelime zamanlamaları, 6236 ayet × [kelime sırası, başlangıç ms, bitiş ms] (~1.2MB'er, bkz. "Sesli okuma")
 data/word-meal.json          Kelime meali (Türkçe, QUL word-by-word export, ~1.6MB)
 data/meal.json                Meal (Türkçe, Elmalılı M. Hamdi Yazır sadeleştirilmiş, ~1MB)
 data/tafsir-saadi.json         Tefsîr-i Sa'dî (QUL export, ayet-grubu yönlendirmeli, ~8.7MB)
@@ -1374,11 +1517,16 @@ data/surah-info-tr.json        Sure Bilgisi (Türkçe, QUL surah-info exportunda
 data/topics-tr.json            Konu Fihristi (Türkçe, QUL ayah-topics exportundan çevrildi, 2512 konu, ~950KB)
 data/surah-headers/         Her sure için hazır SVG path verisi (114 dosya)
 fonts/                    DigitalKhattV2.woff2 (tarayıcıda gerçekten yüklenen tek font)
+audio/                    euzuhusari.mp3, euzuabdulsamad.mp3: Fâtiha'dan önce çalınan eûzü klipleri (ayet sesleri uzaktan geliyor, bkz. "Sesli okuma")
+icons/                    PWA simgeleri (192, 512, maskable; geçici)
 vendor/                   hb.wasm, hb.js, hbjs.js (resmi harfbuzzjs, MIT) +
                           woff2-decompress/ (wawoff2, MIT — bkz. THIRD_PARTY_NOTICES.md)
 tools/build_data.py       Ham QUL exportlarından data/*.json üreten script
+tools/build_hizb_rub_manzil.py   data/hizb.json, rub.json, manzil.json'u QUL'un quran-metadata-*.json exportlarından üretir
+tools/build_recitation.py        data/recitation-*.json'u QUL'un ayah-recitation-*.json exportlarından üretir
 tools/patch_word_meal.py      word-meal.json'daki bilinen QUL hatalarını düzeltir
-tools/raw-data/           Ham build girdileri (bkz. Veriyi güncellemek) + QCF_SurahHeader_COLOR-Regular.woff2
+tools/raw-data/           Ham build girdileri (bkz. Veriyi güncellemek): quran-metadata-{hizb,rub,manzil}.json,
+                          ayah-recitation-*.json (iki okuyucu) + QCF_SurahHeader_COLOR-Regular.woff2
                           (sadece build_data.py'nin sure başlığı SVG'lerini üretmek için okuduğu
                           kaynak; tarayıcı hiç yüklemiyor, bkz. madde 5 yukarıda)
 .github/workflows/test.yml   CI: push (main), çekme isteği ve elle: `npm ci && npm test` (bkz. "Testler ve CI")
@@ -1387,10 +1535,11 @@ test/package-lock.json        Kilit dosyası (depoda; `npm ci` bunu kurar)
 test/run_all.mjs             Tüm *_test.mjs dosyalarını sırayla çalıştıran koşucu (`npm test`)
 test/run_all_test.mjs         Koşucunun testi: sahte test dizinleriyle çıkış kodları, zaman aşımı, Ctrl+C, Actions çıktısı (Node)
 test/ci_test.mjs               CI yapısı: kilit dosyası/package.json uyumu, iş akışı, testlerin bağımlılıkları (Node)
+test/readme_test.mjs            Bu ağacın depoyla uyumu: listelenen her yol var, her dosya listeli; komut örnekleri var olan betikleri çağırıyor (Node)
 test/full_corpus_test.mjs  604 sayfayı Node'da render edip DOĞRULAYAN test: hizalama, xScale, kashida, başlık yüksekliği, Ezber->Yaz birimleri (jsdom)
 test/search_test.mjs        Arama saf mantığı (Node)
 test/arama_ui_test.mjs       Arama modalı arayüzü (jsdom)
-test/erisilebilirlik_test.mjs Anons bölgesi, panel açıkken tek sayfa metni (alt kopya aria-hidden) + axe-core yapısal tarama (jsdom)
+test/erisilebilirlik_test.mjs  Anons bölgesi, panel açıkken tek sayfa metni (alt kopya aria-hidden) + axe-core yapısal tarama (jsdom)
 test/modal_odak_test.mjs        Modal odak yönetimi: işaretleme, Tab döngüsü, açan öğeye dönüş, app.js bağlantısı (jsdom)
 test/topic_links_test.mjs       Konu açıklamalarındaki <topic> bağlantıları: role/tabindex, Enter, odak, Geri düğmesi/odak, 461 bağlantının taraması, axe-core (jsdom)
 test/tafsir_dil_test.mjs        Sa'dî tefsiri dil işaretleri: birim, veri varsayımları, 1739 girdilik tam tarama, panel ve arama özeti yolu (jsdom)
@@ -1405,20 +1554,28 @@ test/surah_info_links_test.mjs       Sure Bilgisi bağlantıları: parseInfoLink
 
 ## Çalıştırma
 
-Herhangi bir statik sunucu yeterli, ör.:
+Canlı sürüm: https://mustafakilic13.github.io/dijital-mushaf/
+
+Yerelde çalıştırmak için herhangi bir statik sunucu yeterli (derleme adımı
+yok), ör.:
 
 ```bash
-cd quran-app
+git clone https://github.com/mustafakilic13/dijital-mushaf.git
+cd dijital-mushaf
 python3 -m http.server 8000
 # http://localhost:8000
 ```
 
+Sayfayı `file://` ile açmak çalışmaz: ES modülleri ve `fetch` (veri dosyaları,
+WASM) bir sunucu ister; servis worker da yalnızca `https:` ya da `localhost`
+üzerinde kaydolur.
+
 **Not:** `vendor/hb.wasm` tarayıcıda `WebAssembly.instantiateStreaming()`
 ile yükleniyor, ki bu da sunucunun `.wasm` dosyasını tam olarak
 `application/wasm` Content-Type'ıyla döndürmesini şart koşuyor. Python'ın
-kendi `mimetypes` modülünün bu eşlemeyi tanıyıp tanımaması işletim
-sistemine/Python sürümüne göre değişiyor -- tanımıyorsa konsolda şunu
-görürsün:
+`http.server`'ı bunu yapıyor (Python 3.13'te `Content-type: application/wasm`
+döndüğü doğrulandı); sunucun `.wasm`'ı başka bir türle sunarsa (eski bir
+Python, ayarı bozuk bir sistem MIME tablosu...) konsolda şunu görürsün:
 
 ```
 wasm streaming compile failed: ... Incorrect response MIME type ...
@@ -1428,21 +1585,16 @@ falling back to ArrayBuffer instantiation
 Bu bir hata değil: `vendor/hb.js` (resmi HarfBuzz WASM yükleyicisi) bunu
 zaten yakalayıp daha yavaş ama çalışan bir yola (`WebAssembly.instantiate`)
 düşüyor, mushaf yine render oluyor. Konsolu temiz tutmak ve o küçük
-gecikmeyi de önlemek istersen, `python3 -m http.server` yerine:
+gecikmeyi önlemek için `.wasm`'ı `application/wasm` ile sunan bir sunucu
+kullan: Python'ın `http.server`'ı, Node'un `serve`'ü, Nginx, Cloudflare Pages
+vb. çoğu bunu zaten doğru yapıyor; yine de bir kez tarayıcı konsolunu
+kontrol etmekte fayda var.
 
-```bash
-cd quran-app
-python3 serve.py 8000
-```
-
-(Aynı `http.server`, sadece `.wasm` için doğru Content-Type'ı zorluyor.)
-Başka bir statik sunucu/host kullanıyorsan (Node'un `serve`'ü, Nginx,
-Cloudflare Pages, vb.) çoğu bunu zaten doğru yapıyor; yine de bir kez
-tarayıcı konsolunu kontrol etmekte fayda var.
-
-**GitHub Pages:** Bu klasörü olduğu gibi bir repoya koyup Pages'i
-`main`/`root`'tan yayınlaman yeterli — build adımı yok. (GitHub Pages
-`.wasm`'ı doğru MIME type'la sunuyor, `serve.py`'ye gerek yok.)
+**GitHub Pages:** Bu depoyu olduğu gibi Pages'ten `main`/`root` olarak
+yayınlaman yeterli -- build adımı yok (kökteki boş `.nojekyll`, Jekyll
+işlemesini kapatıyor; Pages `.wasm`'ı doğru MIME type'la sunuyor). Yayın
+GitHub'ın kendi "pages build and deployment" iş akışıyla yapılıyor; testler
+bundan ayrı ve her push'ta çalışıyor (bkz. "Testler ve CI").
 
 ## Testler ve CI
 
@@ -1464,9 +1616,10 @@ SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
 `npm run test:fast` (tam tarama hariç, ≈ 52 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 16 dosyanın hepsi ≈
-108 sn sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-68 sn,
-arama arayüzü 19 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn).
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 17 dosyanın hepsi ≈
+2 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-68 sn, arama
+arayüzü 19-21 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn); GitHub
+Actions'taki ilk koşuda işin tamamı 1 dk 25 sn sürdü.
 
 **Tam tarama testi artık gerçekten doğruluyor.** `test/full_corpus_test.mjs`
 604 sayfanın tamamını Node'da (jsdom + gerçek HarfBuzz + gerçek font) render
@@ -1518,29 +1671,31 @@ ve `actions/setup-node@v7` (npm önbelleği kilit dosyasına bağlı). Başarıs
 bir test Actions'ta dosyaya bağlı hata notu (`::error`) ve iş özetinde
 tablo olarak görünüyor.
 
-**Bunlar gerçek bir Actions koşusunun yerine DEĞİL.** Bu ortamdan GitHub'a
-push yapılamadı, yani iş akışı Actions'ta çalıştırılmadı. Yapılanlar:
-actionlint 1.7.12 temiz (bilerek bozulmuş bir kopyada 2 hata veriyor, yani
-denetçi çalışıyor); temiz bir klonda Node 22.22.0 / npm 10.9.4 ile `npm ci &&
-npm test` geçiyor (16 dosya, 108 sn); `test/ci_test.mjs` (53 kontrol)
-iş akışının ve bağımlılık dosyalarının en olası kırılma noktalarını koruyor:
-kilit dosyası ile `package.json` uyumu (aksi hâlde `npm ci` hata verir),
-yalnız `registry.npmjs.org` adresleri ve sha512 özetleri, `.gitignore`'un
-kilit dosyasını yutmaması, iş akışında yetki / zaman aşımı / `npm ci` sırası /
-önbellek yolu / sürüm etiketleri / Node sürümü, testlerin `package.json`'da
-olmayan bir pakete bağlanmaması. İlk gerçek koşu push'tan sonra Actions
-sekmesinde görülecek; `checkout` ve `setup-node` (önbellek dahil) adımları
-yalnızca orada çalışır. Yavaş bir çalıştırıcıda ilk sürpriz zamana bağlı
-eşikler olabilir: `search_test`'te 6 duvar saati eşiği var, ölçülen değerlerin
-en az ≈ 7 katı pay bırakıyor (en sıkısı tefsirde tek arama: 12,7-14,5 ms <
-100 ms).
+**İlk gerçek koşu.** İş akışı ilk kez `main`'deki `5238aae` push'unda GitHub'da
+çalıştı (Actions > Testler #1) ve yeşil bitti: "Testler (Node 22)" işi 1 dk
+25 sn sürdü -- 16 dosyanın hepsi, yerelde ≈ 2 dk. (Actions listesinde koşunun
+toplam süresi 9 dk 12 sn görünüyordu; işin kendi süresi 1 dk 25 sn.)
+Push'tan önce iş akışı actionlint 1.7.12 ile (sözdizimi ve ifadeler; bilerek
+bozulmuş bir kopyada 2 hata veriyor, yani denetçi çalışıyor) ve temiz bir
+klonda Node 22.22.0 / npm 10.9.4 ile `npm ci && npm test` olarak denenmişti.
+`test/ci_test.mjs` (53 kontrol) iş akışının ve bağımlılık dosyalarının en
+olası kırılma noktalarını koruyor: kilit dosyası ile `package.json` uyumu
+(aksi hâlde `npm ci` hata verir), yalnız `registry.npmjs.org` adresleri ve
+sha512 özetleri, `.gitignore`'un kilit dosyasını yutmaması, iş akışında yetki
+/ zaman aşımı / `npm ci` sırası / önbellek yolu / sürüm etiketleri / Node
+sürümü, testlerin `package.json`'da olmayan bir pakete bağlanmaması. Zamana
+bağlı eşikler yavaş bir çalıştırıcıda sürpriz çıkarabilir: `search_test`'te 6
+duvar saati eşiği var, yerelde ölçülen değerlerin en az ≈ 7 katı pay
+bırakıyor (en sıkısı tefsirde tek arama: 12,7-14,5 ms < 100 ms); gerçek
+koşuda hepsi geçti.
 
-Testler: yeni `test/run_all_test.mjs` (56 kontrol: sahte test dizinleriyle
-çıkış kodları, keşif kuralları, `--only`/`--skip`/`--list`/`-v`, hatalı
-kullanım, zaman aşımı + SIGKILL + öksüz süreç, Ctrl+C, çıktı kırpma, Actions
-çıktısı, gerçek dizin keşfi) ve `test/ci_test.mjs` (53 kontrol); `full_corpus_test`
-artık 15 kontrol. Her parça tek tek bozularak 45 mutasyon denendi, hepsi
-yakalandı: tam tarama için 10 (xScale'in hiç uygulanmaması ya da %20 fazla
+Testlerin kendileri de sınandı: `test/run_all_test.mjs` (56 kontrol: sahte
+test dizinleriyle çıkış kodları, keşif kuralları, `--only`/`--skip`/`--list`/
+`-v`, hatalı kullanım, zaman aşımı + SIGKILL + öksüz süreç, Ctrl+C, çıktı
+kırpma, Actions çıktısı, gerçek dizin keşfi), `test/ci_test.mjs` (53 kontrol)
+ve `full_corpus_test` (15 kontrol). Her parça tek tek bozularak (mutasyon
+testi) 45 mutasyon denendi ve hepsi en az bir testi kırdı: tam tarama için 10
+(xScale'in hiç uygulanmaması ya da %20 fazla
 sıkıştırması, sure başlığından sonraki boşluğun +800 / -1500 olması, boş
 Ezber->Yaz bölütleri, hançer elifin ayrı birim sayılması, başlıklı sayfalarda
 istisna, beklenmeyen jsdom hatası, eksik sayfa, kashidanın kapanması);
@@ -1551,9 +1706,24 @@ kuralları, `--skip`, ilk başarısızlıkta durma); CI yapısı için 17 (kilit
 dosyası uyumsuzluğu, ayna adresi, eksik özet, `.gitignore`, zaman aşımı,
 yetki, `npm install`, `@main`, önbellek yolu, eski Node, `npm test` komutu,
 bildirilmemiş paket, bozuk betik adı, `working-directory`, eksik iş akışı /
-kilit dosyası / tetikleyici). Mutasyonsuz hâl 16 test dosyasının hepsiyle
-geçiyor (önceki 14 + yeni 2); uygulama koduna (`js/`, `css/`, HTML, `sw.js`)
-dokunulmadı. Tek commit, beğenilmezse `git revert` yeter.
+kilit dosyası / tetikleyici).
+
+**README de sınanıyor.** `test/readme_test.mjs` (11 kontrol), "Proje yapısı"
+ağacının depoyla uyumunu denetliyor: listelenen her yol depoda var; `js/`,
+`css/`, `tools/`, `test/`, `data/` ve `.github/workflows/` altındaki her dosya,
+kökteki `index.html` / `sw.js` / `manifest.json` / `THIRD_PARTY_NOTICES.md` ve
+her üst düzey klasör listede; kod bloklarındaki `python3` / `node` komutları
+var olan betikleri çağırıyor, `npm run` örnekleri `test/package.json`'da
+tanımlı. Bu denetim gerçek sapmalardan sonra eklendi: README, depoda hiç
+olmamış bir `serve.py`'yi anlatıyordu (`python3 serve.py 8000` çalışmıyordu)
+ve sekiz veri/betik dosyası, `THIRD_PARTY_NOTICES.md` ile `audio/`, `icons/`
+klasörleri ağaçta yoktu -- test, eski README'ye karşı çalıştırıldığında bunların
+hepsini buluyor. Yeni bir dosya eklediğinizde test, README'de hangi satırın
+eksik olduğunu söyler. 15 mutasyonun hepsi yakalandı (var olmayan dosya ya da
+klasör listelenmesi, listeden çıkarılan dosya / klasör / kök dosya, virgüllü
+listede bozuk ad, var olmayan betik ya da `npm run` betiği, eksik başlık,
+kapanmayan kod bloğu, tek boşluklu girdi, listelenmeyen yeni dosya ya da
+klasör).
 
 ## Sayfa boyutlandırma mantığı
 
@@ -1592,16 +1762,47 @@ yeniden uygular; export o hatayı kendiliğinden düzeltmişse zaten hiçbir
 python3 tools/patch_word_meal.py
 ```
 
+**Hizb / rub' / menzil sınırları** için tam boru hattını çalıştırmak gerekmiyor:
+QUL'un "Quran metadata" exportlarından `quran-metadata-hizb.json`,
+`quran-metadata-rub.json`, `quran-metadata-manzil.json` dosyalarını
+`tools/raw-data/` altına koyup
+
+```bash
+python3 tools/build_hizb_rub_manzil.py [ham-klasör] [ayahs.json] [çıktı-klasörü]
+```
+
+çalıştırmak yeter (varsayılanlar: `tools/raw-data`, `data/ayahs.json`, `data/`;
+sayfa numaralarını `data/ayahs.json`'dan alıyor). Depodaki ham dosyalarla
+yeniden üretilen `data/hizb.json`, `rub.json`, `manzil.json` mevcutlarla
+bayt bayt aynı çıkıyor.
+
+**Sesli okuma kelime zamanlamaları** için QUL'un "Recitations and segments
+data" exportundaki `ayah-recitation-*.json` dosyası `tools/raw-data/` altına
+konup
+
+```bash
+python3 tools/build_recitation.py [husary|abdulsamad] [çıktı-klasörü]
+```
+
+çalıştırılıyor (varsayılan: `husary`, `data/`). Betik, ham dosyadaki her ayet
+adresinin `.../quran/<cdn_slug>/SSSAAA.mp3` kalıbına uyduğunu doğruluyor
+(uymazsa üretimi durduruyor; bkz. "Sesli okuma"). Yeni bir okuyucu eklemek
+için betikteki `RECITERS` sözlüğüne ve `js/app.js`'teki `RECITERS` kaydına
+birer giriş eklenir (ikisi birbirinin aynası). Depodaki iki ham dosyayla
+yeniden üretilen `data/recitation-*.json` dosyaları da mevcutlarla bayt bayt
+aynı çıkıyor.
+
+`data/ruku.json` için depoda üretim betiği yok; `js/app.js`'in yorumuna göre
+QUL'un `quran-metadata-ruku.json` dosyasından türetilmiş.
+
 ## Yapılacaklar
 
-Orijinal hedef listesinden kalanlar: **ezber** (**arama** tamamlandı — bkz.
-yukarıdaki "Arama" bölümü; üçüncü madde olan **kelime vurgulu ses çalma** da
-tamamlandı — bkz. `js/app.js`,
-`state.playback`/`syncHighlightLoop`/`updateWordHighlight`). Bunlara ek
-olarak üzerinde durduğumuz ama henüz karara bağlamadığımız iki konu var.
-Kuranmeali.com verisi kullanılmama kararı kesinleşti (bkz. proje
-notları) — aşağıdaki ikisi de artık yalnızca QUL/bağımsız açık kaynaklar
-arasından seçim meselesi.
+Orijinal hedef listesindeki üç maddenin hepsi tamamlandı: **arama** (bkz.
+"Arama"), **kelime vurgulu ses çalma** (bkz. "Sesli okuma") ve **ezber** (bkz.
+"Ezber"). Bunlara ek olarak üzerinde durduğumuz ama henüz karara
+bağlamadığımız konular aşağıda. Kuranmeali.com verisi kullanılmama kararı
+kesinleşti (bkz. proje notları) -- kelime tahlili ve El-Müfredât için artık
+yalnızca QUL/bağımsız açık kaynaklar arasından seçim yapmak kaldı.
 
 ### Erişilebilirlik: gerçek cihaz/ekran okuyucu testi
 

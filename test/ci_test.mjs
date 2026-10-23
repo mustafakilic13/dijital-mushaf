@@ -1,8 +1,8 @@
 // CI ve bağımlılık dosyalarının YAPISAL kontrolleri.
 //
-// GitHub Actions bu geliştirme ortamında ÇALIŞTIRILAMADI (yalnız actionlint ile
-// sözdizimi/ifade denetimi yapıldı). Bu yüzden iş akışının ve bağımlılık
-// dosyalarının bozulmasının en olası yolları burada kod olarak korunur:
+// İş akışı GitHub'da ilk koşusunda (Testler #1) geçti. Ama CI kırıldığında geç haber
+// verir (push'tan sonra); iş akışının ve bağımlılık dosyalarının bozulmasının en olası
+// yolları bu yüzden burada, yerelde `npm test` ile yakalanacak şekilde korunur:
 //   - kilit dosyası package.json ile uyumsuzsa `npm ci` hata verir;
 //   - kilit dosyasındaki bir adres bir aynaya/yerel önbelleğe işaret ederse başka
 //     makinede ve CI'da indirme başarısız olur;
@@ -11,7 +11,7 @@
 //   - .gitignore kilit dosyasını yutarsa CI her seferinde farklı sürümleri kurar
 //     (ör. axe-core'un yeni bir sürümü kuralları değiştirip testleri kırar);
 //   - iş akışında zaman aşımı yoksa takılan iş saatlerce sürer.
-// Bunlar gerçek bir Actions koşusunun YERİNE DEĞİL, onun en sık kırılan noktalarının bekçisidir.
+// Bunlar gerçek bir Actions koşusunun yerine değil, onun en sık kırılan noktalarının bekçisidir.
 
 import fs from "node:fs";
 import path from "node:path";
