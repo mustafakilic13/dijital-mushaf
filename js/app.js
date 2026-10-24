@@ -2152,18 +2152,56 @@ function openSurahInfo(surahNum) {
 // "geri" ana içeriği YENİDEN KURMUYOR, sadece tekrar gösteriyor, o yüzden
 // kullanıcının orada bıraktığı kaydırma konumu (ve açık akordeon
 // bölümleri) olduğu gibi duruyor.
+//
+// Odak: iki geçişte de odaktaki öğe az önce gizlenen panelin içinde kalıyordu
+// (bağlantıya Enter -> #surah-info-body gizleniyor; Geri'ye Enter ->
+// #surah-info-detail gizleniyor) ve Chromium'da ölçülen sonuç aynıydı: odak
+// <body>'ye düşüyor, ekran okuyucu yeni görünümü duymuyor, Tab görünümün
+// ortasından sürüyor. showSurahInfoDetail ayrıntıya girerken odağı modalın
+// kapsayıcısına alır (Konu Fihristi'ndeki pushTopicsModalTopic gibi);
+// backFromSurahInfoDetail Geri'de odağı ayrıntıyı açan bağlantıya geri verir.
+// test/sure_bilgisi_odak_test.mjs bu bloğu iki işaret arasından çıkarıp
+// jsdom'da çalıştırıyor -- işaretleri silmeyin.
+// <surah-info-detail>
 let surahInfoDetailRequestId = 0;
+// Ayrıntı görünümünü açan bağlantı (#surah-info-body içinde). null: açan yok
+// (görünüm kapalı) ya da bağlantı yok sayıldı.
+let surahInfoLinkOpener = null;
 
 function showSurahInfoDetail(bodyHTML) {
+  // Ana içerikten ayrıntıya geçiş mi, yoksa görünüm zaten açıkken içerik mi
+  // yenileniyor ("Yükleniyor…" -> ayetlerin meali)? İkincisinde odağa
+  // dokunulmaz: kullanıcı bu arada Geri'ye ya da bir düğmeye gelmiş olabilir.
+  const entering = els.surahInfoDetail.hidden;
   els.surahInfoDetailBody.innerHTML = bodyHTML;
   els.surahInfoBody.hidden = true;
   els.surahInfoDetail.hidden = false;
+  // Etkinleştirilen bağlantı az önce gizlenen #surah-info-body'deydi: odağı
+  // modal açılırkenki gibi kapsayıcıya al ("3. Âl-i İmrân, iletişim kutusu"
+  // okunur; Tab görünümün başından -- Kapat, Geri -- sürer).
+  if (entering) modalFocus.enter(els.surahInfoModal);
 }
 
+// Genel sıfırlama: Geri düğmesi ve modal kapanışı (closeModal) aynı yoldan
+// geçiyor; odak taşıma işi burada DEĞİL (kapanan modalda odağa dokunulmaz).
 function closeSurahInfoDetail() {
   surahInfoDetailRequestId++; // olası bir loadMealData().then() devamını geçersiz kılar (aşağıdaki openSurahInfoLink'e bkz.)
+  surahInfoLinkOpener = null;
   els.surahInfoDetail.hidden = true;
   els.surahInfoBody.hidden = false;
+}
+
+// "Geri" düğmesi. Ana içerik yeniden kurulmadan geri geliyor (kaydırma konumu
+// ve açık bölümler yerinde), yani ayrıntıyı açan bağlantı hâlâ orada: odak
+// ona dönsün, okuyucu kaldığı yerden sürsün. Kapsayıcıya dönmek, bazı
+// surelerde 13-18 bağlantılı bir metinde Tab'la en baştan başlamak demek
+// olurdu. Bağlantı yoksa ya da odak alamıyorsa kapsayıcı (Geri düğmesi
+// gizlendi, odak <body>'ye düşmesin).
+function backFromSurahInfoDetail() {
+  const link = surahInfoLinkOpener; // closeSurahInfoDetail temizlemeden ÖNCE al
+  closeSurahInfoDetail();
+  if (link) link.focus(); // DOM'dan kalkmış ya da odak alamayan bağlantıda sessizce işe yaramaz
+  if (!link || document.activeElement !== link) modalFocus.enter(els.surahInfoModal);
 }
 
 function surahInfoDetailSurahHTML(surahNum) {
@@ -2246,10 +2284,12 @@ function setupSurahInfoModal() {
     if (!link) return;
     e.preventDefault();
     const target = parseInfoLink(link.getAttribute("href"));
-    if (target) openSurahInfoLink(target);
+    if (!target) return;
+    surahInfoLinkOpener = link; // Geri'de odak ona dönecek (openSurahInfoLink'ten ÖNCE: ayrıntı hemen açılabilir)
+    openSurahInfoLink(target);
   });
 
-  els.surahInfoDetailBack.addEventListener("click", closeSurahInfoDetail);
+  els.surahInfoDetailBack.addEventListener("click", backFromSurahInfoDetail);
 
   els.surahInfoDetail.addEventListener("click", (e) => {
     const btn = e.target.closest(".info-detail-goto-btn");
@@ -2261,6 +2301,7 @@ function setupSurahInfoModal() {
     closeModal(els.surahInfoModal);
   });
 }
+// </surah-info-detail>
 
 // ---------------------------------------------------------------------
 // "Konu Fihristi" modalı: ayet detay panelindeki bir konu etiketine (bkz.

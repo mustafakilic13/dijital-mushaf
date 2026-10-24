@@ -166,7 +166,8 @@ Konu Fihristi'nin ayet listesiyle aynı, bkz. aşağısı) + Elmalılı meali +
 kendi "Mushaf'ta Ayete Git" butonuna (`goToAyah`) dönüşür — ikisi de
 `#surah-info-detail` alt-panelinde, `.ezber-surah-picker`'la aynı
 geri-gidilebilir düzende (bkz. `js/app.js`'teki
-`openSurahInfoLink`/`closeSurahInfoDetail`). `test/surah_info_links_test.mjs`,
+`openSurahInfoLink`/`closeSurahInfoDetail`; odak yönetimi için bkz. "Erişilebilirlik").
+`test/surah_info_links_test.mjs`,
 `parseInfoLink`'i güncel `surah-info-tr.json`'daki linklerin tamamına
 karşı doğruluyor; ayrıca `splitInfoSections`'ın `<h2>` başlığı metnini
 (akordeon sekmelerinin etiketi) olası gömülü etiketlerden ve görünmez
@@ -848,6 +849,78 @@ testlerin gerçekten kırıldığı doğrulandı. Sınır: jsdom'da düzen ve ge
 Tab gezintisi yok; yukarıdaki Chromium ölçümü bu açığı kapatıyor, ama gerçek
 ekran okuyucu testinin yerini tutmuyor.
 
+**Sure Bilgisi'nde bağlantı -> ayrıntı -> Geri: odak.** Sure Bilgisi
+metnindeki bir bağlantıya (ör. "Bakara", "1-32") Enter basınca içerik modalın
+içinde bir alt görünüme (`#surah-info-detail`) geçiyor, Geri ana içeriğe
+dönüyor. İki geçişte de odaktaki öğe az önce gizlenen panelin içinde
+kalıyordu. Gerçek Chromium'da (430 px; yalnızca Tab ve Enter; 50. sayfada
+gezginin "Âl-i İmrân Suresi hakkında bilgi" düğmesi -> Enter -> metindeki
+"Bakara" bağlantısı) yamadan ÖNCE ölçülen durum: bağlantıya Enter ->
+`document.activeElement` `<body>`, erişilebilirlik ağacında "yok sayıldı"
+(ekran okuyucu yeni görünümü duymuyor); sonraki Tab görünümün ortasından
+sürüyor ("Geri dön"e gidiyor, Kapat'a değil); Geri'ye Enter -> yine `<body>`
+(okuyucu, 18 bağlantılı bir metinde kaldığı yeri kaybediyor). Konu
+Fihristi'nin çip/bağlantı/Geri geçişleri bunu daha önce aynı yöntemle
+çözmüştü (`pushTopicsModalTopic`); Sure Bilgisi'nde yoktu. Şimdi (`js/app.js`,
+`<surah-info-detail>` bloğu):
+
+- **Ayrıntıya girerken odak modalın kapsayıcısına** alınıyor (modal
+  açılırkenki gibi). Ölçüldü (430 ve 1200 px'te aynı): odak `dialog`, ad
+  "3. Âl-i İmrân"; sonraki Tab "Kapat". Görünüm zaten açıkken içerik yenilenirse ("Yükleniyor…" ->
+  ayetlerin meali) odağa dokunulmuyor: kullanıcı o arada Geri'ye ya da bir
+  düğmeye gelmiş olabilir.
+- **Geri'de odak ayrıntıyı açan bağlantıya** dönüyor (ölçüldü: `link`, ad
+  "Bakara"; `:focus-visible` eşleşiyor, halka Tab'la gelindiğindekiyle aynı
+  `outline: auto`, kaydırma konumu yerinde). Ana içerik yeniden kurulmadığı
+  için bağlantı yerinde; kapsayıcıya dönmek, çok bağlantılı bir metinde
+  Tab'la en baştan başlamak demek olurdu. Bağlantı yoksa ya da odak
+  alamıyorsa kapsayıcıya.
+- Genel sıfırlama (`closeSurahInfoDetail`; modal kapanırken de çağrılıyor)
+  odağa dokunmuyor, yalnızca açan kaydını temizliyor.
+
+"Mushaf'a Sureye Git" / "Mushaf'ta Ayete Git" bu yamada DEĞİŞTİRİLMEDİ, ama
+aynı sahnede ölçüldü, çünkü eski sınır ("açan düğme yeniden kurulur, odak
+`<body>`'ye düşebilir") gezgin yolunda yanlış çıktı: gezgin düğmesiyle
+açılınca sayfa değişirse odak gidilen ayetin gezgin düğmesine iniyor
+("Bakara Suresi, 1. ayet", sayfa 2; 3:130 için "Âl-i İmrân Suresi, 130.
+ayet", sayfa 66); aynı sayfada kalınırsa açan sure başlığı düğmesine
+dönüyor (seçili ayet, ayet listesinin tek Tab durağı); Esc ile kapatınca da
+açan düğmeye. Sayfa yeniden kurulana kadar (bu ölçümlerde yaklaşık 40-60
+ms) odak kısa süre eski açan düğmede duruyor, sonra gidilen ayete geçiyor;
+ekran okuyucunun ikisini art arda okuyup okumadığı bilinmiyor. Odak yalnızca
+başlığa fareyle/dokunarak açılmış Sure Bilgisi'nde `<body>`'de kalıyor:
+orada odaklanabilir bir açan yok (bkz. "Kapanışta odak açana dönüyor") ve
+bilerek öyle bırakıldı -- fare kullanıcısına görünmeyen bir gezgin düğmesine
+odak vermek, sonraki Space/ok tuşlarının anlamını (kaydırma yerine paneli
+aç / ayeti seç) sessizce değiştirirdi.
+
+Aynı ölçümde bir bulgu daha çıktı ve bu yamada DEĞİŞTİRİLMEDİ: kapalı
+akordeon bölümlerinin içeriği Tab sırasında duruyor. 3. surede 5 bölümün
+4'ü kapalı (`.info-section-panel:not(.open)`, 396x0 px); içlerinde 17
+odaklanabilir öğe var, `checkVisibility()` true (erişilebilirlik ağacı ayrıca
+ölçülmedi) ve gerçek Tab, "Kapat" ve bölüm başlıklarından sonra "1-32",
+"33-63", "64-120" gibi gözükmeyen bağlantılarda duruyor: `overflow: hidden` +
+`opacity: 0` yetmiyor, kapalıyken `visibility: hidden` ya da `inert` gerekir.
+Düzeltme küçük ama kapanış animasyonuna dokunduğu için ayrı bir commit olmalı.
+
+`test/sure_bilgisi_odak_test.mjs` (yeni, jsdom, 46 kontrol): app.js'ten GERÇEK
+`openModal` bloğu ile GERÇEK `<surah-info-detail>` bloğu çıkarılıp gerçek
+`index.html`, `modal-odak.js` ve `surahinfo.js`'in `parseInfoLink`'iyle
+çalıştırılıyor: bağlantı -> ayrıntı (odak kapsayıcıda; Tab sırası Kapat ->
+Geri -> git düğmesi), içerik yenilenirken odağın çalınmaması, Geri'de odak
+bağlantıda (ikinci bağlantı dahil), açan kopmuşsa/odak alamıyorsa/hiç
+yoksa kapsayıcıda, çözümlenemeyen bağlantının açan sayılmaması, modal
+kapanışında açanın temizlenmesi ve açana dönüş, "Mushaf'a/Ayete Git"in
+eskisi gibi çalışması. Yamasız koda karşı (yalnızca bloğun işaretleri
+eklenmiş) 15 kontrol kırılıyor; 22 mutasyon (odak çağrılarının silinmesi ya da
+ters çevrilmesi, Geri'nin eski bağlantıya geri alınması, açanın
+kaydedilmemesi/erken kaydedilmesi/temizlenmemesi, gövdenin gizlenmemesi,
+HTML'deki Geri düğmesinin ve `hidden`'ın bozulması...) hepsi yakalandı.
+Sınır: jsdom'da odaktaki öğe gizlenince odak `<body>`'ye düşmüyor
+(Chromium'da düşüyor), yani düzeltilmemiş kod burada "odak beklenen yerde
+değil" diye yakalanıyor; gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack)
+çalıştırılmadı.
+
 **Ayete ve sure başlığına klavye / ekran okuyucu erişimi (ayet gezgini).**
 Sayfa tek bir `<svg>` (harfler `<path>`, üstünde görünmez bir metin katmanı)
 olduğu için **ayet detay paneli** (kelime meali, meal, tefsir, konular) ile
@@ -968,9 +1041,11 @@ orada Yukarı/Aşağı ile seçim çalışmaz; sanal imleçle ayet düğmesine g
 Enter'a basmanın paneli açması beklenir ama sınanmadı. Sayfa kenarında dönme
 ya da sayfa geçişi yok (son ayette Aşağı hiçbir şey yapmaz; sayfa çevirme
 Sol/Sağ okla). Ezber çalışırken kelime açma/kapama hâlâ yalnızca fare/
-dokunmayla. Sure Bilgisi'nden "Mushaf'a Git" ile sayfa
-değişirse açan sure başlığı düğmesi yeniden kurulmuş olur; modal kapanınca
-odak `<body>`'ye düşebilir.
+dokunmayla. Sure Bilgisi'nden "Mushaf'a Git" ile sayfa değişince odağın
+nereye indiği ölçüldü (bkz. "Sure Bilgisi'nde bağlantı -> ayrıntı -> Geri"
+paragrafı): gezgin düğmesiyle açılmışsa gidilen ayetin gezgin düğmesine
+iniyor; yalnızca SVG'deki başlığa fareyle/dokunarak açılmışsa odak
+`<body>`'de kalıyor.
 
 **Renk kontrastı ve odak göstergesi.** Başsız Chromium'da (430 ve 1200 px)
 axe-core'un `color-contrast` kuralı ve arka planı katman katman birleştiren
@@ -1550,6 +1625,7 @@ test/juz_subdivisions_test.mjs    Cüz/hizb/rub/manzil veri tutarlılığı ve g
 test/recitation_playback_test.mjs  Sesli okuma motoru: sıradaki ayet, kelime zamanı, ses adresi (Node)
 test/surah_header_cut_test.mjs      Kelime meali panelinin sayfa kesimi sure başlığının içine düşmüyor (Node)
 test/surah_info_links_test.mjs       Sure Bilgisi bağlantıları: parseInfoLink + 114 surenin taraması (Node)
+test/sure_bilgisi_odak_test.mjs      Sure Bilgisi bağlantı -> ayrıntı -> Geri odağı: giriş/çıkış, Geri'de açan bağlantıya dönüş, modal kapanışı (jsdom)
 ```
 
 ## Çalıştırma
@@ -1616,7 +1692,7 @@ SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
 `npm run test:fast` (tam tarama hariç, ≈ 52 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 17 dosyanın hepsi ≈
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 18 dosyanın hepsi ≈
 2 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-68 sn, arama
 arayüzü 19-21 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn); GitHub
 Actions'taki ilk koşuda işin tamamı 1 dk 25 sn sürdü.
@@ -1906,13 +1982,22 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
 16. Ezber, "Sure Seç" açıkken: Dinle/Oku/Yaz sekmeleri artık okunmuyor ve Tab
     durağı değil mi (yalnızca seçici içeriği)? Seçiciden dönünce sekmeler geri
     geliyor mu?
+17. Sure Bilgisi (gezginin "<Sure> Suresi hakkında bilgi" düğmesi -> metindeki
+    "Bakara" ya da "1-32" gibi bir bağlantı): bağlantıya Enter basınca ekran
+    okuyucu "<Sure>, iletişim kutusu" diye başlığı okuyor mu (başlık
+    değişmediği için yeni görünüme girildiği anlaşılıyor mu, yoksa ayrıntı
+    paneline bir ad/başlık mı gerekir)? Tab "Kapat"a, sonra "Geri dön"e
+    gidiyor mu; Geri'ye basınca odak aynı bağlantıya dönüp okunuyor mu?
+    "Mushaf'a Sureye Git" / "Mushaf'ta Ayete Git"ten sonra odak gidilen
+    ayetin gezgin düğmesinde mi; sayfa yeniden kurulana kadar (yaklaşık
+    40-60 ms) eski açan düğmenin kısa süre okunması rahatsız ediyor mu?
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal
 odak yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı,
 renk kontrastı / Ezber odak halkası, konu bağlantılarının klavye erişimi,
 `hidden` kuralı / Geri düğmesi, hedefsiz konu etiketlerinin düz metin
-görünümü ve Sa'dî tefsirinin dil işaretleri ayrı ayrı tek commit'tir, geri
-alınabilir.
+görünümü, Sa'dî tefsirinin dil işaretleri ve Sure Bilgisi ayrıntı
+görünümünün odağı ayrı ayrı tek commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 
