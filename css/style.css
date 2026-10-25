@@ -760,6 +760,11 @@ body {
   transition: grid-template-rows 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .wm-tafsir-panel.wm-open { grid-template-rows: 1fr; }
+/* Kapalıyken metin ağaçta kalıyor (yükseklik 0, opacity 0), ama BİLEREK visibility:hidden
+   verilmedi (.info-section-panel-inner'daki gibi): bu panel .word-meal-body'nin aria-live
+   bölgesinin içinde ve içerik kapalıyken yazılıp bir kare sonra açılıyor; gizli alt ağaca
+   yazılan metnin duyurulup duyurulmayacağı gerçek ekran okuyucuyla doğrulanmadan
+   değiştirilmemeli (bkz. README, "Sure Bilgisi'nde kapalı akordeon bölümleri"). */
 .wm-tafsir-panel-inner {
   overflow: hidden;
   min-height: 0;
@@ -947,13 +952,24 @@ body {
   transition: grid-template-rows 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .info-section-panel.open { grid-template-rows: 1fr; }
+/* Kapalı bölümün bağlantıları yükseklik 0 ve opacity 0 ile yalnızca gizlenirse hâlâ Tab
+   sırasında durur (klavye görünmeyen bağlantılara gider, Tab tuzağı da modalın "son
+   durağını" yanlış bulur) ve erişilebilirlik ağacında kalır (ekran okuyucu görünmeyen
+   metni okur). visibility:hidden ikisini de kaldırır; kapanırken küçülme bitene kadar
+   (0.3 s) gecikmeli, açılırken anında uygulanır, animasyon eskisi gibi görünür.
+   Aynı kalıbı kullanan .wm-tafsir-panel ve .word-meal-panel'e dokunulmadı (bkz. README). */
 .info-section-panel-inner {
   overflow: hidden;
   min-height: 0;
   opacity: 0;
-  transition: opacity 0.25s ease 0.05s;
+  visibility: hidden;
+  transition: opacity 0.25s ease 0.05s, visibility 0s linear 0.3s;
 }
-.info-section-panel.open .info-section-panel-inner { opacity: 1; }
+.info-section-panel.open .info-section-panel-inner {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.25s ease 0.05s, visibility 0s;
+}
 
 .info-section-content {
   padding: 0 2px 14px;

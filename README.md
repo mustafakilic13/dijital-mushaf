@@ -894,14 +894,9 @@ bilerek öyle bırakıldı -- fare kullanıcısına görünmeyen bir gezgin dü�
 odak vermek, sonraki Space/ok tuşlarının anlamını (kaydırma yerine paneli
 aç / ayeti seç) sessizce değiştirirdi.
 
-Aynı ölçümde bir bulgu daha çıktı ve bu yamada DEĞİŞTİRİLMEDİ: kapalı
-akordeon bölümlerinin içeriği Tab sırasında duruyor. 3. surede 5 bölümün
-4'ü kapalı (`.info-section-panel:not(.open)`, 396x0 px); içlerinde 17
-odaklanabilir öğe var, `checkVisibility()` true (erişilebilirlik ağacı ayrıca
-ölçülmedi) ve gerçek Tab, "Kapat" ve bölüm başlıklarından sonra "1-32",
-"33-63", "64-120" gibi gözükmeyen bağlantılarda duruyor: `overflow: hidden` +
-`opacity: 0` yetmiyor, kapalıyken `visibility: hidden` ya da `inert` gerekir.
-Düzeltme küçük ama kapanış animasyonuna dokunduğu için ayrı bir commit olmalı.
+Aynı ölçümde çıkan bir bulgu (kapalı akordeon bölümlerinin içeriği Tab
+sırasında duruyor) bu yamada DEĞİŞTİRİLMEDİ; ayrı bir commit olarak
+düzeltildi, bkz. aşağıdaki "Sure Bilgisi'nde kapalı akordeon bölümleri".
 
 `test/sure_bilgisi_odak_test.mjs` (yeni, jsdom, 46 kontrol): app.js'ten GERÇEK
 `openModal` bloğu ile GERÇEK `<surah-info-detail>` bloğu çıkarılıp gerçek
@@ -920,6 +915,90 @@ Sınır: jsdom'da odaktaki öğe gizlenince odak `<body>`'ye düşmüyor
 (Chromium'da düşüyor), yani düzeltilmemiş kod burada "odak beklenen yerde
 değil" diye yakalanıyor; gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack)
 çalıştırılmadı.
+
+**Sure Bilgisi'nde kapalı akordeon bölümleri.** Akordeonun kapalı bir bölümü
+yalnızca küçülüyordu (`grid-template-rows: 0fr` + `overflow: hidden`) ve
+saydamlaşıyordu (`opacity: 0`): düğme `aria-expanded="false"` diyor, içerik
+hâlâ oradaydı. Gerçek Chromium'da (430 px; 50. sayfada gezginin "Âl-i İmrân
+Suresi hakkında bilgi" düğmesi -> Enter; 5 bölümün 4'ü kapalı) düzeltmeden
+ÖNCE ölçülen durum:
+
+- tam bir Tab turu 25 durak, 17'si kapalı bölümlerdeki bağlantılar ("1-32",
+  "33-63", ...; her biri 17 px yüksekliğinde ama 0 yüksek bir kutunun
+  içinde): odak ekranda görünmeyen bir öğeye gidiyor;
+- `modal-odak.js`'in `tabbablesIn`'i 24 öğe sayıyor, 17'si kapalı bölümlerde
+  ve SON öğe kapalı bölümdeki "190 - 200" bağlantısı: modal açılışında
+  Shift+Tab (APG sarması: ilk durakta Shift+Tab -> son durak) odağı bu
+  görünmez bağlantıya atıyor;
+- erişilebilirlik ağacında kapalı bölümdeki bağlantı `link`, "yok
+  sayılmadı" (ekran okuyucu görünmeyen metni okur);
+  `checkVisibility({ visibilityProperty: true })` true.
+
+Düzeltme (`css/style.css`, `.info-section-panel-inner`): kapalıyken
+`visibility: hidden`, açıkken `visible`. Geçişler: kapanırken `visibility 0s
+linear 0.3s` (küçülme bitince; `grid-template-rows` geçişiyle aynı süre),
+açılırken `visibility 0s` (hemen: içerik animasyonun ilk karesinden itibaren
+görünür). Aynı sahnede düzeltmeden SONRA ölçülen (430 px; 1200 px'te de aynı
+sayılar): Tab turu 8 durak, hiçbiri kapalı bölümde; `tabbablesIn` 7 öğe,
+sonuncusu "Konu: Hidayet" düğmesi ve açılışta Shift+Tab ona gidiyor; kapalı
+bölümdeki bağlantı ağaçta yok sayılıyor (`ignored`), açık bölümdekiler `link`.
+Animasyon: açarken `visibility` sınıfın eklendiği karede `visible` (5
+denemede hiç `hidden` kare yok), kapanırken yükseklik 0'a indiği karede ya da
+hemen sonrasında `hidden` (küçülürken "yükseklik > 0 ama hidden" kare yok); 80
+rastgele hızlı aç/kapa serisinden sonra her bölümde sınıf, `aria-expanded`,
+`visibility` ve `checkVisibility` tutarlı. Sınıf değişiminden itibaren
+yükseklik ve opacity eğrisi (3 açma + 3 kapama, 10 zaman kayması) yamasız ve
+yamalı ağaçta ölçüldü: ikisi arasındaki en büyük fark (yükseklikte 23-29 px,
+opacity'de 0,14) aynı ağacın iki çalıştırması arasındaki farktan (39 px, 0,10)
+küçük, yani ölçüm gürültüsü içinde. Yerleşik durumların ekran görüntüleri (10
+durum: ilk bölüm açık, 2. açık, 2. ve 5. açık, hepsi kapalı, tefsir
+açık/kapalı...; 430 ve 1200 px; her ağaçta ikişer tur): 430 px'te iki turda da
+yamasız ve yamalı ağaç bayt bayt aynı; 1200 px'te en çok 1-2 pikselde 1
+düzeylik fark (yamasız ağacın iki turu arasında da aynı türden fark var). 430
+px'te turlar arasında başlık metninin olduğu 28x16 px'lik bir bölgede her iki
+ağaçta da görülen bir oynama var; yamayla ilgisiz.
+
+**Bilerek dokunulmadı: aynı 0fr/1fr kalıbını kullanan iki panel daha.**
+
+- *Tefsir* (`.wm-tafsir-panel`): kapalıyken de metin (Sa'dî, ~3200 karakter)
+  erişilebilirlik ağacında duruyor (ölçüldü: `ignored` false); içinde
+  odaklanabilir öğe yok, yani Tab etkilenmiyor. Ama panel,
+  `.word-meal-body`'nin `aria-live="polite"` bölgesinin içinde ve
+  `showTafsirContent` içeriği panel kapalıyken yazıp bir kare sonra açıyor;
+  sekme düğmeleri `aria-expanded` taşımadığı için içeriğin geldiğini bildiren
+  tek şey bu bölge (bkz. "`#page-container` canlı bölge DEĞİL"). `visibility:
+  hidden`, gizli bir alt ağaca yazılan metnin duyurulup duyurulmayacağını
+  değiştirebilir; bu gerçek ekran okuyucu olmadan doğrulanamayacağı için
+  bırakıldı (CSS'te nedeni yazılı). Kapalı tefsir metninin okunması, gerçek
+  ekran okuyucuyla duyuru sınanabildiğinde ayrıca ele alınabilir.
+- *Ayet paneli* (`.word-meal-panel`): kapalı hâli kalıcı değil (açılırken bir
+  kare, kapanırken animasyon boyunca; sonra panel DOM'dan kalkıyor) ve odak
+  yönetimiyle iç içe (kapanırken odak panelin içindeyse önce gezgin düğmesine
+  alınıyor).
+
+`test/kapali_panel_test.mjs` (yeni, jsdom, 28 kontrol): (1) `css/style.css`
+jsdom CSSOM'uyla ayrıştırılıyor: kapalı/açık `visibility` değerleri
+(`!important` yok), kapanış gecikmesi grid süresine EŞİT, açılışınki yok,
+opacity geçişi iki durumda aynı, 0fr/1fr kalıbını kullanan panel kümesi
+bilinen üçü (yenisi eklenirse test kırılıp bu karara dönüp bakmayı istiyor);
+(2) app.js'ten GERÇEK `surahInfoBodyHTML` x 114 surenin gerçek verisi (396
+bölüm; kapalı 282 bölümde 365 bağlantı) x gerçek `style.css` (jsdom'a
+enjekte): her kapalı bölümde panel içi, içerik ve her bağlantı `visibility:
+hidden`, her açık bölümde `visible`, başlık düğmeleri hep `visible`, bölümü
+açıp kapatınca durum izliyor, `aria-expanded` ile `.open` tutarlı; (3) GERÇEK
+`createModalFocus`/`tabbablesIn`: hiçbir durak kapalı bölümde değil, son durak
+son bölümün başlık düğmesi, açılışta Shift+Tab ona gidiyor, ondan Tab ilk
+durağa sarıyor. 21 mutasyon (`visibility` satırlarının silinmesi, gecikmenin
+silinmesi ya da yanlış olması, açık kuralın geçişinin silinmesi, `!important`,
+opacity değişikliği, seçici yazım hatası, yeni 0fr paneli, bölümlerin hepsinin
+açık ya da kapalı üretilmesi, `aria-expanded`'in bozulması, `modal-odak.js`'te
+görünürlüğe bakılmaması...) ve yamasız CSS hepsi yakalandı (yamasız CSS'e
+karşı 10 kontrol kırılıyor). Sınır: jsdom'da düzen, geçiş ve
+`checkVisibility()` yok (geçişler yalnızca CSS metninden doğrulanıyor; Tab
+tuzağındaki `checkVisibility` Chromium'un ilgili kısmını taklit eden küçük bir
+yedek); gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı;
+gecikmeli `visibility` geçişi yalnızca Chromium'da ölçüldü (Firefox/Safari'de
+denenmedi).
 
 **Ayete ve sure başlığına klavye / ekran okuyucu erişimi (ayet gezgini).**
 Sayfa tek bir `<svg>` (harfler `<path>`, üstünde görünmez bir metin katmanı)
@@ -1626,6 +1705,7 @@ test/recitation_playback_test.mjs  Sesli okuma motoru: sıradaki ayet, kelime za
 test/surah_header_cut_test.mjs      Kelime meali panelinin sayfa kesimi sure başlığının içine düşmüyor (Node)
 test/surah_info_links_test.mjs       Sure Bilgisi bağlantıları: parseInfoLink + 114 surenin taraması (Node)
 test/sure_bilgisi_odak_test.mjs      Sure Bilgisi bağlantı -> ayrıntı -> Geri odağı: giriş/çıkış, Geri'de açan bağlantıya dönüş, modal kapanışı (jsdom)
+test/kapali_panel_test.mjs           Sure Bilgisi'nde kapalı akordeon bölümleri: CSS yapısı, 114 sure x gerçek CSS (visibility), Tab tuzağı (jsdom)
 ```
 
 ## Çalıştırma
@@ -1691,11 +1771,11 @@ kalmadı -- yazım hatası yüzünden "hiçbir test çalışmadı ama sonuç ye�
 SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
-`npm run test:fast` (tam tarama hariç, ≈ 52 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 18 dosyanın hepsi ≈
+`npm run test:fast` (tam tarama hariç, ≈ 66 sn) ve `npm run test:corpus`
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 19 dosyanın hepsi ≈
 2 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-68 sn, arama
-arayüzü 19-21 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn); GitHub
-Actions'taki ilk koşuda işin tamamı 1 dk 25 sn sürdü.
+arayüzü 19-21 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
+testi 8-10 sn); GitHub Actions'taki ilk koşuda işin tamamı 1 dk 25 sn sürdü.
 
 **Tam tarama testi artık gerçekten doğruluyor.** `test/full_corpus_test.mjs`
 604 sayfanın tamamını Node'da (jsdom + gerçek HarfBuzz + gerçek font) render
@@ -1991,13 +2071,20 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     "Mushaf'a Sureye Git" / "Mushaf'ta Ayete Git"ten sonra odak gidilen
     ayetin gezgin düğmesinde mi; sayfa yeniden kurulana kadar (yaklaşık
     40-60 ms) eski açan düğmenin kısa süre okunması rahatsız ediyor mu?
+18. Sure Bilgisi, kapalı bölümler (ör. Âl-i İmrân'da yalnızca "İsim" açık):
+    Tab yalnızca "Kapat"a, bölüm başlıklarına ve açık bölümün bağlantılarına
+    mı gidiyor (kapalı bölümlerin bağlantıları atlanıyor mu)? Ekran okuyucu
+    kapalı bölümün metnini (göz atma kipinde de) okumuyor mu; bir başlıkta
+    Enter/Space ile açınca içerik hemen okunur oluyor mu? Modal açılışında
+    Shift+Tab son bölümün başlığına mı gidiyor?
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal
 odak yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı,
 renk kontrastı / Ezber odak halkası, konu bağlantılarının klavye erişimi,
 `hidden` kuralı / Geri düğmesi, hedefsiz konu etiketlerinin düz metin
-görünümü, Sa'dî tefsirinin dil işaretleri ve Sure Bilgisi ayrıntı
-görünümünün odağı ayrı ayrı tek commit'tir, geri alınabilir.
+görünümü, Sa'dî tefsirinin dil işaretleri, Sure Bilgisi ayrıntı
+görünümünün odağı ve Sure Bilgisi'nde kapalı bölümlerin gizlenmesi ayrı ayrı
+tek commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 
