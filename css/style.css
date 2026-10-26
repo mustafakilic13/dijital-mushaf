@@ -1582,6 +1582,44 @@ select:focus-visible, input:focus-visible, button:focus-visible {
 }
 
 /* ---------------------------------------------------------------------
+   Ezber -> Oku: klavye / ekran okuyucu için "Sıradaki kelimeyi aç" düğmesi (#ezber-reveal, alt çubukta
+   Ezber/Bitir'in hemen yanında; yalnızca Oku çalışırken görünür -- aksi hâlde `hidden`). Oku'da kelime
+   açmak yalnızca sayfadaki ayete dokunarak yapılıyordu; sayfa tek bir <svg> olduğundan klavyeyle
+   ulaşılabilecek hiçbir şey yoktu.
+   Düğme görsel olarak GİZLİ (.sr-only: fareyle/dokunmayla kullananlar için ekran hiç değişmiyor), ama
+   odak klavyeyle ona gelince (:focus-visible) alt çubuğun üzerine tam genişlikte biniyor -- odaklanan bir
+   denetim görünmez kalmasın (WCAG 2.4.7). Sayfanın üstüne DEĞİL çubuğun üstüne biniyor: sayfanın son
+   satırlarını örtüp az önce açılan kelimeyi gizlemesin. Odak başka yere geçince (Tab) çubuk geri geliyor.
+   `display` bilerek HİÇ verilmiyor: `hidden` (oturum yokken, Yaz'da) çalışmaya devam etsin.
+   .sr-only'nin kırptığı her özellik burada tek tek geri alınıyor (.sr-only'den daha özgül seçici, sıra önemsiz).
+   .bottombar zaten backdrop-filter yüzünden mutlak konumlu çocukların çerçevesi; position: relative bunu
+   tarayıcıdan bağımsız, açık hâle getiriyor (görünüme etkisi yok).
+   ------------------------------------------------------------------- */
+.bottombar { position: relative; }
+.ezber-reveal-btn:focus-visible {
+  top: 10px;
+  right: 12px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  left: 12px;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0 14px;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  z-index: 1;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--emerald);
+  border: 1px solid var(--emerald);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------------
    Ezber -> Yaz: virtual Arabic keyboard, fixed just above the bottombar
    (see app.js's positionYazKeyboard -- "just above" is measured from the
    bottombar's own real height, not a guessed offset, since that height

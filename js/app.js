@@ -198,6 +198,7 @@ const els = {
   ezberSurahPickerBack: document.getElementById("ezber-surah-picker-back"),
 
   ezberBtn: document.getElementById("ezber-btn"),
+  ezberReveal: document.getElementById("ezber-reveal"),
   bottombar: document.querySelector(".bottombar"),
   yazKeyboard: document.getElementById("yaz-keyboard"),
   yazHintText: document.getElementById("yaz-hint-text"),
@@ -3206,6 +3207,9 @@ async function ezberStudyGoToAyah(ayahNum) {
   es.units = ezberBuildUnits(es.mode, es.surah, ayahNum);
   es.revealedCount = 0;
   ezberRenderCoverState();
+  // Oku: how many words to go. showPage's own "Sayfa N, ... M. ayet" anonsu hemen önce yazıldı; ikisi aynı
+  // ~50 ms penceresinde TEK metinde birleşiyor (bkz. announce).
+  if (es.mode === "oku") announce(`Bu ayette ${es.units.length} kelime var`, "ezber-ayet");
 }
 
 let ezberStudyAudioGuard = 0;
@@ -3223,7 +3227,13 @@ function ezberStudyPlayAyahThenAdvance() {
   if (!es) return;
   const audio = state.playback.audio;
   const guard = ++ezberStudyAudioGuard;
+  // "error" olayı VE play()'in reddi aynı başarısız klip için (çevrimdışı, ses sunucusuna ulaşılamıyor) İKİSİ
+  // birden geliyor: tek seferde ilerlemezse her başarısız klip bir ayet atlatıyordu (1. ayet bitti -> doğrudan
+  // 3. ayet) ve sondan bir önceki ayette oturum erken bitiyordu.
+  let settled = false;
   const onSettled = () => {
+    if (settled) return;
+    settled = true;
     audio.removeEventListener("ended", onSettled);
     audio.removeEventListener("error", onSettled);
     if (ezberStudyAudioGuard !== guard || !state.ezberStudy) return;
@@ -3240,6 +3250,40 @@ function ezberStudyPlayAyahThenAdvance() {
   audio.play().catch(onSettled);
 }
 
+// Ekran okuyucu satırı: Oku'da az önce açılan kelime. `index` 1'den başlar, `total` ayetin kelime
+// sayısı, `gloss` kelimenin Türkçe karşılığı ("" = veri yok). Bilerek YALNIZCA Türkçe: #nav-announcer
+// tek dilli bir canlı bölge; Arapça kelimenin kendisi sayfanın metin katmanında (lang="ar") duruyor.
+function ezberRevealAnnouncement(index, total, gloss) {
+  let text = `${index}. kelime`;
+  if (gloss) text += `: ${gloss}`;
+  if (index >= total) text += ". Ayet tamamlandı";
+  return text;
+}
+
+// Oku: the active ayah's NEXT word is revealed -- by tapping the ayah (onEzberStudyTap) or, for
+// keyboard / screen-reader users, by the #ezber-reveal button (setupEzberReveal). This is the ONE
+// place that does it, so the two ways in can't drift apart. Returns false when there was nothing to
+// reveal: no Oku session, or the ayah is already fully revealed (its recitation is playing / the
+// next ayah is still loading -- es.units still holds the old ayah's units until then).
+function ezberRevealNextWord() {
+  const es = state.ezberStudy;
+  if (!es || es.mode !== "oku") return false;
+  if (es.revealedCount >= es.units.length) return false;
+
+  const revealedWordId = es.units[es.revealedCount].wordId;
+  es.revealedCount++;
+  ezberRenderCoverState();
+
+  const wordSeg = state.currentPageWordSegments.find((s) => s.wordId === revealedWordId);
+  const text = ezberWordMealText(es.surah, es.currentAyah, revealedWordId);
+  if (wordSeg && text) showEzberWordTooltip(state.currentPageSvg, wordSeg, text);
+  // The tooltip above is a 1.5 s picture drawn into the SVG -- nothing a screen reader is told about.
+  announce(ezberRevealAnnouncement(es.revealedCount, es.units.length, text), "ezber-kelime");
+
+  if (es.revealedCount >= es.units.length) ezberStudyPlayAyahThenAdvance();
+  return true;
+}
+
 // Oku: tapping the active ayah reveals its next word (see
 // setupNav's pageContainer click handler, which routes here instead of
 // the normal tap-to-select/open-word-meal flow while a study session is
@@ -3250,17 +3294,14 @@ function onEzberStudyTap(hit) {
   const es = state.ezberStudy;
   if (!es || es.mode !== "oku") return;
   if (hit.surah !== es.surah || hit.ayah !== es.currentAyah) return;
-  if (es.revealedCount >= es.units.length) return;
+  ezberRevealNextWord();
+}
 
-  const revealedWordId = es.units[es.revealedCount].wordId;
-  es.revealedCount++;
-  ezberRenderCoverState();
-
-  const wordSeg = state.currentPageWordSegments.find((s) => s.wordId === revealedWordId);
-  const text = ezberWordMealText(es.surah, es.currentAyah, revealedWordId);
-  if (wordSeg && text) showEzberWordTooltip(state.currentPageSvg, wordSeg, text);
-
-  if (es.revealedCount >= es.units.length) ezberStudyPlayAyahThenAdvance();
+// Oku's keyboard / screen-reader way in: the sr-only #ezber-reveal button (index.html; visible only
+// while keyboard-focused, see its CSS). Before it, revealing a word needed a tap on the page's <svg>,
+// which has nothing a keyboard can reach.
+function setupEzberReveal() {
+  els.ezberReveal.addEventListener("click", () => ezberRevealNextWord());
 }
 
 // A brief (matches eski-uygulama's own ~1.5s) Turkish-gloss tooltip over
@@ -3305,13 +3346,18 @@ function showEzberWordTooltip(svg, wordSeg, text) {
 // session, and jump to the range's first ayah.
 async function startEzberStudy(mode, surah, from, to) {
   stopPlayback(); // shares the <audio> element with normal/Dinle playback
-  if (mode === "yaz" && !isWordMealDataReady()) {
-    loadWordMealData().catch((err) => console.warn("Word-meal data could not be loaded (Yaz hint)", err));
+  // Türkçe karşılıklar iki modda da lazım: Yaz'ın 💡 ipucu, Oku'nun açılan kelime baloncuğu ve ekran okuyucu
+  // satırı. Yalnızca Yaz için yükleniyordu; Oku'da (ayet paneli/arama hiç açılmadıysa) veri hiç gelmiyor,
+  // baloncuk hiç çıkmıyordu.
+  if (!isWordMealDataReady()) {
+    loadWordMealData().catch((err) => console.warn("Word-meal data could not be loaded (Ezber gloss)", err));
   }
   state.ezberStudy = { mode, surah, from, to, currentAyah: from, units: [], revealedCount: 0, expectedPage: null };
   syncAyahNav(); // Ezber çalışırken ayet gezgini gizli (orada ayete dokunmak kelime açmak demek, panel değil)
   els.ezberBtn.textContent = "Bitir";
+  announce(mode === "yaz" ? "Yaz çalışması başladı" : "Oku çalışması başladı", "ezber-oturum");
   if (mode === "yaz") {
+    els.ezberReveal.hidden = true;
     els.yazKeyboard.hidden = false;
     positionYazKeyboard();
   } else {
@@ -3322,6 +3368,11 @@ async function startEzberStudy(mode, surah, from, to) {
     els.yazKeyboard.hidden = true;
     els.yazHintText.hidden = true;
     document.documentElement.style.setProperty("--yaz-keyboard-space", "0px");
+    // Klavye / ekran okuyucu yolu (bkz. setupEzberReveal): kelime açma düğmesi görünür (hidden kalkar) ve odak ona
+    // geçer -- modal kapanırken odak Ezber/Bitir'e geri verilmişti (closeModal, aynı senkron turda), Enter hemen
+    // ilk kelimeyi açsın diye bir Tab daha gerekmesin.
+    els.ezberReveal.hidden = false;
+    els.ezberReveal.focus();
   }
   await ezberStudyGoToAyah(from);
 }
@@ -3344,9 +3395,16 @@ function endEzberStudy() {
   els.yazKeyboard.hidden = true;
   els.yazHintText.hidden = true;
   document.documentElement.style.setProperty("--yaz-keyboard-space", "0px");
+  // Odak, kaybolmak üzere olan kelime açma düğmesindeyse (son kelimeden sonra oturum kendiliğinden bitti,
+  // ya da ok tuşuyla sayfa çevrildi) <body>'ye düşmesin: Ezber düğmesine gitsin. Odak başka yerdeyse
+  // (Oynat, Arama...) ona dokunulmuyor.
+  const revealHadFocus = document.activeElement === els.ezberReveal;
+  els.ezberReveal.hidden = true;
   state.ezberStudy = null;
   syncAyahNav(); // gezgin yeniden görünsün
   els.ezberBtn.textContent = "Ezber";
+  if (revealHadFocus) els.ezberBtn.focus();
+  announce("Ezber çalışması bitti", "ezber-oturum");
 }
 
 // Yaz: a keyboard key was pressed (see setupEzberYazKeyboard). Matches
@@ -3464,6 +3522,7 @@ async function main() {
     setupSurahInfoModal();
     setupTopicsModal();
     setupEzberModal();
+    setupEzberReveal();
     setupEzberYazKeyboard();
     setupArama({
       modal: els.aramaModal,

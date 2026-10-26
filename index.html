@@ -90,6 +90,12 @@
 
   <footer class="bottombar">
     <button id="ezber-btn" class="action-btn action-btn--side" type="button">Ezber</button>
+    <!-- Ezber > Oku çalışırken (yalnızca o zaman; bkz. startEzberStudy/endEzberStudy) kelime açmanın
+         klavye / ekran okuyucu yolu: sayfadaki ayete dokunmakla AYNI işi yapıyor (ezberRevealNextWord).
+         Görsel olarak gizli (.sr-only); klavyeyle odaklanınca alt çubuğun üstünde görünüyor (CSS:
+         .ezber-reveal-btn:focus-visible). Sırası bilerek Ezber/Bitir'den hemen sonra: Tab/Shift+Tab ona
+         komşu. -->
+    <button id="ezber-reveal" class="ezber-reveal-btn sr-only" type="button" hidden>Sıradaki kelimeyi aç</button>
     <button id="play-btn" class="action-btn action-btn--play" type="button" aria-labelledby="play-btn-action play-btn-label">
       <span id="play-btn-action" class="sr-only">Oynat</span>
       <span id="play-btn-label" class="action-btn-play-label" lang="ar">بسم الله الرحمن الرحيم</span>

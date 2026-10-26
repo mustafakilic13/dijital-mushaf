@@ -566,9 +566,15 @@ depolama kapalıyken sessizce atlanıyor).
   gelmemiş ayetler (sayfada görünenler) kâğıt renginde yuvarlatılmış
   kapaklarla gizleniyor; tamamlananlar açık kalıyor. Sıradaki ayetin üzerine
   dokununca sıradaki KELİME açılıyor ve Türkçe karşılığı (kelime meali
-  verisinden) ~1,5 sn bir baloncukta gösteriliyor. Ayetin son kelimesi açılınca ayet bir kez (Husarî,
-  vurgusuz) okunuyor ve sıradaki ayete geçiliyor; son ayetten sonra oturum
-  kendiliğinden bitiyor. Başka ayetlere ya da boşluğa dokunmak yok sayılıyor.
+  verisinden) ~1,5 sn bir baloncukta gösteriliyor. Klavye ve ekran okuyucu
+  için aynı işi alt çubuktaki **Sıradaki kelimeyi aç** düğmesi yapıyor
+  (`#ezber-reveal`; Oku başlayınca odak ona geliyor, Enter/Boşluk bir kelime
+  açıyor; açılan kelime, ayetin bitişi ve oturum sonu duyuruluyor; fareyle
+  kullananlara görünmüyor, bkz. "Erişilebilirlik"). Ayetin son kelimesi
+  açılınca ayet bir kez (Husarî, vurgusuz) okunuyor ve sıradaki ayete
+  geçiliyor (ses yüklenemezse -- çevrimdışı -- hemen); son ayetten sonra
+  oturum kendiliğinden bitiyor. Başka ayetlere ya da boşluğa dokunmak yok
+  sayılıyor.
 - **Yaz** -- sırayla harf yazma. Aynı gizleme, ama birim kelime değil harf
   (bir temel harf ve ona bağlı işaretler, `splitIntoUnits`) ve girdi
   ekrandaki Arapça sanal klavyeden: basılan tuş sıradaki harfle eşleşirse o
@@ -584,8 +590,11 @@ depolama kapalıyken sessizce atlanıyor).
 Oku ve Yaz oturumları sürerken Ezber düğmesi **Bitir**'e dönüşüyor (basınca
 kapaklar kalkıyor, klavye ve baloncuk kayboluyor, ses duruyor) ve ayet gezgini
 gizleniyor -- orada ayete dokunmak kelime açmak demek, panel açmak değil (bkz.
-"Erişilebilirlik"). Yaz'ın harf birimleri sayfa çizilirken (`js/render.js`)
-hesaplanıyor ve her biri satırda ölçülmüş bir x aralığına bağlı;
+"Erişilebilirlik"). Oturumun başı, Oku'da her ayetin kelime sayısı, açılan her
+kelime ve oturumun sonu ekran okuyucuya duyuruluyor (`#nav-announcer`);
+"Sıradaki kelimeyi aç" düğmesi yalnızca Oku sürerken var. Yaz'ın harf
+birimleri sayfa çizilirken (`js/render.js`) hesaplanıyor ve her biri satırda
+ölçülmüş bir x aralığına bağlı;
 `test/full_corpus_test.mjs`, Kur'an'ın 325.585 harf biriminin hepsini metinden
 hesaplanan sayıyla karşılaştırıyor (bilinen tek istisna: sayfa 451, kelime
 61960).
@@ -1049,7 +1058,9 @@ seçicisi (`~`) buna dayanıyor.
 - **Odak `<body>`'ye düşmüyor:** gezginde ya da panelde iken sayfa çevrilir
   veya panel kalkarsa odak aynı sure başlığına, yoksa yeni sayfanın seçili
   ayet düğmesine veriliyor. Gezgin Ezber çalışırken gizli (orada ayete
-  dokunmak panel değil kelime açmak demek) ve "Bitir"den sonra geri geliyor.
+  dokunmak panel değil kelime açmak demek) ve "Bitir"den sonra geri geliyor;
+  Oku'da kelime açmanın klavye yolu ayrı bir düğme (bkz. "Ezber > Oku'da
+  klavye ve ekran okuyucu yolu").
 - **Odak halkası gizli düğmenin değil, sayfadaki asıl yerin üstüne
   çiziliyor:** ayet düğmesindeyken seçili ayetin vurgusuna, sure başlığı
   düğmesindeyken başlığa 3 px zümrüt çerçeve (`vector-effect:
@@ -1119,12 +1130,140 @@ NVDA/JAWS "tarama modu"nda ok tuşlarını ekran okuyucu kendisi kullanır, yani
 orada Yukarı/Aşağı ile seçim çalışmaz; sanal imleçle ayet düğmesine gelip
 Enter'a basmanın paneli açması beklenir ama sınanmadı. Sayfa kenarında dönme
 ya da sayfa geçişi yok (son ayette Aşağı hiçbir şey yapmaz; sayfa çevirme
-Sol/Sağ okla). Ezber çalışırken kelime açma/kapama hâlâ yalnızca fare/
-dokunmayla. Sure Bilgisi'nden "Mushaf'a Git" ile sayfa değişince odağın
-nereye indiği ölçüldü (bkz. "Sure Bilgisi'nde bağlantı -> ayrıntı -> Geri"
-paragrafı): gezgin düğmesiyle açılmışsa gidilen ayetin gezgin düğmesine
-iniyor; yalnızca SVG'deki başlığa fareyle/dokunarak açılmışsa odak
-`<body>`'de kalıyor.
+Sol/Sağ okla). Ezber > Oku'da kelime açmanın klavye yolu artık var (bkz.
+"Ezber > Oku'da klavye ve ekran okuyucu yolu"). Sure Bilgisi'nden "Mushaf'a
+Git" ile sayfa değişince odağın nereye indiği ölçüldü (bkz. "Sure Bilgisi'nde
+bağlantı -> ayrıntı -> Geri" paragrafı): gezgin düğmesiyle açılmışsa gidilen
+ayetin gezgin düğmesine iniyor; yalnızca SVG'deki başlığa fareyle/dokunarak
+açılmışsa odak `<body>`'de kalıyor.
+
+**Ezber > Oku'da klavye ve ekran okuyucu yolu.** Oku'da bir kelimeyi açmanın
+tek yolu sayfadaki ayete dokunmaktı; sayfa tek bir `<svg>` olduğundan
+klavyeyle ya da ekran okuyucuyla ulaşılabilecek hiçbir şey yoktu (WCAG 2.1.1)
+ve açılan kelime hiçbir yerde duyurulmuyordu (4.1.3 bakımından da eksik).
+Başsız Chromium'da (430 px, Fâtiha 1:1-2, oturum yalnızca klavyeyle
+başlatıldı: Ezber, Enter, Oku sekmesi, aralık, Enter) yamadan ÖNCE ölçülen:
+
+- oturum başlayınca odak açan düğmeye ("Bitir") dönüyordu; tam bir Tab turu
+  yalnızca Cüz, Sayfa, Sure, Bitir, Oynat, Arama'ydı: sayfada hiçbir durak
+  yoktu;
+- gövdede Enter, Boşluk, Aşağı, Yukarı, PageDown ve End'e basınca açılan
+  kelime sayısı 0 kalıyordu;
+- fareyle bir kelime açınca `#nav-announcer` değişmiyor ve Türkçe karşılık
+  baloncuğu hiç çıkmıyordu: Oku başlarken kelime meali verisi
+  (`data/word-meal.json`) yalnızca Yaz için yükleniyordu; o sayfa oturumunda
+  ayet paneli ya da arama açılmamışsa Oku'da bu dosya için ağ isteği sayısı
+  0'dı;
+- ses yüklenemeyince (çevrimdışı; ses isteği düşürülerek ölçüldü) bir ayet
+  bitince oturum İKİ ayet ilerliyordu (1. ayet -> doğrudan 3. ayet): başarısız
+  klip için hem `error` olayı hem `play()`'in reddi `onSettled`'ı çağırıyor,
+  ikisi de korumadan geçiyordu. Bu hata klavye yolundan bağımsız (fareyle de,
+  yamasız ağaçta da aynı) ama klavye yolu denenirken ortaya çıktı; aynı yamada
+  düzeltildi.
+
+Düzeltme (`index.html`, `css/style.css`, `js/app.js`):
+
+- **`#ezber-reveal` "Sıradaki kelimeyi aç".** Alt çubukta Ezber/Bitir'den
+  hemen sonra duran gerçek bir `<button>`; yalnızca Oku sürerken var, aksi
+  hâlde `hidden` (oturum yokken ve Yaz'da Tab sırasında ve erişilebilirlik
+  ağacında yok). Görsel olarak gizli (`.sr-only`); fareyle ve dokunmayla
+  kullananlar için ekran değişmiyor. Klavyeyle odaklanınca (`:focus-visible`)
+  alt çubuğun üstüne tam genişlikte, zümrüt zeminli beyaz yazılı (>= 4,5:1)
+  bir çubuk olarak biniyor; odak halkası kapatılmıyor. `display` hiç verilmedi
+  ki `hidden` ezilmesin (bkz. `.info-detail-back[hidden]` dersi). Görünen
+  metin erişilebilir adla aynı (`aria-label` yok; WCAG 2.5.3).
+- **Tek uygulama.** `ezberRevealNextWord()` kelime açmanın tek yeri: sayfadaki
+  ayete dokunma (`onEzberStudyTap`) ve düğme aynı işlevi çağırıyor, ayrı ayrı
+  sapamazlar. Oku değilse ya da ayet zaten tamamen açıksa (ayet okunuyor,
+  sıradaki ayet yükleniyor) hiçbir şey yapmıyor.
+- **Odak.** Oku başlayınca odak düğmeye geçiyor (modal kapanırken odak
+  Ezber/Bitir'e eşzamanlı geri veriliyor; düğme bundan SONRA odaklanıyor),
+  böylece Enter hemen ilk kelimeyi açıyor. Oturum bitince (son kelime, Bitir
+  ya da ok tuşuyla sayfa çevirme) düğme gizleneceği için odak ondaysa Ezber
+  düğmesine veriliyor; yoksa Chromium odağı `<body>`'ye düşürürdü. Odak başka
+  yerdeyse (Oynat, Arama) dokunulmuyor.
+- **Duyurular, hepsi `#nav-announcer` üstünden** (yeni canlı bölge yok; statik
+  kabukta hâlâ tam 2 tane): oturum başında "Oku çalışması başladı" / "Yaz
+  çalışması başladı"; Oku'da her ayette "Bu ayette N kelime var"; her açılışta
+  "N. kelime: <Türkçe karşılık>" (ayetin son kelimesinde ". Ayet tamamlandı"
+  ekleniyor); bitişte "Ezber çalışması bitti". Karşılık verisi henüz
+  yüklenmediyse satır yalnızca "N. kelime". Duyurular bilerek yalnızca Türkçe
+  (canlı bölge tek dilli): açılan Arapça kelimenin kendisi duyuruda yok,
+  sayfanın metin katmanında (`lang="ar"`).
+- **Veri ve ses.** Türkçe karşılık verisi artık Oku başlarken de yükleniyor
+  (1,67 MB, gzip'le ≈ 0,5 MB; aynı dosya ayet panelinde ve aramada da
+  kullanılıyor, servis worker ilk kullanımda önbelleğe alıyor); fareyle
+  kullananlar da baloncuğu görüyor. Ses başarısızken ilerleme tek seferlik
+  (`settled` bayrağı).
+
+Aynı sahne yamadan SONRA (başsız Chromium; 430 px, ayrıca 1200 px):
+
+- oturum başlarken odak `#ezber-reveal`'da ve `:focus-visible` eşleşiyor;
+  düğme 430 px'te 406x31, 1200 px'te 1176x31, 52 px'lik alt çubuğun içinde;
+  erişilebilirlik ağacında "Sıradaki kelimeyi aç" (button); Tab sırası Bitir
+  -> düğme -> Oynat -> Arama (Shift+Tab tersi);
+- Enter, Boşluk, Enter, Boşluk: dört kelime sırayla açılıyor, baloncuklar
+  "adıyla", "Allah'ın", "Rahman", "Rahim"; her basışta odak düğmede; son
+  kelimeden sonra ayet okunup 2. ayete geçiliyor ve odak yine düğmede; 2.
+  ayetin sonunda oturum bitiyor, düğme gizleniyor, odak Ezber düğmesine
+  dönüyor;
+- duyuru zaman çizelgesi (ses isteği düşürülen koşu: ilerleme hemen oluyor, o
+  yüzden aynı ~50 ms penceresindekiler tek metinde birleşiyor): "Oku çalışması
+  başladı. Sayfa 1, Fâtiha Suresi, 1. ayet. Bu ayette 4 kelime var" -> "1.
+  kelime: adıyla" -> "2. kelime: Allah'ın" -> "3. kelime: Rahman" -> "4.
+  kelime: Rahim. Ayet tamamlandı. Sayfa 1, Fâtiha Suresi, 2. ayet. Bu ayette 4
+  kelime var" -> ... -> "4. kelime: Alemlerin. Ayet tamamlandı. Ezber
+  çalışması bitti";
+- gerçek (sessiz, 1,5 sn'lik) bir klip servis edilince: klip çalarken düğmeye
+  basmak etkisiz ve sessiz (0 yeni duyuru, kapak sayısı aynı); klip bitince 2.
+  ayet açılıyor ve duyurular ayrı ayrı geliyor ("4. kelime: Rahim. Ayet
+  tamamlandı", sonra "Sayfa 1, Fâtiha Suresi, 2. ayet. Bu ayette 4 kelime
+  var");
+- ok tuşuyla sayfa çevirince (mevcut davranış: oturum bitiyor) düğme
+  gizleniyor, odak Ezber düğmesine gidiyor;
+- fareyle başlatılan oturumda odak yine düğmeye geçiyor ama `:focus-visible`
+  eşleşmiyor ve düğme 1x1 px: ekranda hiçbir şey çıkmıyor; fareyle kelime açma
+  eskisi gibi çalışıyor (artık baloncuk ve duyuruyla);
+- Yaz'da düğme gizli ve Tab sırasında yok; duyuru "Yaz çalışması başladı.
+  Sayfa 1, Fâtiha Suresi, 1. ayet". Sayfa hatası: 0.
+
+Görünüm: fareyle ulaşılan 7 durumun ekran görüntüleri 430 ve 1200 px'te (14
+görüntü) yamasız sürümle piksel piksel aynı; karşılaştırma, kelime meali
+verisinin yüklenme durumu eşitlenerek yapıldı (yamalı ağaçta veri isteği
+düşürülerek, yamasızda önceden yüklenerek) -- tek bilinçli fark Oku'da artık
+Türkçe karşılık baloncuğunun çıkması. Klavyeyle görünen çubuk ve odak halkası
+ayrıca ekran görüntüsüyle gözle incelendi.
+
+`test/ezber_klavye_test.mjs` (jsdom, 78 kontrol, ≈ 5 sn): (1) `#ezber-reveal`
+işaretlemesi, alt çubuktaki sırası ve Tab durakları; (2) CSS: `.sr-only`'nin
+kırptığı HER özelliğin odak kuralında geri alındığı (liste `.sr-only`'den
+türetiliyor: ileride yeni bir kırpma özelliği eklenirse test kırılır),
+`display` olmadığı, halkanın kapatılmadığı, `.bottombar`'ın `position:
+relative` olduğu, yazı/zemin kontrastı; (3) `app.js`'ten kaynaktan çıkarılan
+GERÇEK işlevler (`ezberRevealNextWord`, `onEzberStudyTap`,
+`ezberStudyGoToAyah`, `ezberStudyPlayAyahThenAdvance`, `startEzberStudy`,
+`endEzberStudy`, `<announce>` bloğu) x gerçek `index.html`: dokunma ve
+düğmenin aynı sonucu vermesi, duyuru metinleri ve birleşmeleri, ayet/oturum
+bitince odak (Chromium'un gizlenen öğeden odağı düşürmesi taklit ediliyor),
+ses başarısızken tek ilerleme, veri yükleme, tıklamaların HATA fırlatmaması;
+(4) kaynak: tek uygulama, `main()`'den çağrı ve 70.539 Türkçe karşılığın
+hiçbirinde Arapça harf olmadığı (duyuru tek dilli). Her parça tek tek
+bozularak 45 mutasyonun hepsinin yakalandığı doğrulandı.
+
+Sınırlar: jsdom'da düzen, odak halkası ve `:focus-visible` yok (yukarıdaki
+ölçümler gerçek Chromium'da); **gerçek bir ekran okuyucu
+(NVDA/JAWS/VoiceOver/TalkBack), Firefox ve Safari denenmedi.** Açılan Arapça
+kelimenin kendisi duyuruda yok. Kapakların altındaki ayet metni
+erişilebilirlik ağacında duruyor (1. sayfada, erişilebilirlik ağacındaki metin
+düğümlerinde 306 Arapça karakter; oturumdan önce de sırasında da aynı, yamalı
+ağaçta da ölçüldü): ekran okuyucu kullanıcısı gizli kelimeleri sayfa metninden
+zaten duyabilir, yani kapaklar yalnızca GÖRSEL; bunu değiştirmek kelime
+düzeyinde bir metin katmanı ister. Ayet okunmaya başlayınca ekran okuyucu
+konuşması klibin üstüne binebilir. Klip çalarken düğmeye basmak sessizce
+etkisiz. Yaz'a bu yamada dokunulmadı: sanal klavyenin 30 tuşu Tab durağı ve
+eşleşme çalışıyor (klavyeyle yazılabiliyor), ama harf eşleşmesi duyurulmuyor,
+💡 ipucu canlı bölge değil ve fiziksel Arapça klavyeyle yazmak hiçbir şey
+yapmıyor (yamadan önce ölçüldü).
 
 **Renk kontrastı ve odak göstergesi.** Başsız Chromium'da (430 ve 1200 px)
 axe-core'un `color-contrast` kuralı ve arka planı katman katman birleştiren
@@ -1706,6 +1845,7 @@ test/surah_header_cut_test.mjs      Kelime meali panelinin sayfa kesimi sure ba�
 test/surah_info_links_test.mjs       Sure Bilgisi bağlantıları: parseInfoLink + 114 surenin taraması (Node)
 test/sure_bilgisi_odak_test.mjs      Sure Bilgisi bağlantı -> ayrıntı -> Geri odağı: giriş/çıkış, Geri'de açan bağlantıya dönüş, modal kapanışı (jsdom)
 test/kapali_panel_test.mjs           Sure Bilgisi'nde kapalı akordeon bölümleri: CSS yapısı, 114 sure x gerçek CSS (visibility), Tab tuzağı (jsdom)
+test/ezber_klavye_test.mjs           Ezber > Oku klavye / ekran okuyucu yolu: #ezber-reveal, duyurular, odak, ses başarısızken tek ilerleme, CSS (jsdom)
 ```
 
 ## Çalıştırma
@@ -1772,10 +1912,11 @@ SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
 `npm run test:fast` (tam tarama hariç, ≈ 66 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 19 dosyanın hepsi ≈
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 20 dosyanın hepsi ≈
 2 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-68 sn, arama
 arayüzü 19-21 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
-testi 8-10 sn); GitHub Actions'taki ilk koşuda işin tamamı 1 dk 25 sn sürdü.
+testi 8-10 sn, Ezber klavye testi 3-5 sn); GitHub Actions'taki ilk koşuda
+işin tamamı 1 dk 25 sn sürdü.
 
 **Tam tarama testi artık gerçekten doğruluyor.** `test/full_corpus_test.mjs`
 604 sayfanın tamamını Node'da (jsdom + gerçek HarfBuzz + gerçek font) render
@@ -2077,14 +2218,30 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     kapalı bölümün metnini (göz atma kipinde de) okumuyor mu; bir başlıkta
     Enter/Space ile açınca içerik hemen okunur oluyor mu? Modal açılışında
     Shift+Tab son bölümün başlığına mı gidiyor?
+19. Ezber > Oku (klavyeyle başlat; Fâtiha 1-2 gibi kısa bir aralık yeter):
+    oturum başlayınca ekran okuyucu "Oku çalışması başladı", sayfa/ayet ve "Bu
+    ayette 4 kelime var" diye okuyor mu; odak "Sıradaki kelimeyi aç, düğme"de
+    mi ve düğme ekranda görünüyor mu? Enter/Space (dokunmatik ekran okuyucuda
+    çift dokunuş) her seferinde "1. kelime: adıyla" gibi bir satır okutuyor
+    mu; art arda hızlı basınca yalnızca sonuncusunun okunması mı, yoksa
+    hepsinin kuyruğa girip gecikmesi mi oluyor (hangisi daha az rahatsız
+    ediyor)? "Ayet tamamlandı" ile ayetin sesli okunması konuşmanın üstüne
+    biniyor mu? Ayet okunurken düğmeye basmak sessiz kalıyor: kullanıcıyı
+    şaşırtıyor mu ("bekleyin" duyurusu gerekir mi)? Kapaklı kelimeler göz atma
+    kipinde hâlâ okunuyor: bu kabul edilebilir mi, yoksa kapakların altı ekran
+    okuyucudan gizlenmeli mi (bilinçli bırakıldı)? Açılan Arapça kelimeyi
+    duymak için sayfa metnine gitmek gerekiyor: bu akış kullanılabilir mi?
+    Bitince ("Ezber çalışması bitti") odak "Ezber" düğmesinde mi; Yaz'da
+    "Sıradaki kelimeyi aç" hiç duyulmuyor mu?
 
-Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal
-odak yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı,
-renk kontrastı / Ezber odak halkası, konu bağlantılarının klavye erişimi,
-`hidden` kuralı / Geri düğmesi, hedefsiz konu etiketlerinin düz metin
-görünümü, Sa'dî tefsirinin dil işaretleri, Sure Bilgisi ayrıntı
-görünümünün odağı ve Sure Bilgisi'nde kapalı bölümlerin gizlenmesi ayrı ayrı
-tek commit'tir, geri alınabilir.
+Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal odak
+yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı, renk
+kontrastı / Ezber odak halkası, konu bağlantılarının klavye erişimi, `hidden`
+kuralı / Geri düğmesi, hedefsiz konu etiketlerinin düz metin görünümü, Sa'dî
+tefsirinin dil işaretleri, Sure Bilgisi ayrıntı görünümünün odağı, Sure
+Bilgisi'nde kapalı bölümlerin gizlenmesi ve Ezber > Oku'nun klavye yolu (iki
+küçük düzeltmesiyle birlikte: Oku'da Türkçe karşılık verisinin yüklenmesi, ses
+başarısızken ayet atlama) ayrı ayrı tek commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 
