@@ -3207,9 +3207,10 @@ async function ezberStudyGoToAyah(ayahNum) {
   es.units = ezberBuildUnits(es.mode, es.surah, ayahNum);
   es.revealedCount = 0;
   ezberRenderCoverState();
-  // Oku: how many words to go. showPage's own "Sayfa N, ... M. ayet" anonsu hemen önce yazıldı; ikisi aynı
-  // ~50 ms penceresinde TEK metinde birleşiyor (bkz. announce).
-  if (es.mode === "oku") announce(`Bu ayette ${es.units.length} kelime var`, "ezber-ayet");
+  // How many steps to go: Oku -> words, Yaz -> letters (a base letter + its marks is one step). showPage's own
+  // "Sayfa N, ... M. ayet" anonsu hemen önce yazıldı; ikisi aynı ~50 ms penceresinde TEK metinde birleşiyor
+  // (bkz. announce).
+  announce(`Bu ayette ${es.units.length} ${es.mode === "oku" ? "kelime" : "harf"} var`, "ezber-ayet");
 }
 
 let ezberStudyAudioGuard = 0;
@@ -3360,6 +3361,11 @@ async function startEzberStudy(mode, surah, from, to) {
     els.ezberReveal.hidden = true;
     els.yazKeyboard.hidden = false;
     positionYazKeyboard();
+    // Klavye / ekran okuyucu yolu: odak ilk tuşa geçer (modal kapanırken odak Ezber/Bitir'e geri verilmişti, aynı
+    // senkron turda; bkz. Oku'daki #ezber-reveal). Bitir'den ilk tuşa 3 Tab (Oynat, Arama) gerekmesin; oklarla ve
+    // (Arapça düzenle) doğrudan yazarak devam edilebilir. İlk tuş cevabı ele vermiyor (alfabe sırasının ilk harfi).
+    const firstKey = els.yazKeyboard.querySelector(".yaz-key");
+    if (firstKey) firstKey.focus();
   } else {
     // switching straight from an in-progress Yaz session into Oku (modal
     // re-opened mid-session) without going through endEzberStudy first --
@@ -3385,6 +3391,11 @@ function startEzberYaz(surah, from, to) {
 
 function endEzberStudy() {
   if (!state.ezberStudy) return;
+  // Odak, kaybolmak üzere olan bir oturum denetiminde mi (Oku'nun kelime açma düğmesi ya da Yaz klavyesinin bir tuşu --
+  // son kelime/harften sonra oturum kendiliğinden bitti, ya da ok tuşuyla sayfa çevrildi)? Chromium, odaktaki öğe
+  // gizlenince odağı <body>'ye düşürür: GİZLEMEDEN ÖNCE ölçüyoruz, sonra Ezber düğmesine veriyoruz. Odak başka yerdeyse
+  // (Oynat, Arama...) ona dokunulmuyor.
+  const focusInSession = document.activeElement === els.ezberReveal || els.yazKeyboard.contains(document.activeElement);
   ezberStudyAudioGuard++; // invalidate any in-flight ezberStudyPlayAyahThenAdvance
   if (state.playback.audio) state.playback.audio.pause();
   if (state.currentPageSvg) {
@@ -3395,34 +3406,43 @@ function endEzberStudy() {
   els.yazKeyboard.hidden = true;
   els.yazHintText.hidden = true;
   document.documentElement.style.setProperty("--yaz-keyboard-space", "0px");
-  // Odak, kaybolmak üzere olan kelime açma düğmesindeyse (son kelimeden sonra oturum kendiliğinden bitti,
-  // ya da ok tuşuyla sayfa çevrildi) <body>'ye düşmesin: Ezber düğmesine gitsin. Odak başka yerdeyse
-  // (Oynat, Arama...) ona dokunulmuyor.
-  const revealHadFocus = document.activeElement === els.ezberReveal;
   els.ezberReveal.hidden = true;
   state.ezberStudy = null;
   syncAyahNav(); // gezgin yeniden görünsün
   els.ezberBtn.textContent = "Ezber";
-  if (revealHadFocus) els.ezberBtn.focus();
+  if (focusInSession) els.ezberBtn.focus();
   announce("Ezber çalışması bitti", "ezber-oturum");
 }
 
-// Yaz: a keyboard key was pressed (see setupEzberYazKeyboard). Matches
-// against the CURRENT unit's base letter only (ezberBaseChar on both
-// sides, so hamza-seat/ligature variants the learner wouldn't
-// distinguish by ear all count as a match); a non-matching key does
-// nothing at all -- no error state, no penalty -- same as
-// eski-uygulama's yazCheckChar.
+// Ekran okuyucu satırı: Yaz'da basılan harf eşleşti. Oku'daki gibi YALNIZCA Türkçe (bkz. ezberRevealAnnouncement);
+// harfin kendisi söylenmiyor: kullanıcı az önce bastığı tuşun adını zaten duydu. Ayetin son harfi aynı zamanda
+// kelimenin de sonu olduğundan "Ayet tamamlandı" ağır basıyor.
+function ezberYazAnnouncement(wordDone, ayahDone) {
+  if (ayahDone) return "Doğru. Ayet tamamlandı";
+  if (wordDone) return "Doğru. Kelime tamamlandı";
+  return "Doğru";
+}
+
+// Yaz: a keyboard key was pressed (see setupEzberYazKeyboard -- the on-screen keys AND, with an Arabic layout, the
+// physical keyboard, see onEzberYazPhysicalKey). Matches against the CURRENT unit's base letter only (ezberBaseChar
+// on both sides, so hamza-seat/ligature variants the learner wouldn't distinguish by ear all count as a match); a
+// non-matching key does nothing VISIBLE -- no error state, no penalty -- same as eski-uygulama's yazCheckChar. Ekran
+// okuyucu kullanıcısı için sessizlik "tuş çalışmadı mı?" ile "yanlış harf"i ayırt ettirmiyor: nötr bir söz yazılıyor.
 function handleEzberYazKeyPress(pressedChar) {
   const es = state.ezberStudy;
   if (!es || es.mode !== "yaz") return;
   const target = es.units[es.revealedCount];
   if (!target) return;
-  if (ezberBaseChar(pressedChar) !== target.baseChar) return;
+  if (ezberBaseChar(pressedChar) !== target.baseChar) {
+    announce("Bu harf değil", "ezber-harf");
+    return;
+  }
 
   es.revealedCount++;
   ezberRenderCoverState();
-  if (es.revealedCount >= es.units.length) ezberStudyPlayAyahThenAdvance();
+  const ayahDone = es.revealedCount >= es.units.length;
+  announce(ezberYazAnnouncement(ayahDone || es.units[es.revealedCount].wordId !== target.wordId, ayahDone), "ezber-harf");
+  if (ayahDone) ezberStudyPlayAyahThenAdvance();
 }
 
 // Yaz: 💡 toggles the current (still-hidden) unit's word's Turkish gloss,
@@ -3435,12 +3455,16 @@ function toggleEzberYazHint() {
   if (!es || es.mode !== "yaz") return;
   if (!els.yazHintText.hidden) {
     els.yazHintText.hidden = true;
+    announce("İpucu kapatıldı", "ezber-ipucu");
     return;
   }
   const target = es.units[es.revealedCount];
   if (!target) return;
-  els.yazHintText.textContent = ezberWordMealText(es.surah, es.currentAyah, target.wordId) || "(anlam bulunamadı)";
+  const gloss = ezberWordMealText(es.surah, es.currentAyah, target.wordId);
+  els.yazHintText.textContent = gloss || "(anlam bulunamadı)";
   els.yazHintText.hidden = false;
+  // Metin canlı bölge olmayan bir <p>'ye yazılıyor (yeni canlı bölge eklenmedi): ekran okuyucu bilsin diye ayrıca duyuruluyor.
+  announce(`İpucu: ${gloss || "anlam bulunamadı"}`, "ezber-ipucu");
 }
 
 // Sits the keyboard directly above the bottombar's own real, rendered
@@ -3460,6 +3484,46 @@ function positionYazKeyboard() {
   document.documentElement.style.setProperty("--yaz-keyboard-space", `${kbH}px`);
 }
 
+// Gerçek (fiziksel) klavyede Arapça düzen açıkken basılan Arapça harf: ekran tuşuna basmakla AYNI iş (`e.key` o zaman
+// harfin kendisi; her harf için Tab ile tuşa gitmek yerine tek basış). "لا" gibi tek tuşta iki harf veren tuşlar (2
+// karakter) sırayla işleniyor; tatweel (ـ) ve harakeler harf değil. Yalnızca Yaz sürerken, modal kapalıyken (Arama gibi
+// alanlara Arapça yazılırken harf açılmasın), değiştirici tuşsuz ve tuş tekrarı değilken; tüketilen tuşun varsayılanı
+// (ör. Firefox'un yazarak arama kutusu) iptal ediliyor.
+const YAZ_PHYSICAL_KEY = /^[ء-غف-يٱ]{1,2}$/;
+function onEzberYazPhysicalKey(e) {
+  const es = state.ezberStudy;
+  if (!es || es.mode !== "yaz") return;
+  if (state.openModalEl) return;
+  if (e.defaultPrevented || e.isComposing || e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (e.target && e.target.closest && e.target.closest("input, textarea, select, [contenteditable]")) return;
+  if (!YAZ_PHYSICAL_KEY.test(e.key)) return;
+  e.preventDefault();
+  for (const ch of e.key) handleEzberYazKeyPress(ch);
+}
+
+// Ekran klavyesinde oklarla gezinme: Sol/Sağ DOM sırasıyla (= görünen sıra) önceki/sonraki tuş, Yukarı/Aşağı bir üst/alt
+// satırda aynı sütun; uçlarda durur (dönmez). Her tuş yine ayrı bir Tab durağı -- Tab davranışı değişmedi, oklar ek bir
+// kısayol. Bu tuşlar BURADA tüketiliyor (stopPropagation): setupNav'ın document'teki sayfa çevirme dinleyicisi Sol/Sağ'a
+// ayrıca tepki verir ve oturumu bitirirdi.
+function onEzberYazKeyboardKeydown(e) {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+  if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+  const key = e.target && e.target.closest ? e.target.closest(".yaz-key") : null;
+  if (!key) return;
+  let next;
+  if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+    const keys = [...els.yazKeyboard.querySelectorAll(".yaz-key")];
+    next = keys[keys.indexOf(key) + (e.key === "ArrowRight" ? 1 : -1)];
+  } else {
+    const rows = [...els.yazKeyboard.querySelectorAll(".yaz-keyboard-row")];
+    const other = rows[rows.indexOf(key.parentElement) + (e.key === "ArrowDown" ? 1 : -1)];
+    next = other && other.children[Math.min([...key.parentElement.children].indexOf(key), other.children.length - 1)];
+  }
+  e.preventDefault();
+  e.stopPropagation();
+  if (next) next.focus();
+}
+
 function setupEzberYazKeyboard() {
   els.yazKeyboard.addEventListener("click", (e) => {
     const key = e.target.closest(".yaz-key");
@@ -3470,6 +3534,8 @@ function setupEzberYazKeyboard() {
     }
     handleEzberYazKeyPress(key.dataset.char);
   });
+  els.yazKeyboard.addEventListener("keydown", onEzberYazKeyboardKeydown);
+  document.addEventListener("keydown", onEzberYazPhysicalKey);
   window.addEventListener("resize", () => {
     if (!els.yazKeyboard.hidden) positionYazKeyboard();
   });

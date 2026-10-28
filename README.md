@@ -576,13 +576,15 @@ depolama kapalıyken sessizce atlanıyor).
   oturum kendiliğinden bitiyor. Başka ayetlere ya da boşluğa dokunmak yok
   sayılıyor.
 - **Yaz** -- sırayla harf yazma. Aynı gizleme, ama birim kelime değil harf
-  (bir temel harf ve ona bağlı işaretler, `splitIntoUnits`) ve girdi
-  ekrandaki Arapça sanal klavyeden: basılan tuş sıradaki harfle eşleşirse o
-  harf açılıyor, eşleşmezse HİÇBİR şey olmuyor (hata ya da ceza yok).
-  Eşleştirme kulakla ayırt edilmeyen yazım farklarını aynı sayıyor: tüm elif
-  biçimleri (`أ إ آ ٱ`) `ا`, `ة` `ه`, `ؤ` `و`, `ئ ى` `ي` (`ezberBaseChar`).
-  💡 tuşu, sıradaki kelimenin Türkçe anlamını klavyenin üstünde gösterip
-  gizliyor. Ayet tamamlanınca Oku'daki gibi okunup sıradakine geçiliyor.
+  (bir temel harf ve ona bağlı işaretler, `splitIntoUnits`) ve girdi ekrandaki
+  Arapça sanal klavyeden (Arapça klavye düzeni açıksa gerçek klavyeden de,
+  bkz. "Erişilebilirlik"): basılan tuş sıradaki harfle eşleşirse o harf
+  açılıyor, eşleşmezse ekranda HİÇBİR şey olmuyor (görsel hata ya da ceza yok;
+  ekran okuyucuya "Bu harf değil" deniyor). Eşleştirme kulakla ayırt edilmeyen
+  yazım farklarını aynı sayıyor: tüm elif biçimleri (`أ إ آ ٱ`) `ا`, `ة` `ه`,
+  `ؤ` `و`, `ئ ى` `ي` (`ezberBaseChar`). 💡 tuşu, sıradaki kelimenin Türkçe
+  anlamını klavyenin üstünde gösterip gizliyor (ekran okuyucuya da
+  duyuruluyor). Ayet tamamlanınca Oku'daki gibi okunup sıradakine geçiliyor.
   Klavye, alt çubuğun GERÇEK (ölçülen) yüksekliğinin hemen üstünde duruyor ve
   sayfanın altında o kadar boşluk ayırıyor (`--yaz-keyboard-space`); böylece
   son satırlar klavyenin altında kalmıyor.
@@ -590,11 +592,12 @@ depolama kapalıyken sessizce atlanıyor).
 Oku ve Yaz oturumları sürerken Ezber düğmesi **Bitir**'e dönüşüyor (basınca
 kapaklar kalkıyor, klavye ve baloncuk kayboluyor, ses duruyor) ve ayet gezgini
 gizleniyor -- orada ayete dokunmak kelime açmak demek, panel açmak değil (bkz.
-"Erişilebilirlik"). Oturumun başı, Oku'da her ayetin kelime sayısı, açılan her
-kelime ve oturumun sonu ekran okuyucuya duyuruluyor (`#nav-announcer`);
-"Sıradaki kelimeyi aç" düğmesi yalnızca Oku sürerken var. Yaz'ın harf
-birimleri sayfa çizilirken (`js/render.js`) hesaplanıyor ve her biri satırda
-ölçülmüş bir x aralığına bağlı;
+"Erişilebilirlik"). Oturumun başı, her ayetin kelime (Oku) ya da harf (Yaz)
+sayısı, Oku'da açılan her kelime, Yaz'da her harfin sonucu ve oturumun sonu
+ekran okuyucuya duyuruluyor (`#nav-announcer`); "Sıradaki kelimeyi aç" düğmesi
+yalnızca Oku sürerken var, Yaz'da odak ekran klavyesinin ilk tuşuna geliyor.
+Yaz'ın harf birimleri sayfa çizilirken (`js/render.js`) hesaplanıyor ve her
+biri satırda ölçülmüş bir x aralığına bağlı;
 `test/full_corpus_test.mjs`, Kur'an'ın 325.585 harf biriminin hepsini metinden
 hesaplanan sayıyla karşılaştırıyor (bilinen tek istisna: sayfa 451, kelime
 61960).
@@ -1130,8 +1133,9 @@ NVDA/JAWS "tarama modu"nda ok tuşlarını ekran okuyucu kendisi kullanır, yani
 orada Yukarı/Aşağı ile seçim çalışmaz; sanal imleçle ayet düğmesine gelip
 Enter'a basmanın paneli açması beklenir ama sınanmadı. Sayfa kenarında dönme
 ya da sayfa geçişi yok (son ayette Aşağı hiçbir şey yapmaz; sayfa çevirme
-Sol/Sağ okla). Ezber > Oku'da kelime açmanın klavye yolu artık var (bkz.
-"Ezber > Oku'da klavye ve ekran okuyucu yolu"). Sure Bilgisi'nden "Mushaf'a
+Sol/Sağ okla). Ezber > Oku'da kelime açmanın, Ezber > Yaz'da harf yazmanın
+klavye yolu artık var (bkz. "Ezber > Oku'da klavye ve ekran okuyucu yolu" ve
+"Ezber > Yaz'da klavye ve ekran okuyucu yolu"). Sure Bilgisi'nden "Mushaf'a
 Git" ile sayfa değişince odağın nereye indiği ölçüldü (bkz. "Sure Bilgisi'nde
 bağlantı -> ayrıntı -> Geri" paragrafı): gezgin düğmesiyle açılmışsa gidilen
 ayetin gezgin düğmesine iniyor; yalnızca SVG'deki başlığa fareyle/dokunarak
@@ -1234,7 +1238,7 @@ düşürülerek, yamasızda önceden yüklenerek) -- tek bilinçli fark Oku'da a
 Türkçe karşılık baloncuğunun çıkması. Klavyeyle görünen çubuk ve odak halkası
 ayrıca ekran görüntüsüyle gözle incelendi.
 
-`test/ezber_klavye_test.mjs` (jsdom, 78 kontrol, ≈ 5 sn): (1) `#ezber-reveal`
+`test/ezber_klavye_test.mjs`'in Oku kısmı (jsdom, 78 kontrol): (1) `#ezber-reveal`
 işaretlemesi, alt çubuktaki sırası ve Tab durakları; (2) CSS: `.sr-only`'nin
 kırptığı HER özelliğin odak kuralında geri alındığı (liste `.sr-only`'den
 türetiliyor: ileride yeni bir kırpma özelliği eklenirse test kırılır),
@@ -1260,10 +1264,159 @@ ağaçta da ölçüldü): ekran okuyucu kullanıcısı gizli kelimeleri sayfa me
 zaten duyabilir, yani kapaklar yalnızca GÖRSEL; bunu değiştirmek kelime
 düzeyinde bir metin katmanı ister. Ayet okunmaya başlayınca ekran okuyucu
 konuşması klibin üstüne binebilir. Klip çalarken düğmeye basmak sessizce
-etkisiz. Yaz'a bu yamada dokunulmadı: sanal klavyenin 30 tuşu Tab durağı ve
-eşleşme çalışıyor (klavyeyle yazılabiliyor), ama harf eşleşmesi duyurulmuyor,
-💡 ipucu canlı bölge değil ve fiziksel Arapça klavyeyle yazmak hiçbir şey
-yapmıyor (yamadan önce ölçüldü).
+etkisiz. Yaz'ın klavye yolu bir sonraki paragrafta.
+
+**Ezber > Yaz'da klavye ve ekran okuyucu yolu.** Yaz'ın girişi ekrandaki
+Arapça klavye (`#yaz-keyboard`: 29 harf tuşu ve 💡, her biri ayrı Tab durağı).
+Klavyeyle ulaşılabiliyordu ama kullanılamıyordu: geri bildirim yoktu, tuşların
+adı ve grubu yoktu, ok tuşları oturumu bitiriyordu. Başsız Chromium'da (430
+px, Fâtiha 1:1-2, oturum yalnızca klavyeyle başlatıldı) yamadan ÖNCE ölçülen:
+
+- oturum başlayınca odak açan düğmeye ("Bitir") dönüyordu; Bitir'den ilk tuşa
+  (ا) 3 Tab (Oynat, Arama, ا), "ب"ye 4, 💡'ye 32 Tab gerekiyordu;
+- doğru harfe basınca harf açılıyordu ama HİÇBİR şey duyurulmuyordu; yanlış
+  harfe basınca da hiçbir şey olmuyordu (ne görsel ne duyuru): ekran okuyucu
+  kullanıcısı "tuş çalışmadı mı, yanlış harf miydi?" ayırt edemiyordu. 💡 ipucu
+  metni canlı bölge olmayan bir `<p>`'de görünüyor ama duyulmuyordu. İki
+  ayetin tamamı için (36 harf; her harfi bulmak için tuş taramasında toplam
+  544 yanlış basış) oturum boyunca yalnızca iki duyuru vardı: "Sayfa 1, Fâtiha
+  Suresi, 2. ayet" ve "Ezber çalışması bitti";
+- `#yaz-keyboard` erişilebilirlik ağacında adsız bir "generic" öğeydi;
+  tuşların adı yalnızca Arapça harfti ("ب"): Arapça sesi olmayan bir ekran
+  okuyucu bunları söyleyemez;
+- gerçek Arapça düzenli klavyede bir harfe basmak (`keydown`, `key` "ب",
+  `code` KeyF, hedef `<body>`) hiçbir şey yapmıyordu: her harf için o tuşa Tab
+  ile gitmek gerekiyordu;
+- odak bir tuştayken Sağ ok sayfayı çevirip oturumu BİTİRİYORDU (1 -> 604),
+  Sol ok da (1 -> 2): `setupNav`'ın `document`'teki sayfa çevirme dinleyicisi
+  ok tuşlarına ayrıca tepki veriyor. Yukarı/Aşağı hiçbir şey yapmıyordu. Ekran
+  klavyesinde ok tuşuna basan oturumunu kaybediyordu;
+- oturum odak bir tuştayken biterse (son harf) klavye gizleniyor ve odak
+  `<body>`'ye düşüyordu.
+
+Düzeltme (`index.html`, `js/app.js`; CSS'e dokunulmadı):
+
+- **Duyurular**, hepsi `#nav-announcer` üstünden (yeni canlı bölge yok; statik
+  kabukta hâlâ tam 2 tane): her ayette "Bu ayette N harf var" (Oku'daki "N
+  kelime var"ın karşılığı; oturum başında ve her sonraki ayette, konum
+  duyurusuyla aynı pencerede tek metin); doğru harfte "Doğru", kelimenin son
+  harfinde "Doğru. Kelime tamamlandı", ayetin son harfinde "Doğru. Ayet
+  tamamlandı"; yanlış harfte "Bu harf değil"; 💡'de "İpucu: <karşılık>"
+  (karşılık yoksa "İpucu: anlam bulunamadı"), kapatınca "İpucu kapatıldı".
+  Açılan harfin kendisi söylenmiyor (kullanıcı az önce tuşun adını duydu;
+  canlı bölge tek dilli). Hızlı art arda basışlarda yalnızca SON geri bildirim
+  söyleniyor (aynı anahtar, ~50 ms birleştirme; Oku'daki gibi).
+- **Adlar.** Klavye `role="group"` + `aria-label="Arapça harf klavyesi"`; her
+  harf tuşunun adı görünen Arapça harf + Türkçe okunuşu, ör. "ب be" (düğmede
+  `lang="ar"`, okunuş `.sr-only` + `lang="tr"` bir `<span>`): görünen harf ada
+  dahil (WCAG 2.5.3) ve Arapça sesi olmayan okuyucu da tuşu söyleyebiliyor. 29
+  ad: elif, be, te, se, cim, ha, hı, dal, zel, ra, ze, sin, şın, sad, dad, tı,
+  zı, ayn, gayn, fe, kaf, kef, lam, mim, nun, he, vav, ye, hemze. 💡'nin adı
+  değişmedi.
+- **Gerçek klavyeyle yazma** (`onEzberYazPhysicalKey`). Arapça klavye düzeni
+  açıkken basılan Arapça harf, ekran tuşuna basmakla AYNI işi yapıyor
+  (`handleEzberYazKeyPress`, eşleştirmenin tek yeri): her harf için Tab yerine
+  tek basış. Tek tuşta iki harf veren "لا" sırayla işleniyor; tatweel ve
+  harekeler harf değil. Yalnızca Yaz sürerken, modal kapalıyken ve giriş
+  alanında (input, textarea, select, contenteditable) değilken;
+  Ctrl/Alt/Meta'lı basışlar, tuş tekrarı ve IME bileşimi yok sayılıyor.
+  İşlenen tuşun varsayılan eylemi iptal ediliyor.
+- **Oklar** (`onEzberYazKeyboardKeydown`). Sol/Sağ DOM sırasındaki
+  önceki/sonraki tuş (satır sonundan sonraki satıra geçiyor), Yukarı/Aşağı
+  alt/üst satırda aynı sütun; uçlarda duruyor (dönmüyor). Olay burada
+  tüketiliyor (`preventDefault` + `stopPropagation`): sayfa çevirme
+  dinleyicisi hiç görmüyor. Tab davranışı değişmedi: 30 tuşun hepsi hâlâ ayrı
+  Tab durağı, oklar ek bir kısayol. Değiştiricili oklar (Shift/Ctrl/Alt/Meta;
+  Alt+Sol tarayıcının Geri'si) tüketilmiyor.
+- **Odak.** Yaz başlayınca odak ilk tuşa (ا: alfabe sırasının ilki, cevabı ele
+  vermiyor) geçiyor (modal kapanırken odak Ezber/Bitir'e eşzamanlı geri
+  veriliyor; tuş bundan SONRA odaklanıyor). Oturum bitince (son harf) odak
+  klavyedeyse (bir tuş ya da 💡) Ezber düğmesine veriliyor; yoksa klavye
+  gizlenince Chromium odağı `<body>`'ye düşürürdü. Odak, Oku'nun düğmesi ve
+  Yaz klavyesi için gizlemeden ÖNCE tek bir ölçümle (`focusInSession`)
+  belirleniyor; odak başka yerdeyse (Oynat, Arama) dokunulmuyor.
+
+Aynı sahne yamadan SONRA (başsız Chromium; 430 px):
+
+- oturum başlarken odak ilk tuşta (ا) ve `:focus-visible` eşleşiyor (altın 2
+  px halka; 430 ve 1200 px'te ekran görüntüsüyle gözle incelendi,
+  kırpılmıyor). Erişilebilirlik ağacında klavye "Arapça harf klavyesi"
+  (group), tuşlar "ا elif", "ب be", "ش şın", "ء hemze" (button), 💡 "İpucu:
+  kelimenin Türkçe anlamı". Duyuru: "Yaz çalışması başladı. Sayfa 1, Fâtiha
+  Suresi, 1. ayet. Bu ayette 19 harf var". İlk tuştan 💡'ye 29 Tab (30 tuşun
+  hepsi hâlâ ayrı durak); ilk tuşta Shift+Tab "Arama"ya gidiyor;
+- fareyle başlatılan oturumda odak yine ilk tuşa geçiyor ama `:focus-visible`
+  eşleşmiyor (ekranda halka yok); fareyle bir tuşa tıklayınca da eşleşmiyor;
+- oklar: ا'dan Sağ, Sağ, Aşağı, Aşağı, Aşağı, Yukarı, Sol, Sol, Sol, Yukarı,
+  Yukarı, Sol -> odak sırayla ب, ت, ش, ل, ل (son satırda duruyor), ش, س, ز, ر
+  (önceki satırın sonu), ر, ر (ilk satırda duruyor), ذ; her adımda sayfa 1'de
+  kalıyor, düğme "Bitir" olarak duruyor, kaydırma 0, duyuru 0. 10. Sağ basış
+  ilk satırdan ikinci satırın ilk tuşuna (ز) geçiriyor. Klavyenin DIŞINDA
+  (odak gövdede) Sağ ok eskisi gibi sayfayı çevirip oturumu bitiriyor (1 ->
+  604; bu yamada dokunulmadı);
+- gerçek (CDP) Arapça düzenli tuş olayları: ب -> "Doğru", ت (yanlış) -> "Bu
+  harf değil", س -> "Doğru", م -> "Doğru. Kelime tamamlandı"; doğru harflerde
+  bir kapak kalkıyor, yanlışta hiçbiri; dört Arapça harfin hepsinde
+  `defaultPrevented` true; Latin "b", "1" ve Ctrl+ا yok sayılıyor (duyuru yok,
+  varsayılan eylem iptal edilmiyor). 💡'ye Enter: "İpucu: Allah'ın" (ilk kelime
+  bitmişti, ikinci kelimenin karşılığı), yine Enter: "İpucu kapatıldı";
+- iki ayetin tamamı fiziksel tuşlarla (36 harf; ses isteği düşürüldü): 36
+  duyuru, "Doğru" 28, "Doğru. Kelime tamamlandı" 6; ayet sonları "Doğru. Ayet
+  tamamlandı. Sayfa 1, Fâtiha Suresi, 2. ayet. Bu ayette 17 harf var" (ses
+  hemen hata verdiği için aynı ~50 ms penceresinde tek metin) ve "Doğru. Ayet
+  tamamlandı. Ezber çalışması bitti"; 1. ayetten sonra odak ilk tuşta kalıyor;
+  oturum bitince klavye gizleniyor ve odak Ezber düğmesinde (`:focus-visible`
+  eşleşiyor). Sayfa hatası: 0;
+- Yaz sürerken Arama modalına Arapça yazmak: "بسم" giriş alanına gidiyor,
+  kapak açılmıyor, Yaz duyurusu yok, tuşların varsayılan eylemi iptal
+  edilmiyor; Esc ile kapanınca odak Arama düğmesine dönüyor ve fiziksel yazma
+  yeniden çalışıyor ("Doğru").
+
+Görünüm: fareyle ulaşılan 10 durumun (Yaz: açılış, Ezber penceresi, başladı,
+üç harf açık, ipucu, yanlış tuş, bitti; Oku: başladı, iki kelime açık, bitti)
+ekran görüntüleri 430 ve 1200 px'te (20 görüntü) yamasız sürümle bayt bayt
+aynı; yani her tuşa eklenen `.sr-only` okunuş düzeni kaydırmıyor ve fareyle
+başlatmada ilk tuşa verilen odak halka çizmiyor. İpucu metninin kararlı olması
+için kelime meali verisi iki ağaçta da önceden yüklendi.
+
+`test/ezber_klavye_test.mjs`'in Yaz kısmı (aynı dosya; 83 yeni kontrol, toplam
+161, ≈ 8 sn): (1) klavye işaretlemesi: grup adı, 3 satır x 10 tuş, 29 harf
+tuşunun her birinde harf + Türkçe okunuş (okunuşlar testte ayrı bir tabloda:
+işaretlemedeki bir yazım hatası testi kırar), 💡'nin adı, 30 Tab durağı,
+klavyenin alt çubuktan SONRA gelmesi; (3) `app.js`'ten çıkarılan GERÇEK
+işlevler x gerçek `index.html`: her sonucun tam duyuru metni (7 harflik bir
+ayetin her harfi ayrı ayrı), hızlı art arda basışların birleşmesi, 8 yazım
+varyantı, 💡 (açma/kapama/karşılık yok/hedef yok/Oku/oturum yok), fiziksel tuş
+(29 harfin hepsi ve varyantlar kabul; 20 tür tuş yok sayılıyor: Latin harf,
+rakam, Enter, Tab, ok, tatweel, harake, Ctrl/Alt/Meta'lı, tekrar, IME; 8
+bağlamda yok sayılıyor: Oku, oturum yok, modal açık, önceden iptal edilmiş
+olay, input/textarea/select/contenteditable), oklar (4 yön, uçlar, satır
+geçişi, kısa satırda sütun kıskacı, 16 değiştiricili ok ve 10 ok olmayan tuş
+tüketilmiyor, ok olayı `document`'e ULAŞMIYOR), odak (başlangıç, bitiş, Yaz
+<-> Oku geçişleri, uçtan uca son harf); (4) kaynak: odağın gizlemeden önce
+ölçülmesi, ilk tuşa odağın klavye görünür olduktan sonra verilmesi,
+dinleyicilerin bağlanması, eşleştirmenin tek yeri. Her parça tek tek bozularak
+141 mutasyonun (47'si Oku ve ortak kod, 94'ü Yaz) hepsinin yakalandığı
+doğrulandı; ilk koşuda tek zayıf nokta çıktı (oturum yokken
+`handleEzberYazKeyPress` fırlatırsa test yalnızca çöküyordu, açık bir FAIL
+yazmıyordu) ve `try/catch` ile bir kontrole bağlandı.
+
+Sınırlar: jsdom'da düzen, odak halkası ve `:focus-visible` yok (yukarıdaki
+ölçümler gerçek Chromium'da); **gerçek bir ekran okuyucu
+(NVDA/JAWS/VoiceOver/TalkBack), Firefox ve Safari denenmedi.** Duyuru
+metinleri ve 29 Türkçe harf okunuşu bir cihazda dinlenmedi; yazımlar ("şın",
+"hı", "tı", "zı"...) ve "Doğru" / "Bu harf değil" ifadesi gözden geçirilmeli.
+Gerçek klavyeyle yazma yalnızca Arapça klavye düzeniyle çalışıyor (`e.key`
+harfin kendisi olunca); Latin harften Arapça'ya sesli bir eşleme (b -> ب gibi)
+yok: birçok harf için belirsiz, ayrı bir tasarım kararı. NVDA/JAWS'ın göz atma
+kipinde harf ve ok tuşlarını okuyucunun kendisinin tüketmesi beklenir (bilinen
+davranış, burada denenmedi); orada Tab + Enter yolu geçerli olmalı. Açılan
+harfin kendisi duyurulmuyor; kapakların altındaki metin erişilebilirlik
+ağacında duruyor (Oku'daki gibi). Ayet okunurken (son harften sonraki klip)
+tuşlar sessiz ve etkisiz. 💡 ipucu açıkken kelime ya da ayet değişirse metin
+eski kelimenin karşılığında kalıyor (yamadan önce de böyleydi,
+değiştirilmedi); kelime meali verisi henüz yüklenmediyse 💡 "anlam bulunamadı"
+diyor.
 
 **Renk kontrastı ve odak göstergesi.** Başsız Chromium'da (430 ve 1200 px)
 axe-core'un `color-contrast` kuralı ve arka planı katman katman birleştiren
@@ -1845,7 +1998,7 @@ test/surah_header_cut_test.mjs      Kelime meali panelinin sayfa kesimi sure ba�
 test/surah_info_links_test.mjs       Sure Bilgisi bağlantıları: parseInfoLink + 114 surenin taraması (Node)
 test/sure_bilgisi_odak_test.mjs      Sure Bilgisi bağlantı -> ayrıntı -> Geri odağı: giriş/çıkış, Geri'de açan bağlantıya dönüş, modal kapanışı (jsdom)
 test/kapali_panel_test.mjs           Sure Bilgisi'nde kapalı akordeon bölümleri: CSS yapısı, 114 sure x gerçek CSS (visibility), Tab tuzağı (jsdom)
-test/ezber_klavye_test.mjs           Ezber > Oku klavye / ekran okuyucu yolu: #ezber-reveal, duyurular, odak, ses başarısızken tek ilerleme, CSS (jsdom)
+test/ezber_klavye_test.mjs           Ezber > Oku ve Yaz klavye / ekran okuyucu yolu: #ezber-reveal, Yaz klavyesi (adlar, oklar, fiziksel tuş), duyurular, odak, ses başarısızken tek ilerleme, CSS (jsdom)
 ```
 
 ## Çalıştırma
@@ -1915,7 +2068,7 @@ SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 (yalnız tam tarama; ölçüm raporunun tamamını basar). 20 dosyanın hepsi ≈
 2 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-68 sn, arama
 arayüzü 19-21 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
-testi 8-10 sn, Ezber klavye testi 3-5 sn); GitHub Actions'taki ilk koşuda
+testi 8-10 sn, Ezber klavye testi ≈ 8 sn); GitHub Actions'taki ilk koşuda
 işin tamamı 1 dk 25 sn sürdü.
 
 **Tam tarama testi artık gerçekten doğruluyor.** `test/full_corpus_test.mjs`
@@ -2233,15 +2386,34 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     duymak için sayfa metnine gitmek gerekiyor: bu akış kullanılabilir mi?
     Bitince ("Ezber çalışması bitti") odak "Ezber" düğmesinde mi; Yaz'da
     "Sıradaki kelimeyi aç" hiç duyulmuyor mu?
+20. Ezber > Yaz (klavyeyle başlat; Fâtiha 1-2 yeter): oturum başlayınca ekran
+    okuyucu "Yaz çalışması başladı", sayfa/ayet ve "Bu ayette 19 harf var"
+    diye okuyor mu; odak ilk tuşta ("ا elif, düğme") ve odak halkası görünüyor
+    mu? Klavyeye gelince "Arapça harf klavyesi, grup" duyuluyor mu; tuş adları
+    ("ب be" vb.) anlaşılır mı, Türkçe okunuşlar (elif, be, te, se, cim, ha,
+    hı, dal, zel, ra, ze, sin, şın, sad, dad, tı, zı, ayn, gayn, fe, kaf, kef,
+    lam, mim, nun, he, vav, ye, hemze) doğru ve uygun mu (Arapça sesi olan bir
+    okuyucuda harf ve okunuş art arda okununca gereksiz yineleme oluyor mu)?
+    Doğru tuş "Doğru", yanlış tuş "Bu harf değil", kelime sonunda "Doğru.
+    Kelime tamamlandı" okunuyor mu; hızlı art arda basışta yalnızca
+    sonuncusunun okunması rahatsız ediyor mu? Açılan harfin kendisi okunmuyor
+    (yalnızca tuşun adı): yeterli mi? 💡 "İpucu: <karşılık>" okutuyor, tekrar
+    basınca "İpucu kapatıldı" mı? Oklar (Sol/Sağ/Yukarı/Aşağı) odağı tuşlar
+    arasında gezdiriyor ve sayfayı çevirmiyor mu (NVDA/JAWS göz atma kipinde
+    oklar ve harf tuşlarını okuyucu kendisi tüketebilir: Tab + Enter yolu
+    yeterli mi)? Arapça klavye düzeniyle (donanım ya da ekran klavyesi) bir
+    harfe basmak doğrudan o harfi açıyor mu? Ayet okunurken tuşlar sessiz
+    kalıyor: kullanıcıyı şaşırtıyor mu? Bitince odak "Ezber" düğmesinde mi?
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal odak
 yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı, renk
 kontrastı / Ezber odak halkası, konu bağlantılarının klavye erişimi, `hidden`
 kuralı / Geri düğmesi, hedefsiz konu etiketlerinin düz metin görünümü, Sa'dî
 tefsirinin dil işaretleri, Sure Bilgisi ayrıntı görünümünün odağı, Sure
-Bilgisi'nde kapalı bölümlerin gizlenmesi ve Ezber > Oku'nun klavye yolu (iki
+Bilgisi'nde kapalı bölümlerin gizlenmesi, Ezber > Oku'nun klavye yolu (iki
 küçük düzeltmesiyle birlikte: Oku'da Türkçe karşılık verisinin yüklenmesi, ses
-başarısızken ayet atlama) ayrı ayrı tek commit'tir, geri alınabilir.
+başarısızken ayet atlama) ve Ezber > Yaz'ın klavye yolu ayrı ayrı tek
+commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 
