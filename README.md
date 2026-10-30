@@ -643,10 +643,17 @@ her mushaf satırının gerçek/seçilebilir Unicode metnini bir
 `<foreignObject><div class="text-layer-line" dir="rtl">` ile (görünür
 glif'leri çizen SVG `<path>`'lerin üstüne, `color: transparent` ile --
 `display:none`/`visibility:hidden` DEĞİL) yerleştiriyor; PDF.js'in metin
-katmanı tekniğinin aynısı. Gerçek (önbellekteki) SVG'de hiçbir yerde
-`aria-hidden` uygulanmıyor, üst SVG'de de `role="img"` yok (olsaydı içindeki
-gerçek metni tek bir resim gibi "yutabilirdi"). Yapısal olarak doğru. Tek
-istisna, ayet panelinin açıkken kurduğu ikinci kopya: aşağıdaki paragraf.
+katmanı tekniğinin aynısı. Ayet satırlarında metin kelime kelime: her
+kelime bir `<span class="text-layer-word" data-word-id="N">` (N, mushaf
+verisindeki kelime kimliği; ayet sonu işareti ayrı bir kelime), kelimeler
+arası boşluk soldaki kelimenin span'ının sonunda; besmele satırı düz metin.
+Ezber'in kapak altı metni ağaçtan çıkarması buna dayanıyor (aşağıda). Gerçek
+(önbellekteki) SVG'de `render.js` hiçbir yerde `aria-hidden` uygulamıyor, üst
+SVG'de de `role="img"` yok (olsaydı içindeki gerçek metni tek bir resim gibi
+"yutabilirdi"). Yapısal olarak doğru. İki istisna var, ikisi de `app.js`'ten:
+ayet panelinin açıkken kurduğu ikinci kopya (sonraki paragraf) ve Ezber
+oturumunda kapakların altında kalan kelimeler (Ezber bölümlerinin sonundaki
+"Ezber sırasında kapakların altındaki metin" paragrafı).
 
 **Ayet paneli açıkken sayfa metni erişilebilirlik ağacında bir kez.** Panel
 sayfayı görsel olarak ikiye böldüğü için (bkz. "Ayet detay paneli") DOM'da
@@ -1257,14 +1264,16 @@ bozularak 45 mutasyonun hepsinin yakalandığı doğrulandı.
 Sınırlar: jsdom'da düzen, odak halkası ve `:focus-visible` yok (yukarıdaki
 ölçümler gerçek Chromium'da); **gerçek bir ekran okuyucu
 (NVDA/JAWS/VoiceOver/TalkBack), Firefox ve Safari denenmedi.** Açılan Arapça
-kelimenin kendisi duyuruda yok. Kapakların altındaki ayet metni
-erişilebilirlik ağacında duruyor (1. sayfada, erişilebilirlik ağacındaki metin
-düğümlerinde 306 Arapça karakter; oturumdan önce de sırasında da aynı, yamalı
-ağaçta da ölçüldü): ekran okuyucu kullanıcısı gizli kelimeleri sayfa metninden
-zaten duyabilir, yani kapaklar yalnızca GÖRSEL; bunu değiştirmek kelime
-düzeyinde bir metin katmanı ister. Ayet okunmaya başlayınca ekran okuyucu
-konuşması klibin üstüne binebilir. Klip çalarken düğmeye basmak sessizce
-etkisiz. Yaz'ın klavye yolu bir sonraki paragrafta.
+kelimenin kendisi duyuruda yok. Kapakların altındaki ayet metni, Oku'nun
+klavye yolu eklendiğinde erişilebilirlik ağacında duruyordu (1. sayfada ağaçtaki
+306 Arapça karakterin 280'i sayfa metni, 26'sı üst çubuktaki sure adı ve Oynat
+düğmesinin etiketi; oturumdan önce de sırasında da aynı): kapaklar yalnızca
+GÖRSEL bir örtüydü, ekran okuyucu kullanıcısı gizli kelimeleri sayfa
+metninden duyabiliyordu. Bu, aşağıdaki "Ezber sırasında kapakların altındaki
+metin erişilebilirlik ağacında değil" paragrafında giderildi; açılan Arapça
+kelime de artık kapağı kalkınca sayfa metninde ağaca giriyor. Ayet okunmaya
+başlayınca ekran okuyucu konuşması klibin üstüne binebilir. Klip çalarken
+düğmeye basmak sessizce etkisiz. Yaz'ın klavye yolu bir sonraki paragrafta.
 
 **Ezber > Yaz'da klavye ve ekran okuyucu yolu.** Yaz'ın girişi ekrandaki
 Arapça klavye (`#yaz-keyboard`: 29 harf tuşu ve 💡, her biri ayrı Tab durağı).
@@ -1411,12 +1420,158 @@ harfin kendisi olunca); Latin harften Arapça'ya sesli bir eşleme (b -> ب gibi
 yok: birçok harf için belirsiz, ayrı bir tasarım kararı. NVDA/JAWS'ın göz atma
 kipinde harf ve ok tuşlarını okuyucunun kendisinin tüketmesi beklenir (bilinen
 davranış, burada denenmedi); orada Tab + Enter yolu geçerli olmalı. Açılan
-harfin kendisi duyurulmuyor; kapakların altındaki metin erişilebilirlik
-ağacında duruyor (Oku'daki gibi). Ayet okunurken (son harften sonraki klip)
-tuşlar sessiz ve etkisiz. 💡 ipucu açıkken kelime ya da ayet değişirse metin
-eski kelimenin karşılığında kalıyor (yamadan önce de böyleydi,
-değiştirilmedi); kelime meali verisi henüz yüklenmediyse 💡 "anlam bulunamadı"
-diyor.
+harfin kendisi duyurulmuyor; kapakların altındaki metin, Yaz'ın klavye yolu
+eklendiğinde erişilebilirlik ağacında duruyordu (Oku'daki gibi); bu, sonraki
+paragrafta giderildi. Ayet okunurken (son harften sonraki klip) tuşlar sessiz ve
+etkisiz. 💡 ipucu açıkken kelime ya da ayet değişirse metin eski kelimenin
+karşılığında kalıyor (yamadan önce de böyleydi, değiştirilmedi); kelime meali
+verisi henüz yüklenmediyse 💡 "anlam bulunamadı" diyor.
+
+**Ezber sırasında kapakların altındaki metin erişilebilirlik ağacında
+değil.** Oku ve Yaz'ın kapakları yalnızca GÖRSEL bir örtüydü: kelimeyi örten
+dikdörtgen, görünmez metin katmanının (yukarıdaki paragraf) ÜSTÜNE SVG'de
+çiziliyor, katmanın kendisi ise erişilebilirlik ağacında tam metin olarak
+duruyordu. Ekran okuyucu kullanıcısı açılmamış kelimeleri sayfa metninden
+okuyabiliyordu; yani Oku'da "bir kelime aç" ile Yaz'da "Doğru" / "Bu harf
+değil" geri bildiriminin (yukarıdaki iki bölüm) anlamı kalmıyordu: ezberlenmek
+istenen metin zaten ağaçtaydı. Başsız Chromium'da (CDP
+`Accessibility.getFullAXTree`; ağaçtaki görünür her Arapça metin düğümü
+DOM'daki satırına ve kelimesine bağlandı; 1. sayfa, 430 ve 1200 px) yamadan
+ÖNCE ölçülen: Oku 1:1-3 ve Yaz 1:1-2 oturumlarının 11 durumunun (oturum yok,
+başladı, kelime/harf açılırken, ayet geçişi, Bitir) HEPSİNDE sayfanın 280
+Arapça karakterinin (boşluksuz) 280'i ağaçtaydı; kapak sayısı Oku'da 12'ye,
+Yaz'da 36'ya çıkarken bile.
+
+Düzeltme (`js/render.js`, `js/app.js`; CSS ve `index.html`'e dokunulmadı):
+
+- **Kelime kelime metin katmanı** (`addTextSelectionLayer`). Ayet satırı artık
+  tek bir metin düğümü değil, kelime başına bir
+  `<span class="text-layer-word" data-word-id="N">` (N, mushaf verisindeki
+  kelime kimliği; ayet sonu işareti ayrı bir kelime). Kelimeler arası boşluk
+  soldaki kelimenin span'ının sonunda: gizlenen kelime boşluğunu da götürüyor,
+  ağaçta boşluktan ibaret düğüm kalmıyor (ilk denemede, boşluk ayrı bir
+  düğümken, 1. sayfada 29 tane vardı). Besmele satırı ve kelime listesi satır
+  metniyle uyuşmayan satırlar eskisi gibi düz metin. `render.js` hiçbir şeyi
+  gizlemiyor; span'lar `class` ve `data-word-id` dışında bir şey (stil,
+  `lang`, rol) taşımıyor.
+- **Gizleme, kapakla aynı işlevde ve aynı veriden** (`drawEzberCovers` ->
+  `syncEzberTextLayer`). Kapakları çizen işlev, kapağı olan her kelimenin
+  span'ına `aria-hidden="true"` koyuyor, kapağı kalkanınkini kaldırıyor; ikisi
+  aynı `coverDefs` listesinden türediği için birbirinden ayrışamaz. Oku'da
+  gizli olanlar: geçerli ayetin henüz açılmamış kelimeleri ve sırası
+  gelmemiş ayetlerin tüm kelimeleri (ayet sonu işaretleri dahil); geçerli
+  ayetin işareti ve aralık dışındaki ayetler açık. Yaz'da bir kelime son harfi
+  açılana kadar gizli (yarım bir kelime ağaçta anlamsız olurdu); ayet sonu
+  işaretlerinin Yaz'da kapağı yok, ağaçta kalıyorlar. Oturum bitince
+  (`endEzberStudy` -> `drawEzberCovers(svg, [])`) kapaklarla birlikte tüm
+  işaretler kalkıyor. `display`, `visibility`, `inert` ya da `pointer-events`
+  kullanılmadı: görünüm, fare, seçim ve kopyalama aynı kalmalıydı.
+- **Duyuru metinleri değişmedi.** Açılan Arapça kelimenin kendisi
+  `#nav-announcer`'da yine yok (canlı bölge tek dilli); ama kapağı kalkınca
+  sayfa metninde (`lang="ar"`) ağaca giriyor, ekran okuyucu kullanıcısı onu
+  sayfadan okuyabiliyor.
+
+Aynı ölçüm yamadan SONRA (1. sayfanın 280 karakterinden ağaçtakiler; 430 ve
+1200 px'te aynı):
+
+- Oku 1:1-3: başlarken 185 (12 kelime gizli: 95 karakter ağaçtan çıktı; 1.
+  ayetin işareti ağaçta), 1 kelime açılınca 191, 2 kelime açılınca 198, 1.
+  ayet bitip 2. ayete geçilince 222, Bitir'den sonra 280;
+- Yaz 1:1-2: başlarken 211 (8 kelime gizli), 1. kelimenin 3 harfinden 2'si
+  yazılınca hâlâ 211, kelime tamamlanınca 217, sonraki kelimenin 1. harfi
+  yazılınca 217, Bitir'den sonra 280 (oturum yokken de 280);
+- hiçbir durumda boşluktan ibaret erişilebilirlik düğümü yok; sayfa hatası 0.
+
+Görünüm ve davranış (aynı protokoller yamasız ve yamalı ağaçta, gerçek
+Chromium):
+
+- fareyle ulaşılan 10 durumun (Yaz: açılış, Ezber penceresi, başladı, üç harf
+  açık, ipucu, yanlış tuş, bitti; Oku: başladı, iki kelime açık, bitti) ekran
+  görüntüleri 430 ve 1200 px'te (20 görüntü) bayt bayt aynı; Oku ve Yaz'ın
+  önceki yamalarda belgelenen klavye / duyuru ölçüm akışlarının (Tab, Enter,
+  Boşluk, oklar, Arapça düzenli tuş olayları, duyuru zaman çizelgesi, odak)
+  çıktıları da bayt bayt aynı;
+- seçim ve kopyalama (1. ve 3. sayfa, 430 ve 1200 px): tüm metin seçilince
+  seçilen metin birebir aynı (315 ve 1247 karakter) ve seçimin birleşik
+  sınırı aynı; ilk üç satırın her kelimesine çift tıklama (1. sayfada 17, 3.
+  sayfada 27 kelime), üç tıklamayla satır seçimi, `selection.modify` ile kelime
+  kelime genişletme ve Ctrl+C'nin panoya yazdığı metin yamasız sürümle aynı. İki
+  ölçülebilir fark var: `Range.getClientRects()` artık daha çok dikdörtgen
+  döndürüyor (1. sayfada 30 -> 52, 3. sayfada 64 -> 176) ve tüm metin
+  seçiliyken seçim vurgusunda kelime sınırlarında 1 piksel genişliğinde,
+  kanal başına en fazla 6/255'lik çok silik dikişler çıkıyor (dört ekran
+  görüntüsünde 662 - 3743 piksel, %0,13 - %0,94). Tam sayfa görüntüde (430
+  px, 3. sayfa) gözle seçilemiyor; 5 kat büyütülmüş bir kırpmada çok silik
+  dikey çizgiler olarak görünüyor. Yine de "değişmedi" demiyorum;
+- tam tarama (604 sayfa): 8.932 metin katmanı satırının hepsi gerçek metni
+  taşıyor, 83.668 kelime span'ı (77.432 kelime + 6.236 ayet sonu işareti)
+  beklenen kimlik ve metinle doğrulandı, sorun 0. Testin raporladığı render
+  süresi 65,6 -> 71,1 sn, testin duvar saati 66,3 -> 71,9 sn (≈ %8: kelime
+  başına bir DOM düğümü daha);
+- sayfa kurma süresi (gerçek Chromium, 430 px). Metin katmanı kurulumu tek
+  başına, gerçek `render.js` / CSS / `mushaf.json` satırlarıyla, düz metin ve
+  kelime kelime yolları dönüşümlü bloklarla ölçüldü (4 sayfa, 13-15 ayet
+  satırı, 138-167 kelime; 3 koşu): sayfa başına kurulum 0,10-0,16 -> 0,30-0,40
+  ms, yerleşim dahil 2,4-3,4 -> 3,3-4,8 ms (fark +0,5 ile +1,7 ms; sayfada
+  112-167 ek DOM düğümü, ≈ %10). Uçtan uca (24 uzak sayfaya atlayınca sayfanın
+  DOM'a girme süresi; yamasız ve yamalı ağaç dönüşümlü, 4'er koşu): medyan 59,3
+  -> 62,1 ms, ortalama 63,3 -> 64,9 ms; koşular arası dalgalanma (koşu medyanı
+  56-69 ms) bu farktan büyük, yani fark ölçülebilir ama küçük (≈ %2-5, sayfa
+  başına ≈ 3 ms) ve algılanır bir yavaşlama değil.
+
+`test/ezber_metin_katmani_test.mjs` (yeni; jsdom, 37 kontrol, ≈ 5 sn):
+`app.js`'ten kaynaktan çıkarılan GERÇEK `drawEzberCovers`,
+`syncEzberTextLayer`, `ezberRenderCoverState` ve `ezberWordIsUpcoming` x
+gerçek `render.js` ile gerçek `data/mushaf.json` sayfalarından çizilen
+SVG'ler (1. sayfa Fâtiha; Bakara'nın 3. ve 4. sayfası: satırlar ayet
+sınırlarını aşıyor). Oku ve Yaz oturumlarının HER adımında üç şey birbirinden
+bağımsız hesaplanıp karşılaştırılıyor: `aria-hidden` taşıyan kelimeler,
+"neyin kapalı olması gerekir" kestirimi ve çizilen kapak dikdörtgenlerinin
+(merkezlerinin) üstünde durduğu kelimeler; ağaçta kalan satır metni yalnızca
+kapaksız kelimeler; SVG'de başka hiçbir değişiklik yok. Ayrıca: Yaz'da her
+kelime TAM son harf birimi açıldığı adımda geri geliyor (ondan önce değil,
+sonra değil); oturum bitince ya da yarıda bırakılınca SVG oturumdan önceki
+hâliyle BAYT BAYT aynı; oturum iki sayfaya yayılınca (Oku ve Yaz, 3. -> 4.
+sayfa, 15-17. ayetler) sayfadan çıkarken eski sayfada kapak da işaret de
+kalmıyor; kapak katmanı olmayan SVG'de ve kimliksiz span'larda işlev
+çökmüyor; kaynak korumaları (`render.js` `aria-hidden` yazmıyor, `app.js`
+yalnızca `.text-layer-word`'e yazıyor ve gizlemeyi `inert` / `display` ile
+yapmıyor, ayet satırı kelimelerle, besmele kelimesiz çağrılıyor).
+`test/erisilebilirlik_test.mjs`'e 18 kontrol eklendi (194 -> 212: gerçek
+`addTextSelectionLayer(..., words)`: span sayısı ve sırası, kimlikler, boşluk
+kuralı, `lang` / `dir` / stil / rol yok, uyuşmayan kelime listesinde düz
+metne düşüş, `render.js`'in hiçbir şeyi gizlememesi),
+`test/full_corpus_test.mjs`'e 2 kontrol (15 -> 17: yukarıdaki tarama) ve
+`test/ezber_klavye_test.mjs`'e 1 kontrol (161 -> 162: oturum bitince
+`drawEzberCovers(geçerli sayfanın SVG'si, [])` tam bir kez). Her parça tek
+tek bozularak 30 mutasyonun (14'ü `render.js`, 16'sı `app.js`: kimlik
+verilmemesi, boşluğun düşmesi ya da span dışına çıkması, işaretin ters ya da
+yanlış kelimeye verilmesi, işaretlerin hiç kaldırılmaması,
+`aria-hidden="false"`, `inert`, Yaz'da yarım kelimenin gizlenmemesi, sırası
+gelmemiş ayetlerin açık kalması, aralık sonunun aşılması, oturum sonunda
+temizlik yapılmaması...) hepsinin yakalandığı doğrulandı; `render.js`
+mutasyonlarından tam taramayla da denenen 8'inde tam tarama testi de,
+bağımsız olarak, kırıldı. İlk koşuda tek zayıf nokta çıktı (oturum sonundaki
+temizliği silen mutasyon hiçbir testi kırmıyordu) ve `ezber_klavye_test`'e bir
+kontrol eklendi.
+
+Sınırlar: jsdom'da erişilebilirlik ağacı yok; testler `aria-hidden`
+İŞARETİNİ sınıyor, ağaçtan çıkıp çıkmadığı yalnızca yukarıdaki Chromium
+ölçümünde görüldü. **Gerçek bir ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack),
+Firefox ve Safari denenmedi**; NVDA/JAWS'ın göz atma kipi arabelleğinin bir
+oturum sırasında `aria-hidden` değişimlerini nasıl yansıttığı (arabellek
+yenileniyor mu, imleç kayıyor mu) bilinmiyor. Yaz'da bir kelime son harfi
+açılana kadar sayfa metninde yok; Oku'da sırası gelmemiş ayetlerin işaretleri
+de gizli, geçerli ayetin işareti ve Yaz'daki tüm işaretler okunabilir.
+Oturum sürerken ekran okuyucu kullanıcısı kapalı kelimeleri sayfadan tekrar
+okuyamaz (Bitir'den sonra okuyabilir). Kapakların altındaki metin görenler
+için hâlâ seçilip kopyalanabiliyor (eskiden de öyleydi, değiştirilmedi).
+Yukarıdaki silik seçim dikişleri sürüyor. Sayfa kurma süresi bir telefonda
+ölçülmedi (yukarıdaki ölçümler 2 çekirdekli bir sandbox'ta başsız
+Chromium'da). Ölçüm sırasında, bu değişiklikle ilgisiz bir tasarım özelliği
+görüldü (Oku'nun klavye yolundan beri böyle): Oku'da `#ezber-reveal`
+klavyeyle odaktayken alt çubuğun TAMAMINI örtüyor, o durumda fareyle
+"Bitir"e tıklamak o düğmeye düşüyor.
 
 **Renk kontrastı ve odak göstergesi.** Başsız Chromium'da (430 ve 1200 px)
 axe-core'un `color-contrast` kuralı ve arka planı katman katman birleştiren
@@ -1982,10 +2137,10 @@ test/run_all.mjs             Tüm *_test.mjs dosyalarını sırayla çalıştır
 test/run_all_test.mjs         Koşucunun testi: sahte test dizinleriyle çıkış kodları, zaman aşımı, Ctrl+C, Actions çıktısı (Node)
 test/ci_test.mjs               CI yapısı: kilit dosyası/package.json uyumu, iş akışı, testlerin bağımlılıkları (Node)
 test/readme_test.mjs            Bu ağacın depoyla uyumu: listelenen her yol var, her dosya listeli; komut örnekleri var olan betikleri çağırıyor (Node)
-test/full_corpus_test.mjs  604 sayfayı Node'da render edip DOĞRULAYAN test: hizalama, xScale, kashida, başlık yüksekliği, Ezber->Yaz birimleri (jsdom)
+test/full_corpus_test.mjs  604 sayfayı Node'da render edip DOĞRULAYAN test: hizalama, xScale, kashida, başlık yüksekliği, Ezber->Yaz birimleri, metin katmanı kelime span'ları (jsdom)
 test/search_test.mjs        Arama saf mantığı (Node)
 test/arama_ui_test.mjs       Arama modalı arayüzü (jsdom)
-test/erisilebilirlik_test.mjs  Anons bölgesi, panel açıkken tek sayfa metni (alt kopya aria-hidden) + axe-core yapısal tarama (jsdom)
+test/erisilebilirlik_test.mjs  Anons bölgesi, panel açıkken tek sayfa metni (alt kopya aria-hidden), kelime kelime metin katmanı + axe-core yapısal tarama (jsdom)
 test/modal_odak_test.mjs        Modal odak yönetimi: işaretleme, Tab döngüsü, açan öğeye dönüş, app.js bağlantısı (jsdom)
 test/topic_links_test.mjs       Konu açıklamalarındaki <topic> bağlantıları: role/tabindex, Enter, odak, Geri düğmesi/odak, 461 bağlantının taraması, axe-core (jsdom)
 test/tafsir_dil_test.mjs        Sa'dî tefsiri dil işaretleri: birim, veri varsayımları, 1739 girdilik tam tarama, panel ve arama özeti yolu (jsdom)
@@ -1999,6 +2154,7 @@ test/surah_info_links_test.mjs       Sure Bilgisi bağlantıları: parseInfoLink
 test/sure_bilgisi_odak_test.mjs      Sure Bilgisi bağlantı -> ayrıntı -> Geri odağı: giriş/çıkış, Geri'de açan bağlantıya dönüş, modal kapanışı (jsdom)
 test/kapali_panel_test.mjs           Sure Bilgisi'nde kapalı akordeon bölümleri: CSS yapısı, 114 sure x gerçek CSS (visibility), Tab tuzağı (jsdom)
 test/ezber_klavye_test.mjs           Ezber > Oku ve Yaz klavye / ekran okuyucu yolu: #ezber-reveal, Yaz klavyesi (adlar, oklar, fiziksel tuş), duyurular, odak, ses başarısızken tek ilerleme, CSS (jsdom)
+test/ezber_metin_katmani_test.mjs    Ezber oturumunda kapak altı metin erişilebilirlik ağacından çıkıyor mu: kapakla aynı kelimeler aria-hidden, Yaz'da kelime son harfte geri geliyor, oturum sonunda ve çok sayfalı oturumda temiz (jsdom)
 ```
 
 ## Çalıştırma
@@ -2064,12 +2220,12 @@ kalmadı -- yazım hatası yüzünden "hiçbir test çalışmadı ama sonuç ye�
 SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
-`npm run test:fast` (tam tarama hariç, ≈ 66 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 20 dosyanın hepsi ≈
-2 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-68 sn, arama
-arayüzü 19-21 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
-testi 8-10 sn, Ezber klavye testi ≈ 8 sn); GitHub Actions'taki ilk koşuda
-işin tamamı 1 dk 25 sn sürdü.
+`npm run test:fast` (tam tarama hariç, ≈ 83 sn) ve `npm run test:corpus`
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 21 dosyanın hepsi ≈
+2,5 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-72 sn, arama
+arayüzü 19-22 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
+testi 8-10 sn, Ezber klavye testi ≈ 8 sn, Ezber metin katmanı testi ≈ 5 sn);
+GitHub Actions'taki ilk koşuda işin tamamı 1 dk 25 sn sürdü.
 
 **Tam tarama testi artık gerçekten doğruluyor.** `test/full_corpus_test.mjs`
 604 sayfanın tamamını Node'da (jsdom + gerçek HarfBuzz + gerçek font) render
@@ -2080,14 +2236,17 @@ yakalayamazdı. jsdom'un "canvas yok" uyarısı da (8.932 kez; `render.js`
 seçilebilir metin katmanının genişliğini etkiliyor, aşağıdaki ölçümleri
 değil) 98 bin satırlık çıktıya yol açıyordu; artık sayılıp tek satırda
 bildiriliyor, başka türden bir jsdom hatası gelirse test başarısız oluyor.
-Şimdi 15 kontrol var: 604 sayfa hatasız render ediliyor; hizalı satırlar
+Şimdi 17 kontrol var: 604 sayfa hatasız render ediliyor; hizalı satırlar
 sütunu ne eksik ne fazla dolduruyor (8.790 hizalı satırdan yalnız bilinen 4'ü
 150 birimden fazla kısa, 1'i fazla uzun); xScale sıkıştırması taban
 düzeyinde (2.955 satır, en kötü 0,770, ortalama 0,9383); kashida
 uygulanıyor (genişletilen 5.835 satırın 3.322'sinde) ve boşluklar taban
 düzeyinde genişliyor (ortalama 1,95, en çok 4,66 kat); 114 sure başlığı
 satırı 114 ayrı sureye ait; başlıklı 98 sayfanın toplam yüksekliği
-16.735-31.805 aralığında; Ezber->Yaz'ın 325.585 harf biriminin hepsi,
+16.735-31.805 aralığında; 8.932 metin katmanı satırının hepsi gerçek metni
+taşıyor ve 83.668 kelime span'ının her biri beklenen kimlik ve metinle
+(Ezber'in kapak altı metni gizlemesi bunlara dayanıyor); Ezber->Yaz'ın 325.585
+harf biriminin hepsi,
 belgelenmiş tek istisna (sayfa 451, kelime 61960) dışında, metinden
 hesaplanan sayıyla aynı. Eşikler bu yamadan önceki tabandan (main `228be5d`)
 türetildi (en fazla 3.100 sıkışan satır, en kötü xScale >= 0,75, ortalama
@@ -2098,7 +2257,7 @@ değil: düzeni bilerek değiştirirseniz (sure başlığı yüksekliği, kashid
 kuralları...) dosya başındaki sabitleri yeni ölçüme göre güncelleyin; bilinen
 bir satır/istisna düzelirse test başarısız olmuyor, yalnız "listeden
 çıkarılabilir" notu düşüyor. Dosya artık çalışma dizininden bağımsız (eskiden
-`cd test` şarttı), ≈ 58-68 sn sürüyor. Sınır: ölçülenler sütun doluluğu,
+`cd test` şarttı), ≈ 58-72 sn sürüyor. Sınır: ölçülenler sütun doluluğu,
 sıkıştırma, kashida kullanımı, başlık yüksekliği ve birim bölütleri;
 kashidanın görsel kalitesi (hangi harfte ne kadar uzatıldığı) ve gerçek
 tarayıcıdaki SVG çizimi ölçülmüyor. (Bu sınırın bir kısmı ölçülerek bulundu:
@@ -2143,7 +2302,7 @@ Testlerin kendileri de sınandı: `test/run_all_test.mjs` (56 kontrol: sahte
 test dizinleriyle çıkış kodları, keşif kuralları, `--only`/`--skip`/`--list`/
 `-v`, hatalı kullanım, zaman aşımı + SIGKILL + öksüz süreç, Ctrl+C, çıktı
 kırpma, Actions çıktısı, gerçek dizin keşfi), `test/ci_test.mjs` (53 kontrol)
-ve `full_corpus_test` (15 kontrol). Her parça tek tek bozularak (mutasyon
+ve `full_corpus_test` (17 kontrol). Her parça tek tek bozularak (mutasyon
 testi) 45 mutasyon denendi ve hepsi en az bir testi kırdı: tam tarama için 10
 (xScale'in hiç uygulanmaması ya da %20 fazla
 sıkıştırması, sure başlığından sonraki boşluğun +800 / -1500 olması, boş
@@ -2276,7 +2435,9 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
    "إياك : Sana") Arapça alıntılar Arapça sesle, "(takva sahiplerine)" gibi
    parantezli Türkçe ifadeler Türkçe sesle okunuyor mu (verideki hatalı
    `hi-Latn`/`de` gibi etiketler yamadan önce başka bir dilin sesini
-   seçtirebilirdi)?
+   seçtirebilirdi)? Ayet satırları artık kelime başına bir `<span>`: satır
+   yine tek akıcı satır olarak mı okunuyor, kelimeler tek tek ya da
+   aralarında kesintiyle mi okunuyor?
 3. Bir ayete dokununca (fareyle tıklayınca) "<Sure> <ayet> detayı açıldı"
    duyuluyor mu; panel gövdesinin ilk içeriği en fazla bir kez okunuyor mu
    (yeni eklenen bir canlı bölgenin ilk içeriğini bazı ekran okuyucular
@@ -2380,12 +2541,15 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     hepsinin kuyruğa girip gecikmesi mi oluyor (hangisi daha az rahatsız
     ediyor)? "Ayet tamamlandı" ile ayetin sesli okunması konuşmanın üstüne
     biniyor mu? Ayet okunurken düğmeye basmak sessiz kalıyor: kullanıcıyı
-    şaşırtıyor mu ("bekleyin" duyurusu gerekir mi)? Kapaklı kelimeler göz atma
-    kipinde hâlâ okunuyor: bu kabul edilebilir mi, yoksa kapakların altı ekran
-    okuyucudan gizlenmeli mi (bilinçli bırakıldı)? Açılan Arapça kelimeyi
-    duymak için sayfa metnine gitmek gerekiyor: bu akış kullanılabilir mi?
-    Bitince ("Ezber çalışması bitti") odak "Ezber" düğmesinde mi; Yaz'da
-    "Sıradaki kelimeyi aç" hiç duyulmuyor mu?
+    şaşırtıyor mu ("bekleyin" duyurusu gerekir mi)? Kapaklı kelimeler artık
+    sayfa metninden gizli (`aria-hidden`): göz atma kipinde ya da dokunarak
+    gezinirken açılmamış kelimeler hiç okunmuyor, açılan kelime kapağı
+    kalkınca okunuyor mu (satırın geri kalanı akıcı mı, kelimeler arasında
+    gereksiz duraklama yok mu)? Göz atma kipi arabelleği oturum sırasında
+    güncel kalıyor mu, imleç kayıyor mu? Açılan Arapça kelimeyi duymak için
+    sayfa metnine gitmek gerekiyor: bu akış kullanılabilir mi? Bitince
+    ("Ezber çalışması bitti") odak "Ezber" düğmesinde mi, sayfa metni yeniden
+    tam okunuyor mu; Yaz'da "Sıradaki kelimeyi aç" hiç duyulmuyor mu?
 20. Ezber > Yaz (klavyeyle başlat; Fâtiha 1-2 yeter): oturum başlayınca ekran
     okuyucu "Yaz çalışması başladı", sayfa/ayet ve "Bu ayette 19 harf var"
     diye okuyor mu; odak ilk tuşta ("ا elif, düğme") ve odak halkası görünüyor
@@ -2403,7 +2567,10 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     oklar ve harf tuşlarını okuyucu kendisi tüketebilir: Tab + Enter yolu
     yeterli mi)? Arapça klavye düzeniyle (donanım ya da ekran klavyesi) bir
     harfe basmak doğrudan o harfi açıyor mu? Ayet okunurken tuşlar sessiz
-    kalıyor: kullanıcıyı şaşırtıyor mu? Bitince odak "Ezber" düğmesinde mi?
+    kalıyor: kullanıcıyı şaşırtıyor mu? Sayfa metni: bir kelime son harfi
+    yazılana kadar okunmuyor, tamamlanınca okunuyor mu (yarım kelime hiç
+    okunmuyor mu; ayet sonu işaretleri okunuyor mu)? Bitince odak "Ezber"
+    düğmesinde mi?
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal odak
 yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı, renk
@@ -2412,8 +2579,8 @@ kuralı / Geri düğmesi, hedefsiz konu etiketlerinin düz metin görünümü, S
 tefsirinin dil işaretleri, Sure Bilgisi ayrıntı görünümünün odağı, Sure
 Bilgisi'nde kapalı bölümlerin gizlenmesi, Ezber > Oku'nun klavye yolu (iki
 küçük düzeltmesiyle birlikte: Oku'da Türkçe karşılık verisinin yüklenmesi, ses
-başarısızken ayet atlama) ve Ezber > Yaz'ın klavye yolu ayrı ayrı tek
-commit'tir, geri alınabilir.
+başarısızken ayet atlama), Ezber > Yaz'ın klavye yolu ve Ezber'de kapak altı
+metnin ağaçtan çıkarılması ayrı ayrı tek commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 

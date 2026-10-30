@@ -5,6 +5,12 @@
 //      hizalı satırların sütunu doldurması, xScale (sıkıştırma) payı, kashida
 //      kullanımı ve boşluk genişlemesi, sure başlığı sayfalarının yüksekliği,
 //      Ezber->Yaz harf birimi bölütlerinin eksiksizliği.
+//   3. Görünmez metin katmanı (render.js addTextSelectionLayer) her sayfada, her
+//      satırda gerçek metni taşıyor: ayet satırları kelime başına bir
+//      <span class="text-layer-word" data-word-id> (Ezber'in kapak altı metni
+//      erişilebilirlik ağacından çıkarması -- app.js syncEzberTextLayer -- bu
+//      yapıya dayanıyor), besmele satırı düz metin; textContent hiçbir satırda
+//      değişmemiş.
 // Raporun kendisi (ölçüm tabloları) de basılır -- tek başına çalıştırınca
 // (`npm run test:corpus`) güncel değerleri görmek için.
 //
@@ -51,6 +57,7 @@ const EXPECTED_HEADER_PAGES = 98;
 const MIN_HEADER_PAGE_HEIGHT = 16000; // taban 16735
 const MAX_HEADER_PAGE_HEIGHT = 32500; // taban 31805
 const MIN_UNITS_CHECKED = 325000; // taban 325585 (tüm Kur'an kelimeleri)
+const MIN_TEXT_LAYER_WORDS = 83000; // 83668 = 77432 gerçek kelime + 6236 ayet sonu işareti (8820 ayet satırı)
 // Bilinen, çok nadir (325.585'te 1) ve yalnız görsel istisna -- açıklaması dosya
 // sonunda.
 const KNOWN_UNIT_MISMATCHES = [{ page: 451, wordId: 61960, expected: 3, got: 2 }];
@@ -124,6 +131,9 @@ async function main() {
   const headerSurahs = new Set();
   let unitMismatches = [];
   let totalUnitsChecked = 0;
+  let textLayerWords = 0; // kelime span'ı beklenen, doğrulanan kelime sayısı
+  let textLayerLines = 0; // doğrulanan metin katmanı satırı (ayet + besmele)
+  const textLayerIssues = [];
   const t0 = Date.now();
 
   for (let pageIdx = 0; pageIdx < mushaf.pagesCount; pageIdx++) {
@@ -165,7 +175,7 @@ async function main() {
       for (const surah of surahsOnPage) {
         headerDataBySurah.set(surah, JSON.parse(fs.readFileSync(at("data", "surah-headers", `${surah}.json`), "utf-8")));
       }
-      const { totalHeight, unitSegments } = renderPage(lineRenderer, lines, headerDataBySurah);
+      const { svg, totalHeight, unitSegments } = renderPage(lineRenderer, lines, headerDataBySurah);
       if (surahsOnPage.length > 0) {
         headerPageHeights.push({ page: pageIdx + 1, headers: surahsOnPage.length, totalHeight: Math.round(totalHeight) });
       }
@@ -173,6 +183,42 @@ async function main() {
         if (l.t === "s") {
           surahHeaderLines++;
           headerSurahs.add(l.surah);
+        }
+      }
+
+      // Metin katmanı: her ayet/besmele satırı için bir .text-layer-line; ayet satırında kelime başına bir span (data-word-id = kelime
+      // kimliği; kelimeler arası boşluk soldaki kelimenin sonunda, aralarında boşluk düğümü yok), besmelede düz metin; textContent
+      // her satırda satır metniyle aynı.
+      {
+        const textLines = lines.filter((l) => l.t === "a" || l.t === "b");
+        const layerDivs = svg.querySelectorAll(".text-layer-line");
+        const flag = (k, issue) => textLayerIssues.push({ page: pageIdx + 1, line: k + 1, issue });
+        if (layerDivs.length !== textLines.length) {
+          flag(-1, `metin katmanı satır sayısı ${layerDivs.length} != ${textLines.length}`);
+        } else {
+          textLines.forEach((line, k) => {
+            const div = layerDivs[k];
+            textLayerLines++;
+            const expectedText = line.t === "b" ? mushaf.basmallahText : line.w.map((w) => w.t).join(" ");
+            if (div.textContent !== expectedText) flag(k, "textContent satır metninden farklı");
+            if (line.t === "b") {
+              if (div.children.length !== 0) flag(k, "besmele satırında span var");
+              return;
+            }
+            if (div.childNodes.length !== line.w.length || div.children.length !== line.w.length) {
+              flag(k, `span sayısı ${div.children.length} / düğüm ${div.childNodes.length} != kelime ${line.w.length}`);
+              return;
+            }
+            line.w.forEach((w, j) => {
+              const sp = div.children[j];
+              const wantText = j < line.w.length - 1 ? `${w.t} ` : w.t;
+              if (sp.tagName !== "SPAN" || !sp.classList.contains("text-layer-word") || sp.getAttribute("data-word-id") !== String(w.i) || sp.textContent !== wantText) {
+                flag(k, `kelime ${j} (id ${w.i}) span'ı beklenenden farklı`);
+              } else {
+                textLayerWords++;
+              }
+            });
+          });
         }
       }
 
@@ -244,6 +290,8 @@ async function main() {
   const maxEntry = headerPageHeights.find((h) => h.totalHeight === maxHeight);
   console.log("tallest page:", JSON.stringify(maxEntry));
 
+  console.log(`\nMetin katmanı: ${textLayerLines} satır, ${textLayerWords} kelime span'ı doğrulandı; sorun: ${textLayerIssues.length}`);
+  textLayerIssues.slice(0, 10).forEach((m) => console.log("  ", JSON.stringify(m)));
   console.log(`\nEzber -> Yaz unit segments: ${totalUnitsChecked} units checked across the whole Qur'an`);
   console.log(`Mismatches (should be 0, or exactly the 1 documented below): ${unitMismatches.length}`);
   unitMismatches.slice(0, 20).forEach((m) => console.log("  ", JSON.stringify(m)));
@@ -278,6 +326,8 @@ async function main() {
   check(`başlık içeren sayfa sayısı ${EXPECTED_HEADER_PAGES} (ölçülen ${headerPageHeights.length})`, headerPageHeights.length === EXPECTED_HEADER_PAGES);
   check(`başlıklı sayfa yükseklikleri [${MIN_HEADER_PAGE_HEIGHT}, ${MAX_HEADER_PAGE_HEIGHT}] aralığında (ölçülen ${minHeight}..${maxHeight})`, minHeight >= MIN_HEADER_PAGE_HEIGHT && maxHeight <= MAX_HEADER_PAGE_HEIGHT, maxEntry ? `en yüksek sayfa: ${JSON.stringify(maxEntry)}` : "");
 
+  check(`metin katmanı: ${EXPECTED_PAGES} sayfanın her satırı gerçek metni taşıyor; ayet satırları kelime başına span (id'li), besmele düz metin (sorun: ${textLayerIssues.length})`, textLayerIssues.length === 0, show(textLayerIssues));
+  check(`metin katmanı: tüm Kur'an tarandı (en az ${MIN_TEXT_LAYER_WORDS} kelime span'ı; ölçülen ${textLayerWords})`, textLayerWords >= MIN_TEXT_LAYER_WORDS);
   check(`Ezber->Yaz: tüm Kur'an tarandı (en az ${MIN_UNITS_CHECKED} birim; ölçülen ${totalUnitsChecked})`, totalUnitsChecked >= MIN_UNITS_CHECKED);
   const mismatchKey = (m) => `${m.page}:${m.wordId}:${m.issue || ""}:${m.expected}:${m.got}`;
   const knownMismatchKeys = new Set(KNOWN_UNIT_MISMATCHES.map(mismatchKey));
@@ -308,7 +358,7 @@ async function main() {
     console.error(`\n${failures} check(s) failed.`);
     process.exit(1);
   }
-  console.log(`\nAll checks passed (${EXPECTED_PAGES} sayfa render edildi; hizalama, xScale, kashida, sure başlığı yükseklikleri ve ${totalUnitsChecked} Ezber->Yaz birimi taban değerlere karşı).`);
+  console.log(`\nAll checks passed (${EXPECTED_PAGES} sayfa render edildi; hizalama, xScale, kashida, sure başlığı yükseklikleri, ${totalUnitsChecked} Ezber->Yaz birimi ve ${textLayerWords} metin katmanı kelime span'ı taban değerlere karşı).`);
 }
 
 main().catch((e) => {

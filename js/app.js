@@ -3065,6 +3065,8 @@ function ezberAdvance(requestId) {
 // per-line vertical box (baselineY-1350 .. +550) as
 // updateWordHighlight/updateAyahHighlight use, so a cover lines up with
 // the text it's hiding exactly as precisely as a highlight does.
+// Aynı çağrı, kapaklı kelimelerin metin katmanındaki karşılıklarını erişilebilirlik ağacından da çıkarıyor
+// (syncEzberTextLayer); `drawEzberCovers(svg, [])` (oturum sonu) ikisini birden temizliyor.
 function drawEzberCovers(svg, coverDefs) {
   const layer = svg && svg.querySelector(".ezber-cover-layer");
   if (!layer) return;
@@ -3079,6 +3081,22 @@ function drawEzberCovers(svg, coverDefs) {
     rect.setAttribute("height", 1900);
     rect.setAttribute("rx", 70);
     layer.appendChild(rect);
+  }
+  syncEzberTextLayer(svg, coverDefs);
+}
+
+// Kapaklar yalnızca GÖRSEL bir örtü: kelimeyi örten dikdörtgen SVG'de, görünmez metin katmanının (render.js
+// addTextSelectionLayer) ÜSTÜNE çiziliyor; katmanın kendisi ise erişilebilirlik ağacında tam metin olarak duruyordu,
+// yani ekran okuyucu kullanıcısı açılmamış kelimeleri sayfadan okuyabiliyordu (gerçek Chromium'da ölçüldü, README).
+// Kapağı olan her kelimenin metin katmanındaki <span>'ı gizleniyor; açılan kelimenin işareti kalkıyor, kapaklar
+// boşalınca (oturum sonu) hepsi kalkıyor. İşaret, kapağı çizen AYNI fonksiyonda ve AYNI veriden (coverDefs)
+// türüyor: ikisi birbirinden ayrışamaz. Yaz'da bir kelimenin kapağı harf harf açılıyor; kelime son harfi açılana
+// kadar gizli kalıyor (yarım bir kelime ağaçta anlamsız olurdu). Görünümü, seçimi ve kopyalamayı etkilemez.
+function syncEzberTextLayer(svg, coverDefs) {
+  const covered = new Set(coverDefs.map((c) => c.wordId));
+  for (const span of svg.querySelectorAll(".text-layer-word")) {
+    if (covered.has(Number(span.getAttribute("data-word-id")))) span.setAttribute("aria-hidden", "true");
+    else span.removeAttribute("aria-hidden");
   }
 }
 
@@ -3253,7 +3271,8 @@ function ezberStudyPlayAyahThenAdvance() {
 
 // Ekran okuyucu satırı: Oku'da az önce açılan kelime. `index` 1'den başlar, `total` ayetin kelime
 // sayısı, `gloss` kelimenin Türkçe karşılığı ("" = veri yok). Bilerek YALNIZCA Türkçe: #nav-announcer
-// tek dilli bir canlı bölge; Arapça kelimenin kendisi sayfanın metin katmanında (lang="ar") duruyor.
+// tek dilli bir canlı bölge; Arapça kelimenin kendisi, açıldığı anda sayfanın metin katmanında (lang="ar")
+// erişilebilirlik ağacına giriyor (kapağı kalkınca syncEzberTextLayer gizlemeyi kaldırır) -- açılmamışlar girmiyor.
 function ezberRevealAnnouncement(index, total, gloss) {
   let text = `${index}. kelime`;
   if (gloss) text += `: ${gloss}`;

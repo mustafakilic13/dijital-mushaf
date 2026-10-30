@@ -296,7 +296,14 @@ export class LineRenderer {
   // line so users can long-press / double-tap to select and copy an ayah
   // the normal way, even though the visible glyphs are plain SVG paths
   // with no text semantics (same idea PDF.js uses for its text layer).
-  addTextSelectionLayer(pageG, lineText, rightEdgeX, width, baselineY) {
+  // `words` ([{i, t}, ...]: mushaf.json'daki satır kelimeleri), verilirse VE kelimeler tek boşlukla
+  // birleşince `lineText`le birebir aynıysa, satır kelime başına bir <span class="text-layer-word"
+  // data-word-id="i"> olarak kuruluyor; kelimeler arası boşluk soldaki kelimenin span'ının SONUNDA duruyor,
+  // yani textContent, seçim ve kopyalama değişmiyor (span'lar biçimsiz, satır içi) ve bir kelime gizlenince
+  // boşluğunu da götürüyor (ağaçta yalnızca boşluktan oluşan düğüm kalmıyor). Neden: Ezber oturumunda
+  // (app.js drawEzberCovers) kapağın altındaki kelimeler erişilebilirlik ağacından da çıkarılabilsin -- tek
+  // bir metin düğümündeki bir kelimeyi ağaçtan ayıklamanın yolu yok. Bu katman kendisi ağaçtan hiçbir şeyi çıkarmıyor.
+  addTextSelectionLayer(pageG, lineText, rightEdgeX, width, baselineY, words = null) {
     if (!lineText || width <= 0) return;
     const fontSize = 900;
     const naturalWidth = this.measureTextWidth(lineText, this.textLayerFont, fontSize);
@@ -319,7 +326,17 @@ export class LineRenderer {
     // okunmaya çalışılır (WCAG 3.1.2, Dil Parçaları). Yalnızca erişilebilirlik
     // ağacını etkiler; görünüm değişmez (metin zaten color:transparent).
     div.lang = "ar";
-    div.textContent = lineText;
+    if (words && words.length > 0 && words.map((w) => w.t).join(" ") === lineText) {
+      words.forEach((w, k) => {
+        const span = document.createElement("span");
+        span.className = "text-layer-word";
+        if (w.i !== undefined && w.i !== null) span.setAttribute("data-word-id", String(w.i));
+        span.textContent = k < words.length - 1 ? `${w.t} ` : w.t;
+        div.appendChild(span);
+      });
+    } else {
+      div.textContent = lineText;
+    }
     fo.appendChild(div);
     pageG.appendChild(fo);
   }
@@ -523,7 +540,8 @@ export class LineRenderer {
       unitSegments = rendered.unitSegments;
     }
 
-    this.addTextSelectionLayer(pageG, lineText, rightEdgeX, width, baselineY);
+    // Besmele satırının (t === "b") kelime kimliği yok: düz metin; ayet satırları kelime kelime (bkz. addTextSelectionLayer).
+    this.addTextSelectionLayer(pageG, lineText, rightEdgeX, width, baselineY, line.t === "a" ? line.w : null);
 
     return {
       ayahSegments: segments.map((s) => ({ ...s, baselineY })),

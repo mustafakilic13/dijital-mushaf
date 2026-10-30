@@ -62,8 +62,9 @@
 // ÖNEMLİ SINIR: jsdom'da düzen, odak halkası görünümü, :focus-visible eşleşmesi ve gerçek bir ekran okuyucu yok. Düğmenin / klavyenin
 // gizlenince odağı kaybetmesi taklit ediliyor (Chromium öyle yapıyor; jsdom yapmıyor). Gerçek tarayıcı ölçümü (Tab durakları,
 // :focus-visible, görünüm, duyuru zaman çizelgesi, gerçek klavye olayları) README'de; gerçek ekran okuyucu
-// (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı. Açılan Arapça kelimenin kendisi duyuruda YOK (canlı bölge tek dilli Türkçe);
-// kapakların altındaki metin erişilebilirlik ağacında duruyor (README'de "bilinen sınırlar").
+// (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı. Açılan Arapça kelimenin kendisi duyuruda YOK (canlı bölge tek dilli Türkçe); o kelime,
+// kapağı kalkınca sayfanın metin katmanında erişilebilirlik ağacına giriyor, kapaktaki kelimeler ağaçtan çıkarılıyor (bu dosyanın
+// konusu değil: test/ezber_metin_katmani_test.mjs).
 //
 //   node ezber_klavye_test.mjs
 import fs from "fs";
@@ -233,7 +234,7 @@ function makeHarness({ mode = "oku", glosses = {}, wordIds = [10, 11, 12], mealR
     openModalEl: null,
     ezberStudy: { mode, surah: 1, from: 1, to: 2, currentAyah: 1, units: units || wordIds.map((wordId) => ({ wordId })), revealedCount: 0, expectedPage: 1 },
   };
-  const calls = { render: 0, tooltip: [], play: 0, showPage: [], buildUnits: [], loadMeal: 0, sync: 0, drawCovers: [], stopPlayback: 0, yazPos: 0, warn: [], errors: [] };
+  const calls = { render: 0, tooltip: [], play: 0, showPage: [], buildUnits: [], loadMeal: 0, sync: 0, drawCovers: [], drawCoversSvg: [], stopPlayback: 0, yazPos: 0, warn: [], errors: [] };
   // Dinleyicide fırlatılan hata jsdom'da tıklamayı yapanın değil pencerenin 'error' olayına gider: yakalayıp kaydediyoruz.
   dom.window.addEventListener("error", (e) => { calls.errors.push(e.message); e.preventDefault(); });
   let ready = mealReady;
@@ -255,7 +256,7 @@ function makeHarness({ mode = "oku", glosses = {}, wordIds = [10, 11, 12], mealR
     loadResult: () => Promise.resolve({}),
     syncAyahNav: () => { calls.sync++; },
     positionYazKeyboard: () => { calls.yazPos++; },
-    drawEzberCovers: (s, defs) => calls.drawCovers.push(defs.length),
+    drawEzberCovers: (s, defs) => { calls.drawCovers.push(defs.length); calls.drawCoversSvg.push(s); },
   };
   // Sahte <audio>: EventTarget + play()/src; testler "ended" / "error" / reddi elle tetikliyor.
   const audio = new dom.window.EventTarget();
@@ -421,6 +422,9 @@ if (NAMES.every((n) => SRCS[n]) && ANNOUNCE_BLOCK) {
     check("bitiş: odak düğmedeyse (Chromium gizlenince <body>'ye düşürürdü) ODAK EZBER DÜĞMESİNE gidiyor", h.d.activeElement === h.els.ezberBtn);
     check("bitiş: düğme hidden, metin 'Ezber', gezgin eşitlendi, oturum null", h.els.ezberReveal.hidden === true && h.els.ezberBtn.textContent === "Ezber" && h.calls.sync === 1 && h.state.ezberStudy === null);
     check("bitiş: duyuru 'Ezber çalışması bitti'", live(h) === "Ezber çalışması bitti");
+    // Kapaklar KALKMALI ve kapaklarla birlikte metin katmanındaki gizleme işaretleri de (drawEzberCovers(svg, []) ikisini birden temizliyor;
+    // bkz. test/ezber_metin_katmani_test.mjs): bu çağrı olmazsa kapaklar sayfada, kapaktaki kelimeler ağaçta gizli kalırdı.
+    check("bitiş: kapaklar ve metin katmanı işaretleri temizleniyor: drawEzberCovers(GEÇERLİ sayfa SVG'si, []) tam bir kez", h.calls.drawCovers.length === 1 && h.calls.drawCovers[0] === 0 && h.calls.drawCoversSvg[0] === h.state.currentPageSvg);
   }
   {
     const h = makeHarness();
@@ -441,7 +445,7 @@ if (NAMES.every((n) => SRCS[n]) && ANNOUNCE_BLOCK) {
     h.state.ezberStudy = null;
     h.api.endEzberStudy();
     await sleep(90);
-    check("oturum yokken endEzberStudy çağrılırsa hiçbir şey yapmıyor (sahte 'bitti' duyurusu yok)", live(h) === "" && h.calls.sync === 0);
+    check("oturum yokken endEzberStudy çağrılırsa hiçbir şey yapmıyor (sahte 'bitti' duyurusu yok, kapaklara dokunulmuyor)", live(h) === "" && h.calls.sync === 0 && h.calls.drawCovers.length === 0);
   }
   {
     // showPage'in koruması da oturumu bitiriyor (ok tuşuyla sayfa çevirme): bitiş + gezinme duyuruları TEK metin, bitiş önce.

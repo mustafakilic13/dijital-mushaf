@@ -421,6 +421,79 @@ const ARABIC_LETTER_RE = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]
   check(`metin katmanı parçası axe-core yapısal kurallarını ihlal etmiyor (${results.violations.map((v) => v.id).join(", ") || "yok"})`, results.violations.length === 0);
 }
 
+// -- Kelime kelime metin katmanı: GERÇEK addTextSelectionLayer(..., words) -----------------------------------
+// Ezber oturumu (app.js drawEzberCovers -> syncEzberTextLayer) kapağın altındaki kelimeleri erişilebilirlik ağacından çıkarabilsin diye
+// ayet satırları kelime başına bir <span class="text-layer-word" data-word-id> olarak kuruluyor. Bu, metni, seçimi, kopyalamayı ve dili
+// DEĞİŞTİRMEMELİ; ağaçta yalnızca boşluktan oluşan düğüm bırakmamalı ve kendisi hiçbir şeyi gizlememeli (gizleme yalnızca Ezber'de).
+// Oturum davranışı test/ezber_metin_katmani_test.mjs'te; 604 sayfanın tamamı test/full_corpus_test.mjs'te.
+{
+  const dom = new JSDOM(`<!DOCTYPE html><html lang="tr"><body></body></html>`, { pretendToBeVisual: true, virtualConsole: new VirtualConsole() });
+  const d = dom.window.document;
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const svg = d.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 700 1000");
+  const pageG = d.createElementNS(SVG_NS, "g");
+  svg.appendChild(pageG);
+  const WORD_TEXTS = ["بِسْمِ", "ٱللَّهِ", "ٱلرَّحْمَٰنِ", "ٱلرَّحِيمِ"];
+  const words = WORD_TEXTS.map((t, k) => ({ i: 20 + k, t }));
+  const LINE = WORD_TEXTS.join(" ");
+  const prevDocument = globalThis.document;
+  globalThis.document = d;
+  try {
+    const lr = new LineRenderer(null, null, 0, "");
+    lr.addTextSelectionLayer(pageG, LINE, 300, 300, 100, words); // 0: kelime kelime
+    lr.addTextSelectionLayer(pageG, LINE, 300, 300, 200); // 1: kelimesiz (besmele satırı)
+    lr.addTextSelectionLayer(pageG, LINE, 300, 300, 300, [{ i: 1, t: "başka" }, { i: 2, t: "metin" }]); // 2: kelimeler satırla uyuşmuyor
+    lr.addTextSelectionLayer(pageG, LINE, 300, 300, 400, []); // 3: boş liste
+    lr.addTextSelectionLayer(pageG, "x y", 300, 300, 500, [{ t: "x" }, { i: 0, t: "y" }]); // 4: kimliksiz kelime, kimliği 0 olan kelime
+  } finally {
+    if (prevDocument === undefined) delete globalThis.document;
+    else globalThis.document = prevDocument;
+  }
+  d.body.appendChild(svg);
+  const lines = [...d.querySelectorAll(".text-layer-line")];
+  const spansOf = (l) => [...l.querySelectorAll(".text-layer-word")];
+  check("kelime kelime kurulum: 5 çağrı 5 satır üretti", lines.length === 5);
+
+  const L0 = lines[0];
+  const S0 = spansOf(L0);
+  check(`satır, kelime başına bir <span class="text-layer-word"> (${S0.length} span, 4 kelime), sırayla`, S0.length === 4 && S0.every((sp, k) => sp.tagName === "SPAN" && sp.textContent.trim() === WORD_TEXTS[k]));
+  check("her span data-word-id taşıyor (kelime kimliği: 20, 21, 22, 23)", S0.map((sp) => sp.getAttribute("data-word-id")).join() === "20,21,22,23");
+  check("textContent değişmedi: satırın tüm metni = kelimeler tek boşlukla birleşimi (seçim/kopyalama aynı)", L0.textContent === LINE);
+  check("kelimeler arası boşluk soldaki kelimenin span'ının SONUNDA: ilk üçü tek boşlukla biter, sonuncu boşluksuz", S0.slice(0, 3).every((sp, k) => sp.textContent === `${WORD_TEXTS[k]} `) && S0[3].textContent === WORD_TEXTS[3]);
+  check("satırın doğrudan çocukları yalnızca span'lar: ağaçta yalnızca boşluktan oluşan düğüm yok", [...L0.childNodes].every((n) => n.nodeType === 1 && n.tagName === "SPAN") && L0.childNodes.length === 4);
+  check('lang="ar" ve dir="rtl" satırda duruyor; span\'lar kendi lang/role/tabindex/aria-* taşımıyor (etkin dil yine Arapça)', L0.getAttribute("lang") === "ar" && L0.getAttribute("dir") === "rtl" && S0.every((sp) => !sp.hasAttribute("lang") && !sp.hasAttribute("role") && !sp.hasAttribute("tabindex") && ![...sp.attributes].some((a) => a.name.startsWith("aria-")) && sp.closest("[lang]") === L0));
+  check("render.js hiçbir şeyi gizlemiyor: kelime kelime kurulmuş satırlarda hiç aria-hidden yok (gizleme yalnızca Ezber oturumunda, app.js)", d.querySelectorAll("[aria-hidden]").length === 0);
+  check("kelime span'larında stil yok (yalnızca class + data-word-id: görünüm, seçim vurgusu ve satır genişliği satırdan geliyor)", S0.every((sp) => !sp.hasAttribute("style") && [...sp.attributes].map((a) => a.name).sort().join() === "class,data-word-id"));
+
+  // Bir kelime gizlenince (Ezber'de olan bu) kalan metin düzgün ve boşluk düğümü artığı yok
+  const exposedText = (line) => [...line.children].filter((sp) => sp.getAttribute("aria-hidden") !== "true").map((sp) => sp.textContent).join("");
+  S0[1].setAttribute("aria-hidden", "true");
+  check("2. kelime gizlenince kalan metin 'kelime1 kelime3 kelime4' (boşluğunu da götürdü; çift/başta boşluk yok)", exposedText(L0) === `${WORD_TEXTS[0]} ${WORD_TEXTS[2]} ${WORD_TEXTS[3]}`);
+  S0[1].removeAttribute("aria-hidden");
+  S0[0].setAttribute("aria-hidden", "true");
+  check("1. kelime gizlenince kalan metin başta boşluk bırakmıyor", exposedText(L0) === `${WORD_TEXTS[1]} ${WORD_TEXTS[2]} ${WORD_TEXTS[3]}`);
+  S0[0].removeAttribute("aria-hidden");
+  S0[3].setAttribute("aria-hidden", "true");
+  check("son kelime gizlenince kalan metin yalnızca sondaki tek boşlukla (kelime1 kelime2 kelime3 + ' ') farklı", exposedText(L0).trim() === `${WORD_TEXTS[0]} ${WORD_TEXTS[1]} ${WORD_TEXTS[2]}` && exposedText(L0).length === `${WORD_TEXTS[0]} ${WORD_TEXTS[1]} ${WORD_TEXTS[2]}`.length + 1);
+  S0[3].removeAttribute("aria-hidden");
+  for (const sp of S0) sp.setAttribute("aria-hidden", "true");
+  check("hepsi gizlenince ağaçta metin kalmıyor (boşluk düğümü de yok: satırın görünür metni boş)", exposedText(L0) === "");
+  for (const sp of S0) sp.removeAttribute("aria-hidden");
+
+  const L1 = lines[1];
+  check("kelimesiz çağrı (besmele satırı): tek metin düğümü, span yok, textContent = lineText", spansOf(L1).length === 0 && L1.childNodes.length === 1 && L1.firstChild.nodeType === 3 && L1.textContent === LINE);
+  const L2 = lines[2];
+  check("kelimeler satır metniyle uyuşmuyorsa düz metne düşüyor: span yok, textContent = lineText (içerik hiç kaybolmuyor)", spansOf(L2).length === 0 && L2.textContent === LINE);
+  const L3 = lines[3];
+  check("boş kelime listesi: düz metin", spansOf(L3).length === 0 && L3.textContent === LINE);
+  const S4 = spansOf(lines[4]);
+  check("kimliksiz kelime data-word-id almıyor; kimliği 0 olan kelime 'data-word-id=\"0\"' alıyor (0 geçerli kimlik)", S4.length === 2 && !S4[0].hasAttribute("data-word-id") && S4[1].getAttribute("data-word-id") === "0" && lines[4].textContent === "x y");
+
+  const results = await runAxe(d, { ...AXE_OPTIONS, runOnly: { type: "rule", values: STRUCTURAL_RULES } });
+  check(`kelime kelime metin katmanı axe-core yapısal kurallarını ihlal etmiyor (${results.violations.map((v) => v.id).join(", ") || "yok"})`, results.violations.length === 0);
+}
+
 // -- Arapça metin parçaları: lang="ar" (WCAG 3.1.2, Dil Parçaları) --------------------------------------------
 // Belge dili `tr`. Ekran okuyucunun/TTS'in sesi `lang`e göre seçildiği için işaretsiz Arapça metin Türkçe sesle
 // okunmaya çalışılır. (a) statik kabuk, (b) çizim anında JS'in ürettiği şablonlar, (c) dili metinle birlikte
