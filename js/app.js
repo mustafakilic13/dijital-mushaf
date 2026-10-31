@@ -1691,8 +1691,10 @@ function ayahPanelBodyHTML(ayah) {
   const cards = buildWordMealCards(rawWords, getCachedWordMealData(), ayah.surah, ayah.ayah);
   const mealText = getMealText(getCachedMealData(), ayah.surah, ayah.ayah);
 
+  // Tefsir başlangıçta kapalı: düğmeler baştan aria-expanded="false" ile geliyor (ekran okuyucu düğmeyi
+  // "daraltılmış" diye okusun); sonraki durum updateTafsirTabsUI'de.
   const tafsirTabsHTML = tafsirSourceIds()
-    .map((id) => `<button type="button" class="wm-tafsir-tab" data-tafsir-id="${escapeHtml(id)}">${escapeHtml(tafsirSourceLabel(id))}</button>`)
+    .map((id) => `<button type="button" class="wm-tafsir-tab" data-tafsir-id="${escapeHtml(id)}" aria-expanded="false">${escapeHtml(tafsirSourceLabel(id))}</button>`)
     .join("");
 
   return `${ayahTopicsRowHTML(ayah.surah, ayah.ayah)}
@@ -1728,11 +1730,18 @@ function tafsirContentHTML(sourceId, ayah) {
   return text || `<p class="word-meal-loading">Bu ayet için tefsir bulunamadı.</p>`;
 }
 
+// Sekme düğmelerinin durumu tek yerden, wm.tafsirActive'den türetiliyor: görünen hâl (.active) ile
+// aria-expanded birlikte değişiyor, birbirinden ayrışamaz. Düğme bir göster/gizle düğmesi (aynı
+// düğmeye tekrar basınca kapanıyor), o yüzden aria-expanded -- Sure Bilgisi akordeonundaki gibi.
+// role="tab" KULLANILMAZ (sekme listesinde hep biri seçili olur, burada hepsi kapanabiliyor);
+// aria-pressed de değil (düğmenin adı değişmiyor, anlatılması gereken açılan/kapanan içerik).
 function updateTafsirTabsUI() {
   const wm = state.wordMeal;
   if (!wm.bodyEl) return;
   wm.bodyEl.querySelectorAll(".wm-tafsir-tab").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.tafsirId === wm.tafsirActive);
+    const active = btn.dataset.tafsirId === wm.tafsirActive;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-expanded", active ? "true" : "false");
   });
 }
 
@@ -1765,6 +1774,16 @@ function animateTafsirClosed(panelEl) {
   });
 }
 
+// Kapanmış tefsir bölümünün metnini DOM'dan kaldırır. Kapalı panel yalnızca yükseklik 0 + opacity 0
+// ile gizliydi, metin (Sa'dî ~3000 karakter; ya da veri gelirken kapatılınca "Yükleniyor…") hem DOM'da
+// hem erişilebilirlik ağacında kalıyordu: düğme "kapalı" derken ekran okuyucu metni okuyabiliyordu.
+// Açılış yolu DEĞİŞMEDİ: metin yine kapalı panele yazılıp bir kare sonra açılıyor (showTafsirContent).
+// Yalnızca kapanış bitince, arada yeni bir tıklama olmadıysa çağrılıyor (bkz. onTafsirTabClick).
+function clearTafsirContent(panelEl) {
+  const contentEl = panelEl && panelEl.querySelector(".wm-tafsir-content");
+  if (contentEl) contentEl.innerHTML = "";
+}
+
 // Fills in and opens .wm-tafsir-content/.wm-tafsir-panel for `sourceId`,
 // fetching its data first if this is the first time it's needed this
 // session (see tafsir.js's loadTafsirData/cache).
@@ -1774,7 +1793,11 @@ function showTafsirContent(sourceId, ayah, panelEl) {
 
   const needsFetch = isTafsirSourceAvailable(sourceId) && !isTafsirDataReady(sourceId);
   contentEl.innerHTML = needsFetch ? WORD_MEAL_LOADING_HTML : tafsirContentHTML(sourceId, ayah);
-  requestAnimationFrame(() => panelEl.classList.add("wm-open"));
+  // Bu bir kare içinde sekme yeniden kapatıldıysa (ya da başka kaynağa geçildiyse) panel AÇILMAZ: aksi
+  // hâlde düğme "kapalı" (aria-expanded="false") derken panel açık kalırdı.
+  requestAnimationFrame(() => {
+    if (state.wordMeal.tafsirActive === sourceId) panelEl.classList.add("wm-open");
+  });
 
   if (needsFetch) {
     loadTafsirData(sourceId)
@@ -1795,7 +1818,9 @@ function showTafsirContent(sourceId, ayah, panelEl) {
 // the OTHER button closes whichever was open and opens this one in that
 // same area, as two distinct steps (see animateTafsirClosed) rather than
 // swapping content in place, so switching reads as "close, then open"
-// exactly like re-tapping a single button does.
+// exactly like re-tapping a single button does. Once a plain close has
+// finished, the text is removed from the DOM again (clearTafsirContent),
+// so a collapsed Tefsir section (aria-expanded="false") carries no text.
 async function onTafsirTabClick(sourceId) {
   const wm = state.wordMeal;
   if (!wm.open || !wm.bodyEl) return;
@@ -1813,7 +1838,11 @@ async function onTafsirTabClick(sourceId) {
   if (wm.tafsirActive === sourceId) {
     wm.tafsirActive = null;
     updateTafsirTabsUI();
-    animateTafsirClosed(panelEl);
+    animateTafsirClosed(panelEl).then(() => {
+      // Kapanış bitti: arada yeni bir tıklama olmadıysa (olduysa requestId değişmiştir; yeniden
+      // açılan ya da başka bir kapanışın animasyonu süren paneli boşaltmamak için) metni kaldır.
+      if (wm.tafsirRequestId === requestId) clearTafsirContent(panelEl);
+    });
     return;
   }
 
@@ -1886,8 +1915,8 @@ function openWordMealStructure(bodyHTML, refText) {
   state.wordMeal.bodyEl = innerEl.querySelector(".word-meal-body");
   // Panelin KENDİ dinamik içeriği (kelime meali/meal ilk kez yüklenince gövdenin
   // yeniden yazılması, tefsir sekmesine basınca içeriğin gelmesi) burada duyurulur.
-  // Sekme düğmeleri aria-expanded/aria-pressed taşımadığından içeriğin geldiğini
-  // bildiren tek şey bu bölge. Canlı bölge yalnızca GÖVDE: sayfa metni dilimleri
+  // Tefsir sekmesi düğmesinin kendi durumunu aria-expanded söylüyor (updateTafsirTabsUI); metnin
+  // GELDİĞİNİ bu bölge duyuruyor. Canlı bölge yalnızca GÖVDE: sayfa metni dilimleri
   // (üst + alt) bunun dışında, yani sayfa metni okutulmuyor.
   state.wordMeal.bodyEl.setAttribute("aria-live", "polite");
   state.wordMeal.topEl = topEl;

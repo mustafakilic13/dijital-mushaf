@@ -31,7 +31,8 @@
 // KASITLI HARİÇ: aynı 0fr/1fr kalıbını kullanan .wm-tafsir-panel (tefsir) ve .word-meal-panel (ayet paneli). Tefsir paneli
 // .word-meal-body'nin aria-live bölgesinin içinde ve içerik kapalıyken yazılıp bir kare sonra açılıyor: gizli bir alt ağaca
 // yazılan metnin duyurulup duyurulmayacağı gerçek ekran okuyucu olmadan doğrulanamaz (bkz. README, "Sure Bilgisi'nde
-// kapalı akordeon bölümleri").
+// kapalı akordeon bölümleri"). Kapalı tefsir metninin ağaçta durması CSS ile değil, kapanış bitince metnin DOM'dan
+// kaldırılmasıyla çözüldü: test/tefsir_sekme_aria_test.mjs.
 // Ayet panelinin kapalı hâli kalıcı değil ve odak yönetimiyle iç içe. (1)'deki küme kontrolü, yeni bir 0fr paneli eklenirse
 // bu karara dönüp bakılmasını sağlıyor.
 //

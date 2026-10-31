@@ -274,7 +274,9 @@ sağ altında kaynak olarak "Elmalılı Muhammed Hamdi Yazır" gösteriliyor
 
 **Tefsir** tek bir kaynak butonu olarak gösteriliyor ("Tefsîr-i Sa'dî"):
 butona basmak ortak alanı açar; tekrar basmak kapatır (bkz. `js/app.js`,
-`onTafsirTabClick` ve `animateTafsirClosed`). `sources` (`js/tafsir.js`)
+`onTafsirTabClick` ve `animateTafsirClosed`); düğmenin durumu `aria-expanded`
+ile bildiriliyor ve kapanış bitince metin DOM'dan kaldırılıyor (bkz.
+"Erişilebilirlik", "Tefsir sekme düğmesi"). `sources` (`js/tafsir.js`)
 bir sözlük olarak tasarlandı ki yeni bir kaynak eklenmek istenirse tek
 yapılacak şey oraya bir `file` yolu eklemek olsun --
 `isTafsirSourceAvailable` sayesinde, veri dosyası henüz hazır olmayan bir
@@ -634,8 +636,8 @@ dilim) yeniden okunuyordu. Başsız bir Chromium'da DOM düzeyinde ölçüldü:
 sayfa çevirmede canlı bölgelere eklenen metin 1192 → 37 karakter, paneli
 kapatmada 1155 → 21. Panelin **kendi** dinamik içeriği -- kelime meali/meal
 ilk kez yüklenince gövdenin yeniden yazılması, tefsir sekmesine basınca
-içeriğin gelmesi (sekme düğmeleri `aria-expanded`/`aria-pressed` taşımıyor,
-içeriğin geldiğini bildiren tek şey canlı bölge) -- için canlı bölge artık
+içeriğin gelmesi (sekme düğmesinin kendi durumunu `aria-expanded` söylüyor,
+metnin geldiğini canlı bölge duyuruyor) -- için canlı bölge artık
 yalnızca `.word-meal-body` üzerinde.
 
 **Görünmez metin katmanı.** `js/render.js`'teki `addTextSelectionLayer`,
@@ -979,17 +981,16 @@ ağaçta da görülen bir oynama var; yamayla ilgisiz.
 
 **Bilerek dokunulmadı: aynı 0fr/1fr kalıbını kullanan iki panel daha.**
 
-- *Tefsir* (`.wm-tafsir-panel`): kapalıyken de metin (Sa'dî, ~3200 karakter)
-  erişilebilirlik ağacında duruyor (ölçüldü: `ignored` false); içinde
-  odaklanabilir öğe yok, yani Tab etkilenmiyor. Ama panel,
+- *Tefsir* (`.wm-tafsir-panel`): CSS'e (`visibility`) dokunulmadı. Panel,
   `.word-meal-body`'nin `aria-live="polite"` bölgesinin içinde ve
-  `showTafsirContent` içeriği panel kapalıyken yazıp bir kare sonra açıyor;
-  sekme düğmeleri `aria-expanded` taşımadığı için içeriğin geldiğini bildiren
-  tek şey bu bölge (bkz. "`#page-container` canlı bölge DEĞİL"). `visibility:
-  hidden`, gizli bir alt ağaca yazılan metnin duyurulup duyurulmayacağını
-  değiştirebilir; bu gerçek ekran okuyucu olmadan doğrulanamayacağı için
-  bırakıldı (CSS'te nedeni yazılı). Kapalı tefsir metninin okunması, gerçek
-  ekran okuyucuyla duyuru sınanabildiğinde ayrıca ele alınabilir.
+  `showTafsirContent` içeriği panel kapalıyken yazıp bir kare sonra açıyor
+  (bkz. "`#page-container` canlı bölge DEĞİL"); `visibility: hidden`, gizli
+  bir alt ağaca yazılan metnin duyurulup duyurulmayacağını değiştirebilir ve
+  bu gerçek ekran okuyucu olmadan doğrulanamaz (CSS'te nedeni yazılı). Kapalı
+  metnin ağaçta durması başka yoldan çözüldü: kapanış bitince metin DOM'dan
+  kaldırılıyor, açılış yolu aynı kalıyor (aşağıda, "Tefsir sekme düğmesi:
+  açık/kapalı durumu ve kapalıyken metin"). İçinde odaklanabilir öğe yok,
+  yani Tab zaten etkilenmiyordu.
 - *Ayet paneli* (`.word-meal-panel`): kapalı hâli kalıcı değil (açılırken bir
   kare, kapanırken animasyon boyunca; sonra panel DOM'dan kalkıyor) ve odak
   yönetimiyle iç içe (kapanırken odak panelin içindeyse önce gezgin düğmesine
@@ -1018,6 +1019,113 @@ tuzağındaki `checkVisibility` Chromium'un ilgili kısmını taklit eden küç�
 yedek); gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı;
 gecikmeli `visibility` geçişi yalnızca Chromium'da ölçüldü (Firefox/Safari'de
 denenmedi).
+
+**Tefsir sekme düğmesi: açık/kapalı durumu ve kapalıyken metin.** Ayet
+panelinin Tefsir bölümündeki düğme ("Tefsîr-i Sa'dî") açık mı kapalı mı
+olduğunu yalnızca görsel olarak (`.active` sınıfı) taşıyordu. Gerçek
+Chromium'da (430 px; 50. sayfada gezginden Enter ile açılan panel; sekmeye
+klavyeyle Enter ve Boşluk; CDP `Accessibility.getFullAXTree`) düzeltmeden ÖNCE
+ölçülen durum:
+
+- düğme ağaçta yalnızca `button`, ad "Tefsîr-i Sa'dî"; `expanded` özelliği
+  açıkken de kapalıyken de yok, DOM'da hiçbir `aria-*` yok: durumu düğmeden
+  öğrenmenin yolu yoktu (kapatınca canlı bölgeye eklenen metin de 0 karakter;
+  DOM düzeyinde ölçüldü, gerçek ekran okuyucuyla değil);
+- kapatınca (panel yüksekliği 0) 3238 karakterlik metin DOM'da, 3049
+  karakteri ağaçta görünür (`ignored` false) kalıyor: düğme "kapalı" derken
+  metin okunabiliyor;
+- tefsir dosyasının yanıtı yapay olarak 2,5 sn geciktirilip sekmeyi açıp
+  kapatınca kapalı panelde "Yükleniyor…" (11 karakter) DOM'da ve ağaçta
+  kalıyor, veri gelince de yerine bir şey yazılmıyor;
+- aynı karede iki tıklama (senkron `click(); click();`): sekme "etkin değil"
+  olurken panel AÇIK (64 px) ve içeriği "Yükleniyor…" olarak KALICI; panelin
+  açılması bir kare sonra (`requestAnimationFrame`), sekmenin hâlâ etkin olup
+  olmadığına bakılmadan yapılıyordu.
+
+Düzeltme (`js/app.js`; `css/style.css`'te yalnızca yorum):
+
+- Düğmeler baştan `aria-expanded="false"`; `updateTafsirTabsUI`, `.active` ile
+  `aria-expanded`'ı AYNI değerden (`wm.tafsirActive`) yazıyor, yani ikisi
+  ayrışamaz. `role="tab"` kullanılmadı (sekme listesinde hep biri seçili
+  olur, burada hepsi kapanabiliyor), `aria-pressed` de değil (adı değişmeyen
+  bir göster/gizle düğmesi; Sure Bilgisi akordeonu da yalnızca
+  `aria-expanded` taşıyor), `aria-controls` da yok.
+- Düz kapanış BİTİNCE (animasyon sürerken değil: `transitionend` ya da 400 ms
+  yedek zamanlayıcı) metin DOM'dan kaldırılıyor (`clearTafsirContent`); arada
+  yeni bir tıklama olduysa (`requestId` değiştiyse) kaldırılmıyor, böylece
+  kapanırken yeniden açılan ya da kapat-aç-kapat'ta eski kapanışın bitişi
+  yeni animasyonu bozmuyor. `aria-expanded="false"` iken ağaçta okunacak
+  tefsir metni de kalmıyor. Açılış yolu DEĞİŞMEDİ: metin yine kapalı panele
+  yazılıp bir kare sonra açılıyor, yani canlı bölgeye eklenen metin aynı
+  (açılışta 3249 karakter, kapatınca 0; önce de aynıydı) ve panele
+  `visibility: hidden` verilmedi.
+- `showTafsirContent` paneli bir kare sonra YALNIZCA sekme hâlâ etkinse
+  açıyor.
+
+Düzeltmeden SONRA aynı sahne: düğme ağaçta `expanded` false / true / false /
+true (ilk durum, aç, kapat, yeniden aç; DOM'da `aria-expanded` ve `.active`
+birlikte); kapatınca metin DOM'da ve ağaçta 0 karakter (önce 3238 / 3049),
+yeniden açınca 3238 / 3049 (önceki gibi); veri gelirken kapatılan panel kapalı
+ve boş (11 -> 0 karakter) ve veri gelince de öyle kalıyor; aynı karede çift
+tıklamada panel kapalı, boş, düğme `expanded` false (önce panel 64 px açık);
+kapanırken yeniden açınca son durum açık ve metin dolu (öncekiyle aynı).
+Animasyon eğrisi (veri önbellekteyken 3 açma + 3 kapama; sınıf değişiminden
+itibaren 12 zaman kaymasında panel yüksekliği ve iç öğenin opacity'si)
+yamasız ve yamalı ağaçta ölçüldü: medyanlar arasındaki en büyük fark
+yükseklikte 21 px (açılış) ve 12 px (kapanış), opacity'de 0,04; aynı ağacın üç
+koşusu arasındaki en büyük aralık ise 45-57 px ve 0,05, yani fark ölçüm
+gürültüsü içinde. Kareler arası en büyük yükseklik sıçraması iki ağaçta da
+376-379 px (kapanışın sonunda ek bir sıçrama yok) ve panel görünürken içeriği
+boş olan kare hiç yok. Yerleşik durumların ekran görüntüleri (tefsir kapalı,
+açık, tekrar kapalı, tekrar açık + Sure Bilgisi'nin 6 durumu): 430 px'te 10/10
+bayt bayt aynı; 1200 px'te tefsirin 4'ü bayt bayt aynı, dokunulmayan Sure
+Bilgisi'nin birinde 2 pikselde 1 düzeylik oynama var (yukarıdaki kapalı
+akordeon paragrafındakiyle aynı türden).
+
+`test/tefsir_sekme_aria_test.mjs` (yeni; jsdom, 88 kontrol, ≈ 6-10 sn):
+`app.js`'ten kaynaktan çıkarılan GERÇEK `ayahPanelBodyHTML`,
+`updateTafsirTabsUI`, `animateTafsirClosed`, `clearTafsirContent`,
+`showTafsirContent` ve `onTafsirTabClick` x gerçek `js/tafsir.js` x gerçek
+`data/tafsir-saadi.json` (2:255) x elle ilerletilen zamanlayıcı (`setTimeout`
+ve `requestAnimationFrame` bir kuyrukta; deterministik): ilk durum, açma,
+kapama (animasyon sürerken metin duruyor; `transitionend` ya da yedek
+zamanlayıcıyla bitince kalkıyor; yanlış özelliğin ya da yanlış hedefin geçişi
+kapanışı bitirmiyor), yeniden açma, ilk açılışta veri bekleme, veri gelirken
+kapatma (ve yeniden açma), aynı karede çift ve üç tıklama, kapanırken yeniden
+açma, kapat-aç-kapat, iki kaynak arasında geçiş (ikincisi verisi olmayan
+"yakında eklenecek" kaynağı; aynı anda en çok bir düğme `expanded`) ve geçiş
+sırasında geri dönme; birkaç senaryo gerçek zamanlayıcıyla da. Ayrıca 50
+tohumlu rastgele tıklama / zaman / veri dizisi (tek ve iki kaynak, her biri
+120 adım): her adımda `aria-expanded` == `.active` == `wm.tafsirActive ===
+id`, en çok bir düğme `expanded`, açık panel hiç boş değil; sonunda kapalıysa
+panel kapalı ve metin yok, açıksa panel açık ve metin dolu. Son olarak
+axe-core yapısal taraması (kapalı ve açık). Düzeltmesiz koda karşı (testin
+işlev bulma denetimi geçsin diye kullanılmayan boş bir `clearTafsirContent`
+eklenerek) 66 kontrol kırılıyor; kodun her parçası tek tek
+bozularak 30 mutasyon denendi (`aria-expanded`'ın işaretlemede eksik ya da
+ters olması, güncellemede yazılmaması / ters / yanlış koşul, fazladan
+`aria-pressed` ya da `role="tab"`, kapanış temizliğinin olmaması / korumasız /
+yanlış korumalı / animasyonu beklemeden / içerik öğesini ya da yanlış öğeyi
+silen / panel yokken patlayan, `requestId`'nin artırılmaması, açılış karesi
+korumasının olmaması / ters / yetersiz, üç çağrı yerinden birinin silinmesi,
+var olan korumaların (veri gelince kapalı panele yazmama, `transitionend`
+hedefi ve özelliği, yedek zamanlayıcı, gövde yokken, ayet paneli kapalıyken)
+bozulması, CSS'te `visibility`, yanlış alan adı), hepsi yakalandı; biri
+(`aria-expanded`'ı `.active`'ten ayrı hesaplamak) davranışsal olarak eşdeğer,
+onu yalnızca kaynak denetimi yakalıyor. Mutasyonsuz hâl 22 test dosyasının
+hepsiyle geçiyor.
+
+Sınır: jsdom'da düzen, geçiş ve erişilebilirlik ağacı yok; testler
+`aria-expanded` işaretini ve metnin DOM'da olup olmadığını denetliyor,
+ağaçtaki durum yukarıdaki gerçek Chromium ölçümünde görüldü. Gerçek ekran
+okuyucu (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı: durum duyurusunun
+("genişletildi") canlı bölgenin metin duyurusuyla nasıl birleştiği ya da ayrı
+okunduğu, ve açılışta binlerce karakterlik bir metnin canlı bölgeden
+okunmasının uygun olup olmadığı bilinmiyor (kontrol listesi, madde 4); Firefox
+ve Safari'de denenmedi. Kapanınca metin DOM'dan kalktığı için kapalı bölümde
+okunacak tefsir kalmıyor; her açılışta metin yeniden kuruluyor
+(`resolveTafsirText` zaten her açılışta çalışıyordu), bir ekran okuyucunun
+okuma konumunun buna nasıl tepki verdiği de denenmedi.
 
 **Ayete ve sure başlığına klavye / ekran okuyucu erişimi (ayet gezgini).**
 Sayfa tek bir `<svg>` (harfler `<path>`, üstünde görünmez bir metin katmanı)
@@ -2155,6 +2263,7 @@ test/sure_bilgisi_odak_test.mjs      Sure Bilgisi bağlantı -> ayrıntı -> Ger
 test/kapali_panel_test.mjs           Sure Bilgisi'nde kapalı akordeon bölümleri: CSS yapısı, 114 sure x gerçek CSS (visibility), Tab tuzağı (jsdom)
 test/ezber_klavye_test.mjs           Ezber > Oku ve Yaz klavye / ekran okuyucu yolu: #ezber-reveal, Yaz klavyesi (adlar, oklar, fiziksel tuş), duyurular, odak, ses başarısızken tek ilerleme, CSS (jsdom)
 test/ezber_metin_katmani_test.mjs    Ezber oturumunda kapak altı metin erişilebilirlik ağacından çıkıyor mu: kapakla aynı kelimeler aria-hidden, Yaz'da kelime son harfte geri geliyor, oturum sonunda ve çok sayfalı oturumda temiz (jsdom)
+test/tefsir_sekme_aria_test.mjs     Tefsir sekme düğmesi: aria-expanded .active ile tutarlı, kapanış bitince metin DOM'dan kalkıyor, aynı karede çift tıklama, veri gelirken kapatma, iki kaynak arasında geçiş, rastgele diziler (jsdom)
 ```
 
 ## Çalıştırma
@@ -2221,10 +2330,11 @@ SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
 `npm run test:fast` (tam tarama hariç, ≈ 83 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 21 dosyanın hepsi ≈
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 22 dosyanın hepsi ≈
 2,5 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-72 sn, arama
 arayüzü 19-22 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
-testi 8-10 sn, Ezber klavye testi ≈ 8 sn, Ezber metin katmanı testi ≈ 5 sn);
+testi 8-10 sn, Ezber klavye testi ≈ 8 sn, Ezber metin katmanı testi ≈ 5 sn,
+tefsir sekme testi ≈ 6 sn);
 GitHub Actions'taki ilk koşuda işin tamamı 1 dk 25 sn sürdü.
 
 **Tam tarama testi artık gerçekten doğruluyor.** `test/full_corpus_test.mjs`
@@ -2448,7 +2558,12 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
    `pointToAyah(e.clientX, e.clientY, ...)` ile imleç konumundan
    bulunuyor); bir ekran okuyucunun "etkinleştir" hareketinin bu SVG'ye
    `click` üretip üretmediği sınanmadı.
-4. Tefsir sekmesine basınca tefsir metni okunuyor mu.
+4. Tefsir düğmesine odaklanınca "daraltılmış", basınca "genişletilmiş", tekrar
+   basınca yine "daraltılmış" duyuluyor mu (`aria-expanded`); açılınca tefsir
+   metni okunuyor mu ve bu duyuru düğmenin durum duyurusuyla çakışmadan ya da
+   birbirini kesmeden geliyor mu (metin binlerce karakter; canlı bölge);
+   kapatınca metin artık okunmuyor mu (okuma/tarama modunda düğmenin altında
+   tefsir metni kalmamalı).
 5. Kapat düğmesine/Esc'ye basınca "Ayet detayı kapatıldı" duyuluyor mu.
 6. Bir modal açılınca (ör. üst çubuktan Sure Seç) ekran okuyucu başlığı ve
    rolü okuyor mu ("Sure Seç, iletişim kutusu" gibi), odak modalın içinde

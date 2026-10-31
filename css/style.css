@@ -760,11 +760,12 @@ body {
   transition: grid-template-rows 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .wm-tafsir-panel.wm-open { grid-template-rows: 1fr; }
-/* Kapalıyken metin ağaçta kalıyor (yükseklik 0, opacity 0), ama BİLEREK visibility:hidden
-   verilmedi (.info-section-panel-inner'daki gibi): bu panel .word-meal-body'nin aria-live
-   bölgesinin içinde ve içerik kapalıyken yazılıp bir kare sonra açılıyor; gizli alt ağaca
-   yazılan metnin duyurulup duyurulmayacağı gerçek ekran okuyucuyla doğrulanmadan
-   değiştirilmemeli (bkz. README, "Sure Bilgisi'nde kapalı akordeon bölümleri"). */
+/* Kapalıyken bu panelde metin YOK: js/app.js onTafsirTabClick, kapanış animasyonu bitince metni DOM'dan
+   kaldırıyor (clearTafsirContent; ilk açılıştan önce zaten boş). Kapanış sürerken metin görünür kalıyor
+   (yükseklik küçülüyor, opacity sönüyor). BİLEREK visibility:hidden verilmedi (.info-section-panel-inner'daki
+   gibi): bu panel .word-meal-body'nin aria-live bölgesinin içinde ve içerik kapalı panele yazılıp bir kare
+   sonra açılıyor; gizli alt ağaca yazılan metnin duyurulup duyurulmayacağı gerçek ekran okuyucuyla
+   doğrulanmadan değiştirilmemeli (bkz. README, "Sure Bilgisi'nde kapalı akordeon bölümleri"). */
 .wm-tafsir-panel-inner {
   overflow: hidden;
   min-height: 0;
