@@ -1162,11 +1162,13 @@ seçicisi (`~`) buna dayanıyor.
   URL'ye yazmadan); uçlarda dönülmez, sayfa değişmez. `aria-current="true"`
   seçili ayeti, `aria-expanded` paneli açık ayeti işaretliyor. Enter/Space
   paneli açar/kapatır (`onAyahTextClick`, fareyle aynı yol).
-- **Sol/Sağ ok sayfa çevirmeye devam ediyor** (belge düzeyindeki işleyici;
-  gezgin bu tuşlara dokunmuyor). Shift/Ctrl/Alt/Meta ile birlikte basılan
-  tuşlara ve başka bir işleyicinin zaten `preventDefault` ettiği olaylara da
-  dokunmuyor (tarayıcı/ekran okuyucu kısayolları bozulmasın). Enter basılı
-  tutulunca panelin saniyede onlarca kez açılıp kapanması engelleniyor.
+- **Sol/Sağ ok sayfa çevirmeye devam ediyor** (belge düzeyindeki işleyici,
+  `onPageTurnKeydown`; gezgin bu tuşlara dokunmuyor; o işleyicinin hangi
+  durumlarda vazgeçtiği için bkz. "Sayfa çevirme okları: yalnızca düz
+  Sol/Sağ"). Gezgin de Shift/Ctrl/Alt/Meta ile birlikte basılan tuşlara ve
+  başka bir işleyicinin zaten `preventDefault` ettiği olaylara dokunmuyor
+  (tarayıcı/ekran okuyucu kısayolları bozulmasın). Enter basılı tutulunca
+  panelin saniyede onlarca kez açılıp kapanması engelleniyor.
 - **Panel açılınca odak panele geçiyor** (`tabindex="-1"`; ekran okuyucu
   "Fâtiha 2 detayı, bölge" der). Tab panelin içindeki düğmelere gider;
   Escape ya da Kapat ile kapanınca odak o ayet düğmesine döner (eskiden
@@ -1255,6 +1257,105 @@ Git" ile sayfa değişince odağın nereye indiği ölçüldü (bkz. "Sure Bilgi
 bağlantı -> ayrıntı -> Geri" paragrafı): gezgin düğmesiyle açılmışsa gidilen
 ayetin gezgin düğmesine iniyor; yalnızca SVG'deki başlığa fareyle/dokunarak
 açılmışsa odak `<body>`'de kalıyor.
+
+**Sayfa çevirme okları: yalnızca düz Sol/Sağ.** `setupNav`'ın `document`'teki
+`keydown` dinleyicisi (Sol ok sonraki, Sağ ok önceki sayfa; ekrandaki ok
+düğmeleriyle aynı yön) açık modal dışında her Sol/Sağ basışında sayfa
+çeviriyordu. Gerçek Chromium'da (430 px, sayfa 50, odak gövdede; Playwright
+klavyesi gerçek tuş olayları üretiyor) düzeltmeden ÖNCE ölçülen durum:
+
+- Alt, Ctrl, Shift, Meta ve Ctrl+Shift, Ctrl+Alt (AltGr benzeri)
+  birleşimlerinin 10/10'unda sayfa döndü (50 -> 51 / 49) ve `localStorage`'daki
+  son konum (`mushaf:lastPosition`) da ilerledi. Alt+Sol/Sağ tarayıcının
+  geri/ileri'si (macOS'ta Cmd+Sol/Sağ): tarayıcı geri giderken uygulama
+  sayfayı da çeviriyor, dönüşte kullanıcının bıraktığı değil kısayolun
+  istemeden çevirdiği sayfa hatırlanıyordu (başsız Chromium tarayıcının kendi
+  geri/ileri'sini işlemiyor: ölçülen yalnızca sayfaya ulaşan olay);
+- başka bir işleyicinin `preventDefault` ettiği Sol ok ve `isComposing: true`
+  (sentetik) olayda sayfa döndü;
+- odak oklarla kendi işini gören bir öğedeyken (gövdeye eklenen sahte
+  öğelerle: metin kutusu, sayı kutusu, kaydırıcı, açılır liste, çok satırlı
+  alan, `contenteditable`, `role="slider"`, sekme listesindeki sekme, listbox
+  seçeneği, radyo düğmesi) 10/10'unda sayfa döndü (kaydırıcıda değer de
+  değişti: 5 -> 4). Gerçek uygulamada bu öğeler yalnızca modalların içinde
+  (envanter: 14 öğe, modal dışında 0) ve açık modalda dinleyici zaten
+  vazgeçiyor (arama modalında Sol ok imleci oynatıyor, sayfa dönmüyor); yani
+  bu yalnızca ileride modal dışına konacak bir alan için risk;
+- Ezber > Yaz oturumu sürerken ekran tuşunda Shift+Sol, ekran tuşunda
+  Alt+Sağ ve gövdedeyken Ctrl+Sol oturumu BİTİRDİ (kapaklar 27 -> 0, ekran
+  klavyesi gizlendi): Yaz klavyesinin ok işleyicisi değiştiricili okları
+  bilerek tüketmiyor (Alt+Sol tarayıcının geri'si), `document`'teki dinleyici
+  de onları sayfa çevirme sayıyordu;
+- tuşu basılı tutmak (5 tekrar) 5 sayfa çevirdi.
+
+Düzeltme (`js/app.js`): satır içi dinleyici `onPageTurnKeydown` adlı işleve
+çıkarıldı (`setupNav` onu `document`'in `keydown`'ına bağlıyor) ve şu sırayla
+vazgeçiyor: açık modal; Sol/Sağ dışındaki tuş; Alt/Ctrl/Meta/Shift;
+`defaultPrevented` ya da `isComposing`; hedef `ARROW_KEY_OWNER_SELECTOR`'a
+uyuyorsa. Bu seçici oklarla kendi işini gören öğeleri sayıyor: yazı alanları
+(`input` -- düğme, gönder, sıfırla, görsel, onay kutusu, dosya, renk ve gizli
+türleri hariç --, `textarea`, `select`, `contenteditable`), ARIA'daki
+karşılıkları (`textbox`, `searchbox`, `combobox`, `slider`, `spinbutton`,
+`scrollbar`) ve ok tuşuyla kendi içinde gezilen bileşik bileşenler
+(`tablist`, `radiogroup`, `toolbar`, `menu`, `menubar`, `listbox`, `tree`,
+`treegrid`, `grid`). Düz düğme, onay kutusu, bağlantı ve ayet gezgini / ayet
+paneli / Yaz ekran klavyesi düğmeleri listede DEĞİL: orada düz ok eskisi gibi
+sayfa çevirir. Tuşun basılı tutulması (`e.repeat`) bilerek engellenmedi; her
+tekrar sayfa çevirmeye devam ediyor (önce de öyleydi; sayfa geçişi anonsu tuş
+basılı tutulurken yalnızca sonuncusunu söylüyor, bkz. canlı bölge paragrafı).
+
+Düzeltmeden SONRA aynı sahneler: düz Sol/Sağ eskisi gibi çeviriyor (gövdede
+50 -> 51 / 49; odak gezgindeki ayet düğmesindeyken ve açık ayet panelinin
+Tefsir düğmesindeyken de, gezgin odakta kalıyor); 10/10 değiştiricili
+birleşimde, tüketilmiş olayda, bileşimde ve 10/10 ok kullanan öğede sayfa
+dönmüyor ve son konum yerinde kalıyor; düğme, onay kutusu ve bağlantıda düz
+ok yine çeviriyor; gezgin odaktayken Shift+Sol ve panel odaktayken Alt+Sol
+dönmüyor; arama modalı açıkken Sol ok eskisi gibi yalnızca imleci oynatıyor;
+Yaz oturumu Shift/Alt/Ctrl+ok'tan etkilenmiyor (kapaklar 27, ekran klavyesi
+görünür) ve gövdedeyken DÜZ Sol ok Yaz oturumunu eskisi gibi bitiriyor
+(bilinçli sayfa çevirme); 5 tekrar hâlâ 5 sayfa. Sayfada hata yok. Görünüm
+değişmedi (yalnızca klavye işleyicisi), bu yüzden ekran görüntüsü
+karşılaştırması yapılmadı.
+
+`test/sayfa_ok_tuslari_test.mjs` (yeni; jsdom, 130 kontrol, ≈ 3-5 sn):
+`app.js`'ten kaynaktan çıkarılan GERÇEK `onPageTurnKeydown` ve
+`ARROW_KEY_OWNER_SELECTOR` x GERÇEK `index.html` DOM'u x gerçek
+`KeyboardEvent`'ler: düz tuşlar ve yönler, Sol/Sağ dışındaki 15 tuş, 15
+değiştirici birleşimi x 2 yön, açık modal, tüketilmiş olay, bileşim, tuş
+tekrarı, 54 hedef türü tek tek (ok kullanan 34 çevirmiyor, kullanmayan 20
+çeviriyor), sahte olay nesneleri; `index.html`'deki HER öğe için (elle
+yazılmış, bağımsız bir sınıflandırıcıya karşı) düz Sol ve Shift+Sol, ve ok
+kullanan öğelerin hepsinin bir modalın içinde olması; GERÇEK Yaz ekran
+klavyesi işleyicisiyle birlikte (düz ok klavyede tüketiliyor, Shift / Alt /
+Ctrl / Meta+ok klavyeden geçip `document`'te sayfa çevirmiyor); 20 tohumlu
+rastgele dizi (3000 olay: tuş x değiştirici x hedef x tüketilmiş x bileşim x
+modal, bağımsız bir kurala karşı). Düzeltmesiz davranışta (eski gövde, testin
+işlev bulma denetimi geçsin diye yalnızca adlandırılmış işleve alınarak) 62
+kontrol kırılıyor; kodun her parçası tek tek bozularak 51 mutasyon denendi
+(bağlamanın olmaması / yanlış olay / satır içi dinleyicinin geri gelmesi,
+modal, tuş süzgeci, 4 değiştiricinin her biri, `defaultPrevented`,
+`isComposing`, hedef koruması ve `closest` yerine `matches` ya da varlık
+denetimsiz kullanımı, yön değişimi, tuş tekrarının engellenmesi, seçicinin
+her parçasının eksik olması -- `textarea`, `select`, `contenteditable`,
+`input`'un her hariç tutma koşulu, 6 ARIA rolü ve 9 bileşik bileşen rolü -- ve
+fazla geniş olması: `button`, `region`, `nav`, `group`, parçaların yanlış
+birleşmesi), hepsi yakalandı. `test/ayet_gezgini_test.mjs`'teki tek kaynak
+denetimi (eski satır içi dinleyicinin biçimini arıyordu) yeni işleve
+uyarlandı. Mutasyonsuz hâl 23 test dosyasının hepsiyle geçiyor.
+
+Sınır: jsdom'da tarayıcının kendi kısayolları (Alt+Sol = geri) ve gerçek IME
+yok; olaylar elle üretiliyor ve `isComposing` sentetik. Gerçek Chromium
+ölçümü başsızdı: tarayıcının geri/ileri'sini işlemiyor, yalnızca sayfaya
+ulaşan olayları sınıyor; Firefox ve Safari'de denenmedi. Gerçek ekran okuyucu
+(NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı: ekran okuyucunun kendi ok
+kısayollarının (ör. VoiceOver'da Ctrl+Option+Sol/Sağ) sayfaya ulaşıp
+ulaşmadığı bilinmiyor; ulaşırsa artık sayfa çevrilmez (kontrol listesi, madde
+21). Ayrıca `role="tablist"` ilan eden Cüz ve Ezber sekmeleri ok tuşuyla
+gezilmiyor (ARIA kalıbı sekmeler arasında Sol/Sağ ile geçişi ve tek Tab
+durağını ister; burada her sekme ayrı Tab durağı ve oklar hiçbir şey
+yapmıyor): bu yamanın konusu değil, dokunulmadı. Seçici `tablist`'i şimdiden
+ok kullanan sayıyor, yani o sekmelere ok tuşu eklendiğinde sayfa çevirme
+onlarla çakışmaz.
 
 **Ezber > Oku'da klavye ve ekran okuyucu yolu.** Oku'da bir kelimeyi açmanın
 tek yolu sayfadaki ayete dokunmaktı; sayfa tek bir `<svg>` olduğundan
@@ -1444,7 +1545,9 @@ Düzeltme (`index.html`, `js/app.js`; CSS'e dokunulmadı):
   tüketiliyor (`preventDefault` + `stopPropagation`): sayfa çevirme
   dinleyicisi hiç görmüyor. Tab davranışı değişmedi: 30 tuşun hepsi hâlâ ayrı
   Tab durağı, oklar ek bir kısayol. Değiştiricili oklar (Shift/Ctrl/Alt/Meta;
-  Alt+Sol tarayıcının Geri'si) tüketilmiyor.
+  Alt+Sol tarayıcının Geri'si) burada tüketilmiyor; sayfa çevirme dinleyicisi
+  de artık onları yok sayıyor (eskiden sayfayı çevirip oturumu bitiriyordu,
+  bkz. "Sayfa çevirme okları: yalnızca düz Sol/Sağ").
 - **Odak.** Yaz başlayınca odak ilk tuşa (ا: alfabe sırasının ilki, cevabı ele
   vermiyor) geçiyor (modal kapanırken odak Ezber/Bitir'e eşzamanlı geri
   veriliyor; tuş bundan SONRA odaklanıyor). Oturum bitince (son harf) odak
@@ -2264,6 +2367,7 @@ test/kapali_panel_test.mjs           Sure Bilgisi'nde kapalı akordeon bölümle
 test/ezber_klavye_test.mjs           Ezber > Oku ve Yaz klavye / ekran okuyucu yolu: #ezber-reveal, Yaz klavyesi (adlar, oklar, fiziksel tuş), duyurular, odak, ses başarısızken tek ilerleme, CSS (jsdom)
 test/ezber_metin_katmani_test.mjs    Ezber oturumunda kapak altı metin erişilebilirlik ağacından çıkıyor mu: kapakla aynı kelimeler aria-hidden, Yaz'da kelime son harfte geri geliyor, oturum sonunda ve çok sayfalı oturumda temiz (jsdom)
 test/tefsir_sekme_aria_test.mjs     Tefsir sekme düğmesi: aria-expanded .active ile tutarlı, kapanış bitince metin DOM'dan kalkıyor, aynı karede çift tıklama, veri gelirken kapatma, iki kaynak arasında geçiş, rastgele diziler (jsdom)
+test/sayfa_ok_tuslari_test.mjs      Sayfa çevirme okları: yalnızca düz Sol/Sağ çeviriyor; Alt/Ctrl/Meta/Shift+ok, tüketilmiş olay, IME bileşimi ve ok kullanan öğeler (yazı alanı, kaydırıcı...) çevirmiyor; Yaz klavyesiyle birlikte, rastgele diziler (jsdom)
 ```
 
 ## Çalıştırma
@@ -2330,11 +2434,11 @@ SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
 `npm run test:fast` (tam tarama hariç, ≈ 83 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 22 dosyanın hepsi ≈
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 23 dosyanın hepsi ≈
 2,5 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-72 sn, arama
 arayüzü 19-22 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
 testi 8-10 sn, Ezber klavye testi ≈ 8 sn, Ezber metin katmanı testi ≈ 5 sn,
-tefsir sekme testi ≈ 6 sn);
+tefsir sekme testi ≈ 6 sn, sayfa ok tuşları testi ≈ 3-5 sn);
 GitHub Actions'taki ilk koşuda işin tamamı 1 dk 25 sn sürdü.
 
 **Tam tarama testi artık gerçekten doğruluyor.** `test/full_corpus_test.mjs`
@@ -2686,6 +2790,14 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     yazılana kadar okunmuyor, tamamlanınca okunuyor mu (yarım kelime hiç
     okunmuyor mu; ayet sonu işaretleri okunuyor mu)? Bitince odak "Ezber"
     düğmesinde mi?
+21. Sayfa çevirme okları: düz Sol/Sağ eskisi gibi çeviriyor mu (Sol sonraki,
+    Sağ önceki; "Sayfa N, ..." anonsu duyuluyor mu)? Alt+Sol/Sağ (macOS'ta
+    Cmd+Sol/Sağ) tarayıcıyı geri/ileri götürüyor ve uygulama sayfayı
+    ÇEVİRMİYOR mu (dönüşte son kalınan sayfada mı açılıyor)? Ezber > Yaz
+    sürerken bir ekran tuşunda Shift+Sol oturumu bitirmiyor mu? Ekran
+    okuyucunun kendi ok kısayolları (ör. VoiceOver'da Ctrl+Option+Sol/Sağ)
+    sayfa çevrilmeden çalışıyor mu? Tuşu basılı tutunca sayfalar akıyor ve
+    ekran okuyucu yalnızca sonuncusunu mu söylüyor?
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal odak
 yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı, renk
@@ -2694,8 +2806,10 @@ kuralı / Geri düğmesi, hedefsiz konu etiketlerinin düz metin görünümü, S
 tefsirinin dil işaretleri, Sure Bilgisi ayrıntı görünümünün odağı, Sure
 Bilgisi'nde kapalı bölümlerin gizlenmesi, Ezber > Oku'nun klavye yolu (iki
 küçük düzeltmesiyle birlikte: Oku'da Türkçe karşılık verisinin yüklenmesi, ses
-başarısızken ayet atlama), Ezber > Yaz'ın klavye yolu ve Ezber'de kapak altı
-metnin ağaçtan çıkarılması ayrı ayrı tek commit'tir, geri alınabilir.
+başarısızken ayet atlama), Ezber > Yaz'ın klavye yolu, Ezber'de kapak altı
+metnin ağaçtan çıkarılması, tefsir sekme düğmesinin durumu ve sayfa çevirme
+oklarının yalnızca düz Sol/Sağ'a daraltılması ayrı ayrı tek commit'tir, geri
+alınabilir.
 
 ### Kelime tahlili
 

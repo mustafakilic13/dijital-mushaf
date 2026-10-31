@@ -681,7 +681,10 @@ function fnBody(name) {
   const end = fnBody("endEzberStudy") || "";
   check("endEzberStudy: state.ezberStudy = null'dan sonra syncAyahNav() (gezgin geri gelsin)", end.indexOf("syncAyahNav();") > end.indexOf("state.ezberStudy = null;") && end.indexOf("state.ezberStudy = null;") > -1);
 }
-check("belge düzeyindeki sayfa çevirme işleyicisi duruyor ve YALNIZCA açık modalda vazgeçiyor (odak gezgindeyken Sol/Sağ çalışsın)", /document\.addEventListener\("keydown", \(e\) => \{\s*if \(state\.openModalEl\) return;[^]*?e\.key === "ArrowLeft"\) goToNextPage\(\);\s*if \(e\.key === "ArrowRight"\) goToPrevPage\(\);\s*\}\);/.test(appSource));
+// Dinleyici artık adlandırılmış işlev (onPageTurnKeydown): açık modalda, değiştirici tuşla, tüketilmiş olayda, bileşimde ve ok kullanan öğede (yazı
+// alanı, kaydırıcı...) vazgeçiyor; gezgindeki ayet düğmesi ve panel düğmeleri ok kullanan hedef sayılmıyor, yani odak gezgindeyken DÜZ Sol/Sağ
+// eskisi gibi çevirir. Ayrıntılı davranış: test/sayfa_ok_tuslari_test.mjs.
+check("belge düzeyindeki sayfa çevirme işleyicisi (onPageTurnKeydown) duruyor ve ilk koşulu açık modalda vazgeçmek (odak gezgindeyken düz Sol/Sağ çalışsın)", /document\.addEventListener\("keydown", onPageTurnKeydown\);/.test(appSource) && /function onPageTurnKeydown\(e\) \{\s*if \(state\.openModalEl\) return;[^]*?goToNextPage\(\);[^]*?goToPrevPage\(\);/.test(appSource));
 check("Escape ile ayet panelini kapatma işleyicisi duruyor (odak gezgindeyken de çalışır)", /else if \(state\.wordMeal\.open\) closeWordMeal\(\);/.test(appSource));
 
 // -- (7) Dolu gezginin axe-core yapısal taraması --------------------------------------------------------------------

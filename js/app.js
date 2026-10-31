@@ -2572,6 +2572,35 @@ function setupWakeLock() {
   });
 }
 
+// Sol/Sağ ok = sayfa çevirme (ekrandaki ok düğmeleriyle aynı yön). Belge düzeyinde bir kısayol olduğu için YALNIZCA tuş bu iş
+// için basıldığında çalışır; yoksa başkasının tuşunu çalar:
+//  - Alt/Ctrl/Meta/Shift ile birlikte basılırsa: tarayıcı geri/ileri (Alt+Sol/Sağ; macOS'ta Cmd+Sol/Sağ), kelime/satır atlama,
+//    seçimi genişletme, ekran okuyucu ve işletim sistemi kısayolları. Gerçek Chromium'da hepsinde sayfa yine dönüyordu, son
+//    konum kaydı ilerliyordu, Ezber oturumu bitiyordu (Yaz'da ekran tuşunda Shift+Sol bile);
+//  - başka bir işleyici olayı zaten tüketmişse (defaultPrevented): o işleyici oku kendi işi için kullandı;
+//  - IME bileşimi sürerken (isComposing): oklar aday seçmek içindir;
+//  - odak oklarla kendi işini gören bir öğedeyse (aşağıdaki seçici): ok önce o öğenin. Böyle öğeler şu an yalnızca modalların
+//    içinde (ilk satır zaten vazgeçiyor); bu koşul, ileride modal dışına konacak bir alan ya da kaydırıcı için güvence.
+// Düz Sol/Sağ, odak gezgindeki bir ayet düğmesinde, ayet panelinin düğmelerinde ya da gövdedeyken eskisi gibi sayfa çevirir.
+const ARROW_KEY_OWNER_SELECTOR = [
+  'input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]):not([type="checkbox"]):not([type="file"]):not([type="color"]):not([type="hidden"])',
+  "textarea",
+  "select",
+  '[contenteditable]:not([contenteditable="false"])',
+  '[role="textbox"], [role="searchbox"], [role="combobox"], [role="slider"], [role="spinbutton"], [role="scrollbar"]',
+  '[role="tablist"], [role="radiogroup"], [role="toolbar"], [role="menu"], [role="menubar"], [role="listbox"], [role="tree"], [role="treegrid"], [role="grid"]',
+].join(", ");
+function onPageTurnKeydown(e) {
+  if (state.openModalEl) return; // don't page-turn while a modal is open
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  if (e.defaultPrevented || e.isComposing) return;
+  if (e.target && e.target.closest && e.target.closest(ARROW_KEY_OWNER_SELECTOR)) return;
+  // matches the on-screen tap-arrows: left arrow -> next, right -> previous
+  if (e.key === "ArrowLeft") goToNextPage();
+  else goToPrevPage();
+}
+
 function setupNav() {
   els.prevBtn.addEventListener("click", goToPrevPage);
   els.nextBtn.addEventListener("click", goToNextPage);
@@ -2596,12 +2625,7 @@ function setupNav() {
     onAyahTextClick(hit);
   });
 
-  document.addEventListener("keydown", (e) => {
-    if (state.openModalEl) return; // don't page-turn while a modal is open
-    // matches the on-screen tap-arrows: left arrow -> next, right -> previous
-    if (e.key === "ArrowLeft") goToNextPage();
-    if (e.key === "ArrowRight") goToPrevPage();
-  });
+  document.addEventListener("keydown", onPageTurnKeydown);
 
   let touchStartX = null;
   let touchStartY = null;
