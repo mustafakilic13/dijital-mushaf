@@ -58,6 +58,7 @@ const PRECACHE_URLS = [
   "js/modal-odak.js",
   "js/render.js",
   "js/search.js",
+  "js/sekme-gezintisi.js",
   "js/surahinfo.js",
   "js/tafsir.js",
   "js/topics.js",

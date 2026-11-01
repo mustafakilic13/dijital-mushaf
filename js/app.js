@@ -11,6 +11,7 @@ import {
 import { loadMealData, isMealDataReady, getCachedMealData, getMealText, renderMealHTML } from "./meal.js";
 import { setupArama } from "./arama.js";
 import { createModalFocus } from "./modal-odak.js";
+import { setupTablist } from "./sekme-gezintisi.js";
 import { createAyahNav, ayahsOnPage, surahsOfSvg, revealDelta } from "./ayet-gezgini.js";
 import {
   tafsirSourceIds,
@@ -665,7 +666,10 @@ function switchJuzTab(tabName) {
     const tabBtn = document.getElementById(`juz-tab-${name}`);
     const panel = els[`${name}List`];
     const active = name === tabName;
-    if (tabBtn) tabBtn.setAttribute("aria-selected", active ? "true" : "false");
+    if (tabBtn) {
+      tabBtn.setAttribute("aria-selected", active ? "true" : "false");
+      tabBtn.tabIndex = active ? 0 : -1; // roving tabindex: sekme çubuğu tek Tab durağı (js/sekme-gezintisi.js)
+    }
     if (panel) panel.hidden = !active;
   }
   const shownPanel = els[`${tabName}List`];
@@ -841,6 +845,8 @@ function setupModals() {
     const tabBtn = e.target.closest(".tab-bar-btn");
     if (tabBtn) switchJuzTab(tabBtn.dataset.tab);
   });
+  // Sol/Sağ/Home/End ile sekmeler arası gezinti (APG "Tabs", otomatik etkinleştirme)
+  setupTablist(els.juzTabs, (tabBtn) => switchJuzTab(tabBtn.dataset.tab));
 
   els.pageJumpForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -884,7 +890,10 @@ function switchEzberTab(tabName) {
     const tabBtn = document.getElementById(`ezber-tab-${name}`);
     const panel = document.getElementById(`ezber-panel-${name}`);
     const active = name === tabName;
-    if (tabBtn) tabBtn.setAttribute("aria-selected", active ? "true" : "false");
+    if (tabBtn) {
+      tabBtn.setAttribute("aria-selected", active ? "true" : "false");
+      tabBtn.tabIndex = active ? 0 : -1; // roving tabindex: sekme çubuğu tek Tab durağı (js/sekme-gezintisi.js)
+    }
     if (panel) panel.hidden = !active;
   }
 }
@@ -1039,6 +1048,7 @@ function setupEzberModal() {
     const tabBtn = e.target.closest(".tab-bar-btn");
     if (tabBtn) switchEzberTab(tabBtn.dataset.tab);
   });
+  setupTablist(els.ezberTabs, (tabBtn) => switchEzberTab(tabBtn.dataset.tab));
 
   for (const target of EZBER_TABS) {
     document.getElementById(`ezber-${target}-surah-btn`).addEventListener("click", () => openEzberSurahPicker(target));

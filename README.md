@@ -1350,12 +1350,140 @@ ulaşan olayları sınıyor; Firefox ve Safari'de denenmedi. Gerçek ekran okuyu
 (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı: ekran okuyucunun kendi ok
 kısayollarının (ör. VoiceOver'da Ctrl+Option+Sol/Sağ) sayfaya ulaşıp
 ulaşmadığı bilinmiyor; ulaşırsa artık sayfa çevrilmez (kontrol listesi, madde
-21). Ayrıca `role="tablist"` ilan eden Cüz ve Ezber sekmeleri ok tuşuyla
-gezilmiyor (ARIA kalıbı sekmeler arasında Sol/Sağ ile geçişi ve tek Tab
-durağını ister; burada her sekme ayrı Tab durağı ve oklar hiçbir şey
-yapmıyor): bu yamanın konusu değil, dokunulmadı. Seçici `tablist`'i şimdiden
-ok kullanan sayıyor, yani o sekmelere ok tuşu eklendiğinde sayfa çevirme
-onlarla çakışmaz.
+21). `role="tablist"` ilan eden Cüz ve Ezber sekmelerinin ok tuşu gezintisi
+bu yamada yoktu, sonraki paragrafta eklendi ("Sekme listeleri: oklarla
+gezinti"); seçici `tablist`'i baştan ok kullanan saydığı için o sekmelere
+eklenen oklar sayfa çevirmeyle çakışmıyor.
+
+**Sekme listeleri: oklarla gezinti.** Cüz (Cüz/Hizb/Rub/Menzil) ve Ezber
+(Dinle/Oku/Yaz) pencerelerinin sekme çubukları `role="tablist"`, `tab`,
+`tabpanel`, `aria-selected` ve `aria-controls` ilan ediyordu ama klavyede düz
+düğme dizisiydi (ARIA "Tabs" kalıbı: sekme listesi tek Tab durağıdır, sekmeler
+arasında Sol/Sağ ile geçilir). Gerçek Chromium'da (430 px, sayfa 50,
+Playwright klavyesi gerçek tuş olayları üretiyor) yamadan ÖNCE ölçülen durum:
+
+- Tab sırası, Cüz modalında: Kapat, Cüz, Hizb, Rub, Menzil, ilk liste öğesi
+  (sekmeler 4 AYRI durak); Ezber modalında: Kapat, Dinle, Oku, Yaz, ses
+  okuyucu seçimi (3 ayrı durak). Panele geçmek için hepsini aşmak, dönmek
+  için aynısını Shift+Tab ile yapmak gerekiyordu; fareyle Rub seçilince Tab
+  panele değil sıradaki sekmeye (Menzil) gidiyordu;
+- odak seçili sekmedeyken 18 tuş (Sağ x5, Sol x2, End, Home, Aşağı, Yukarı,
+  Shift/Ctrl/Alt/Meta+Sağ, Shift+End, Enter, Boşluk), iki pencerede de:
+  odak, seçim ve panel 18'inde de yerinde kaldı; Sağ ok basılı tutulunca (6
+  tekrar) da hiçbir şey olmadı. Sayfa da dönmedi (modal açıkken sayfa
+  çevirme zaten kapalı).
+
+Düzeltme: `js/sekme-gezintisi.js` (yeni) iki şey yapıyor. `targetTabIndex`
+(saf işlev: tuş + sıra + sayı -> hedef sıra; ilgisiz tuş ve geçersiz girdi
+-1) ve `setupTablist(tablist, onSelect)`: `keydown` dinleyerek Sağ/Sol ile
+komşu sekmeye (uçlarda sararak), Home/End ile ilk/son sekmeye geçirir; hedef
+sekme henüz seçili değilse `onSelect(sekme)` çağrılır, sonra sekme
+odaklanır. Alt/Ctrl/Meta/Shift ile birlikte basılan tuşlar ve başka bir
+işleyicinin tükettiği olaylar yok sayılır; yalnızca işlenen tuşun varsayılanı
+engellenir (Home/End modalı kaydırmasın), Yukarı/Aşağı/Tab/Enter/Boşluk'a
+dokunulmaz. `js/app.js`'te `switchJuzTab` ve `switchEzberTab`,
+`aria-selected`'ı yazdıkları döngüde `tabindex`'i de yazıyor (seçili `0`,
+ötekiler `-1`; roving tabindex), `setupModals` ve `setupEzberModal` iki
+sekme listesini `setupTablist`'e bağlıyor; `index.html`'deki başlangıç
+değerleri aynı kurala uyuyor; `sw.js` yeni dosyayı önbelleğe alıyor.
+
+Şimdi (yamadan önce -> sonra, aynı sahneler):
+
+- Tab sırası Cüz'de Kapat, Cüz, ilk liste öğesi (sekme durağı 4 -> 1); Ezber'de
+  Kapat, Dinle, ses okuyucu seçimi (3 -> 1). Fareyle Rub seçilince Tab
+  panelin ilk liste öğesine gidiyor (önce Menzil sekmesine), Shift+Tab Rub'a
+  dönüyor;
+- 18 tuştan 9'u işleniyor: Cüz'de Sağ x5
+  (Hizb, Rub, Menzil, Cüz, Hizb: son sekmeden başa sarıyor), Sol x2 (Cüz,
+  Menzil: baştan sona sarıyor), End (Menzil), Home (Cüz); Ezber'de Sağ x5
+  (Oku, Yaz, Dinle, Oku, Yaz), Sol x2 (Oku, Dinle), End (Yaz), Home (Dinle).
+  Her adımda odak, `aria-selected="true"`, tek `tabindex="0"` ve görünen panel
+  aynı sekmede. Kalan 9 tuş (Aşağı, Yukarı, 4 değiştiricili Sağ, Shift+End,
+  Enter, Boşluk) eskisi gibi hiçbir şey yapmıyor;
+- Sağ ok basılı tutulunca (6 tekrar) 6 adım ilerliyor ve sarıyor (Hizb, Rub,
+  Menzil, Cüz, Hizb, Rub);
+- Esc ile kapatıp yeniden açınca Cüz/Dinle seçili ve tek durak; Ezber'de Sure
+  seçici açılıp kapanınca sekmelerin durumu (seçili, tabindex) değişmiyor;
+- odak halkası hem Tab'la hem oklarla gelinen sekmede çiziliyor (hesaplanan
+  `outline`: `solid 2px rgb(169, 129, 46)`, `:focus-visible` eşleşiyor);
+- sayfa hiçbir senaryoda dönmüyor (50 -> 50), sayfada hata yok.
+
+Karar ve ödünleşmeler:
+
+- **Otomatik etkinleştirme** (odak bir sekmeye gelince o sekme de seçilir;
+  Enter gerekmez). Paneller sayfa açılışında DOM'a konuyor (hizb/rub/menzil
+  listeleri açılışta dolduruluyor), seçim gecikmesiz; ARIA'nın önerdiği
+  durum bu. Bedeli: ok tuşunu basılı tutmak sekmeleri art arda seçiyor (Cüz'de
+  her seçim, görünen listenin aktif satırını ortalıyor); 6 tekrarda sorun
+  görülmedi. Her adımda seçimin ekran okuyucuda nasıl duyulduğu sınanmadı.
+- **Yön.** Sol önceki, Sağ sonraki sekme (sekme çubuğu soldan sağa). Mushaftaki
+  sayfa çevirme düzeni (Sol ok = sonraki sayfa) buraya taşınmadı; modal açıkken
+  sayfa çevirme zaten kapalı, iki düzen karışmıyor.
+- **Yukarı/Aşağı bağlanmadı** (liste yatay; bu tuşlar modalın kaydırmasına
+  kalıyor). Home/End bağlandı (Mac'te Fn+Sol/Sağ).
+- **`onSelect` yalnızca hedef zaten seçili değilse çağrılıyor.** Seçili sekmeye
+  Home/End ile "gitmek" Cüz listesini yeniden ortalamıyor (ortalama
+  `switchJuzTab`'ın içinde). Testte sayaçla ölçülüyor: ilk sekmede Home
+  sonrası 0 kaydırma, Sağ sonrası yalnızca yeni listenin aktif satırı için 1.
+- **`tabindex` ve `aria-selected` aynı yerde yazılıyor** (iki switch işlevinin
+  döngüsü): ikisinin ayrışması mümkün değil. `closeModal`'ın sıfırlaması
+  (`switchJuzTab("juz")`, `switchEzberTab("dinle")`) roving durumunu da
+  sıfırlıyor.
+- `ARROW_KEY_OWNER_SELECTOR` `role="tablist"`'i zaten ok kullanan sayıyordu;
+  değişmedi (sayfa çevirme dinleyicisi sekmelerden gelen oklarda hâlâ
+  vazgeçiyor).
+- Safari düğmeye tıklayınca odak vermiyor; o durumda ok tuşu odaktaki
+  sekmeden başlar, seçili sekmeden değil (denenmedi).
+
+Görünüm değişmedi: Cüz modalı (açılış + fareyle 4 sekme) ve Ezber modalı
+(açılış + fareyle 3 sekme), 430 ve 1200 px, hareket azaltma açık, 18 görüntü
+yamasız ağaçla piksel piksel aynı (yamasız ağacın iki ayrı koşusu da
+birbiriyle aynı çıktı).
+
+`test/sekme_gezintisi_test.mjs` (yeni; jsdom, 186 kontrol, ≈ 3-6 sn):
+`targetTabIndex` için 1-9 sekme x her sıra (taşan, negatif dahil) x 4 gezinti
+tuşu + 24 ilgisiz tuş, bağımsız bir kurala karşı, 4000 rastgele çağrı ve
+sarma özellikleri; `index.html`'in başlangıç durumu (tek `tabindex="0"` =
+`aria-selected="true"`, `aria-controls` <-> `aria-labelledby`); app.js'ten
+kaynaktan çıkarılan GERÇEK `switchJuzTab`/`switchEzberTab`, GERÇEK bağlama
+satırları ve tıklama dinleyicileri x GERÇEK `index.html` DOM'u x gerçek
+`KeyboardEvent`'ler, iki sekme listesi için: 4 işlenen tuş x her sekme,
+işlenmeyen 14 tuş, 15 değiştirici birleşimi x 4 tuş x her sekme, tüketilmiş
+olay, sekme olmayan hedefler (listenin kendisi, Kapat düğmesi), fare
+tıklaması ve ardından ok, kapanış sıfırlaması, `tabbablesIn`'le Tab durağı
+sayısı (tek ve seçili sekme; Kapat'tan hemen sonra), yeniden kaydırma sayısı,
+GERÇEK `onPageTurnKeydown` ile birlikte sayfanın dönmemesi (modal açıkken ve
+kapalıymış gibi; donanımın çalıştığını gösteren olumlu denetimle); sentetik
+işaretlemede `setupTablist` (işaretlemesiz, tek sekme, iç öğeden gelen olay,
+dış atanın `role="tab"`ı, iki bağımsız liste, kaldırma, DOM sırası, seçim ->
+odak sırası); 20 tohumlu rastgele dizi (iki liste, 6000 işlem: tuş,
+işlenmeyen tuş, değiştiricili tuş, switch çağrısı, tıklama, odak) x bağımsız
+bir model. Özellik yokken (dinleyici bağlanmayan, `tabindex` yazılmayan,
+`index.html`'de `tabindex` olmayan kopya) 186 kontrolün 146'sı kırılıyor; kodun
+her parçası tek tek bozularak 66 mutasyon denendi (Sağ/Sol'un sarmaması, iki
+adım atması, yer değiştirmesi; Home/End'in eksik ya da yanlış olması; koruma
+koşullarının her biri; 4 değiştiricinin her biri ve `defaultPrevented`;
+`preventDefault`'un yokluğu ya da işlenmeyen tuşlarda da çağrılması;
+`onSelect`'in hep, hiç ya da ters çağrılması; odağın taşınmaması ya da sıranın
+ters olması; yanlış olay; kaldırma işlevi; olay hedefi yerine
+`document.activeElement` kullanımı; sekme listesinin süzülmesi; app.js'te
+import, bağlama, çapraz bağlama, yanlış liste ve sabit sekme; iki switch
+işlevinde `tabindex`'in yokluğu, tersi, hepsinin `0` ya da pozitif olması,
+yalnızca seçiliye yazılması; `index.html`'de 10 `tabindex`/ARIA bozulması;
+`sw.js`'te modülün eksik olması), hepsi yakalandı. Mutasyonsuz hâl 24 test
+dosyasının hepsiyle geçiyor.
+
+Sınır: jsdom'da gerçek odak halkası, `:focus-visible` ve ekran okuyucu yok;
+gerçek Chromium ölçümü başsızdı. Gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/
+TalkBack) çalıştırılmadı: "sekme, 2/4" anonsu, seçimin her ok adımında
+duyulması ve Tab'ın panele geçişi cihazda sınanmadı (kontrol listesi, madde
+22); Firefox ve Safari'de denenmedi. Ayrıca ölçüm sırasında bu yamanın konusu
+olmayan bir sorun görüldü, dokunulmadı: Ezber'de bir sekmedeki Sure
+düğmesine (sure adını gösteren düğme) basınca ve seçiciden Geri'ye dönünce
+odak `<body>`'ye düşüyor (düğmenin ve Geri'nin içinde bulunduğu bölüm
+`hidden` oluyor); aynı Chromium davranışı Konu modalının Geri düğmesinde daha
+önce düzeltilmişti ("`hidden` özniteliği ve konu modalının Geri düğmesi"
+paragrafı), Ezber'in sure seçicisinde düzeltilmedi.
 
 **Ezber > Oku'da klavye ve ekran okuyucu yolu.** Oku'da bir kelimeyi açmanın
 tek yolu sayfadaki ayete dokunmaktı; sayfa tek bir `<svg>` olduğundan
@@ -2311,6 +2439,7 @@ js/topics.js              Konu Fihristi: veri yükleme + ayrıştırma/indekslem
 js/search.js               Arama: saf mantık (normalleştirme, sorgu ayrıştırma, dizin, vurgu, son aramalar)
 js/arama.js                 Arama modalı: arayüz + olaylar (bkz. "Arama")
 js/modal-odak.js             Modal odak yönetimi: açılışta odağı modala al, Tab'i içeride döndür, kapanışta açana geri ver (bkz. "Erişilebilirlik")
+js/sekme-gezintisi.js          Sekme listeleri (Cüz, Ezber): Sol/Sağ/Home/End ile gezinti + roving tabindex, ARIA "Tabs" kalıbı (bkz. "Erişilebilirlik")
 js/ayet-gezgini.js              Ayet gezgini: sayfadaki ayet/sure başlığı için görünmez <nav> -- klavye ve ekran okuyucu erişimi (bkz. "Erişilebilirlik")
 js/app.js               Sayfa yükleme, önbellek, gezinme, modaller, ayet seçimi, ayet detay paneli, konu fihristi
 data/mushaf.json         604 sayfa × satır × kelime (QUL'dan üretildi, ~3MB)
@@ -2368,6 +2497,7 @@ test/ezber_klavye_test.mjs           Ezber > Oku ve Yaz klavye / ekran okuyucu y
 test/ezber_metin_katmani_test.mjs    Ezber oturumunda kapak altı metin erişilebilirlik ağacından çıkıyor mu: kapakla aynı kelimeler aria-hidden, Yaz'da kelime son harfte geri geliyor, oturum sonunda ve çok sayfalı oturumda temiz (jsdom)
 test/tefsir_sekme_aria_test.mjs     Tefsir sekme düğmesi: aria-expanded .active ile tutarlı, kapanış bitince metin DOM'dan kalkıyor, aynı karede çift tıklama, veri gelirken kapatma, iki kaynak arasında geçiş, rastgele diziler (jsdom)
 test/sayfa_ok_tuslari_test.mjs      Sayfa çevirme okları: yalnızca düz Sol/Sağ çeviriyor; Alt/Ctrl/Meta/Shift+ok, tüketilmiş olay, IME bileşimi ve ok kullanan öğeler (yazı alanı, kaydırıcı...) çevirmiyor; Yaz klavyesiyle birlikte, rastgele diziler (jsdom)
+test/sekme_gezintisi_test.mjs     Sekme listeleri (Cüz, Ezber): ok tuşu gezintisi, tek Tab durağı, tabindex/aria-selected tutarlılığı, sayfa çevirmeyle çakışmama, rastgele diziler (jsdom)
 ```
 
 ## Çalıştırma
@@ -2434,11 +2564,12 @@ SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
 `npm run test:fast` (tam tarama hariç, ≈ 83 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 23 dosyanın hepsi ≈
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 24 dosyanın hepsi ≈
 2,5 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-72 sn, arama
 arayüzü 19-22 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
 testi 8-10 sn, Ezber klavye testi ≈ 8 sn, Ezber metin katmanı testi ≈ 5 sn,
-tefsir sekme testi ≈ 6 sn, sayfa ok tuşları testi ≈ 3-5 sn);
+tefsir sekme testi ≈ 6 sn, sayfa ok tuşları testi ≈ 3-5 sn,
+sekme gezinti testi ≈ 3-6 sn);
 GitHub Actions'taki ilk koşuda işin tamamı 1 dk 25 sn sürdü.
 
 **Tam tarama testi artık gerçekten doğruluyor.** `test/full_corpus_test.mjs`
@@ -2798,6 +2929,15 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     okuyucunun kendi ok kısayolları (ör. VoiceOver'da Ctrl+Option+Sol/Sağ)
     sayfa çevrilmeden çalışıyor mu? Tuşu basılı tutunca sayfalar akıyor ve
     ekran okuyucu yalnızca sonuncusunu mu söylüyor?
+22. Cüz (Cüz/Hizb/Rub/Menzil) ve Ezber (Dinle/Oku/Yaz) sekmeleri: ekran
+    okuyucu sekmenin adını, konumunu ("2/4" gibi) ve seçili durumunu söylüyor
+    mu? Tab, Kapat'tan sonra seçili sekmeye geliyor ve bir sonraki Tab
+    doğrudan panelin ilk öğesine geçiyor mu (sekmeler tek durak mı)? Sol/Sağ
+    komşu sekmeye geçiyor, son sekmeden başa sarıyor, her adımda yeni sekme
+    "seçili" diye okunuyor ve panel değişiyor mu? Home/End ilk/son sekmeye
+    gidiyor mu? Sağ oku basılı tutmak ekran okuyucuyu boğuyor mu? Sekmeye
+    gelince odak halkası net görünüyor mu? Pencereyi kapatıp açınca ilk sekme
+    seçili mi?
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal odak
 yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı, renk
@@ -2808,8 +2948,8 @@ Bilgisi'nde kapalı bölümlerin gizlenmesi, Ezber > Oku'nun klavye yolu (iki
 küçük düzeltmesiyle birlikte: Oku'da Türkçe karşılık verisinin yüklenmesi, ses
 başarısızken ayet atlama), Ezber > Yaz'ın klavye yolu, Ezber'de kapak altı
 metnin ağaçtan çıkarılması, tefsir sekme düğmesinin durumu ve sayfa çevirme
-oklarının yalnızca düz Sol/Sağ'a daraltılması ayrı ayrı tek commit'tir, geri
-alınabilir.
+oklarının yalnızca düz Sol/Sağ'a daraltılması ve Cüz/Ezber sekmelerinin ok
+tuşu gezintisi ayrı ayrı tek commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 

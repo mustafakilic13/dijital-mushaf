@@ -172,10 +172,10 @@
     </button>
   </div>
   <div class="tab-bar" role="tablist">
-    <button type="button" class="tab-bar-btn" role="tab" id="juz-tab-juz" aria-selected="true" aria-controls="juz-list" data-tab="juz">Cüz</button>
-    <button type="button" class="tab-bar-btn" role="tab" id="juz-tab-hizb" aria-selected="false" aria-controls="hizb-list" data-tab="hizb">Hizb</button>
-    <button type="button" class="tab-bar-btn" role="tab" id="juz-tab-rub" aria-selected="false" aria-controls="rub-list" data-tab="rub">Rub</button>
-    <button type="button" class="tab-bar-btn" role="tab" id="juz-tab-manzil" aria-selected="false" aria-controls="manzil-list" data-tab="manzil">Menzil</button>
+    <button type="button" class="tab-bar-btn" role="tab" id="juz-tab-juz" aria-selected="true" tabindex="0" aria-controls="juz-list" data-tab="juz">Cüz</button>
+    <button type="button" class="tab-bar-btn" role="tab" id="juz-tab-hizb" aria-selected="false" tabindex="-1" aria-controls="hizb-list" data-tab="hizb">Hizb</button>
+    <button type="button" class="tab-bar-btn" role="tab" id="juz-tab-rub" aria-selected="false" tabindex="-1" aria-controls="rub-list" data-tab="rub">Rub</button>
+    <button type="button" class="tab-bar-btn" role="tab" id="juz-tab-manzil" aria-selected="false" tabindex="-1" aria-controls="manzil-list" data-tab="manzil">Menzil</button>
   </div>
   <div class="modal-list" id="juz-list" role="tabpanel" aria-labelledby="juz-tab-juz"></div>
   <div class="modal-list" id="hizb-list" role="tabpanel" aria-labelledby="juz-tab-hizb" hidden></div>
@@ -209,9 +209,9 @@
     </button>
   </div>
   <div class="tab-bar" role="tablist" id="ezber-tabs">
-    <button type="button" class="tab-bar-btn" role="tab" id="ezber-tab-dinle" aria-selected="true" aria-controls="ezber-panel-dinle" data-tab="dinle">Dinle</button>
-    <button type="button" class="tab-bar-btn" role="tab" id="ezber-tab-oku" aria-selected="false" aria-controls="ezber-panel-oku" data-tab="oku">Oku</button>
-    <button type="button" class="tab-bar-btn" role="tab" id="ezber-tab-yaz" aria-selected="false" aria-controls="ezber-panel-yaz" data-tab="yaz">Yaz</button>
+    <button type="button" class="tab-bar-btn" role="tab" id="ezber-tab-dinle" aria-selected="true" tabindex="0" aria-controls="ezber-panel-dinle" data-tab="dinle">Dinle</button>
+    <button type="button" class="tab-bar-btn" role="tab" id="ezber-tab-oku" aria-selected="false" tabindex="-1" aria-controls="ezber-panel-oku" data-tab="oku">Oku</button>
+    <button type="button" class="tab-bar-btn" role="tab" id="ezber-tab-yaz" aria-selected="false" tabindex="-1" aria-controls="ezber-panel-yaz" data-tab="yaz">Yaz</button>
   </div>
 
   <div class="ezber-panel" id="ezber-panel-dinle" role="tabpanel" aria-labelledby="ezber-tab-dinle">
