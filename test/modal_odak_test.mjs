@@ -412,7 +412,7 @@ if (startIdx > 0 && endIdx > startIdx) {
     let now = 0;
     const api = new Function(
       "els", "state", "document", "createModalFocus", "requestAnimationFrame", "setTimeout",
-      "closeAllAyahGrids", "closeSurahInfoDetail", "resetTopicsModal", "switchJuzTab", "switchEzberTab", "closeEzberSurahPicker",
+      "closeAllAyahGrids", "closeSurahInfoDetail", "resetTopicsModal", "switchJuzTab", "switchEzberTab", "closeEzberPicker",
       `${block}\nreturn { openModal, closeModal, closeAllModals, modalFocus };`
     )(
       els, state, D, createModalFocus,
@@ -423,7 +423,7 @@ if (startIdx > 0 && endIdx > startIdx) {
       () => calls.push("resetTopicsModal"),
       (tab) => calls.push(`switchJuzTab:${tab}`),
       (tab) => calls.push(`switchEzberTab:${tab}`),
-      () => calls.push("closeEzberSurahPicker")
+      () => calls.push("closeEzberPicker")
     );
     return {
       D, els, state, calls, ...api,
@@ -555,7 +555,11 @@ if (startIdx > 0 && endIdx > startIdx) {
     h.calls.length = 0;
     h.openModal(h.els.ezberModal);
     h.closeAllModals();
-    check("closeModal(Ezber): 'dinle' sekmesine ve sure seçici kapalı hâle sıfırlanıyor", h.calls.includes("switchEzberTab:dinle") && h.calls.includes("closeEzberSurahPicker"));
+    check("closeModal(Ezber): 'dinle' sekmesine ve sure/kârî seçici kapalı hâle sıfırlanıyor", h.calls.includes("switchEzberTab:dinle") && h.calls.includes("closeEzberPicker"));
+    check(
+      "closeModal(Ezber): seçici ÖNCE kapanıyor, 'dinle' sekmesi SONRA (seçici, açık olduğu sekmenin formunu geri getiriyor; sıra tersse Oku/Yaz'da kapatılan modal iki form birden gösteriyordu)",
+      h.calls.indexOf("closeEzberPicker") >= 0 && h.calls.indexOf("closeEzberPicker") < h.calls.indexOf("switchEzberTab:dinle")
+    );
     h.advance(400);
     h.calls.length = 0;
     h.openModal(h.els.topicsModal);

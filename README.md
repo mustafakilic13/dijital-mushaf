@@ -164,7 +164,7 @@ yüzden info body'deki her tıklamayı yakalayıp (`e.preventDefault()`)
 indirgenir) aralıktaki her ayetin kendi Arapça metni (`ayahArabicText`,
 Konu Fihristi'nin ayet listesiyle aynı, bkz. aşağısı) + Elmalılı meali +
 kendi "Mushaf'ta Ayete Git" butonuna (`goToAyah`) dönüşür — ikisi de
-`#surah-info-detail` alt-panelinde, `.ezber-surah-picker`'la aynı
+`#surah-info-detail` alt-panelinde, `.ezber-picker`'la aynı
 geri-gidilebilir düzende (bkz. `js/app.js`'teki
 `openSurahInfoLink`/`closeSurahInfoDetail`; odak yönetimi için bkz. "Erişilebilirlik").
 `test/surah_info_links_test.mjs`,
@@ -550,9 +550,10 @@ sekmenin son ayarları (aralık, tekrar sayıları, okuyucu) tarayıcıda
 hatırlanıyor (`localStorage`, `quran-reader-ezber-v1`; özel pencerede ya da
 depolama kapalıyken sessizce atlanıyor).
 
-- **Dinle** -- birikimli tekrar. Kârî (Husarî / Abdülbâsıt Abdüssamed),
-  **Ayet Tekrar Sayısı** (her ayet kaç kez okunsun) ve **Aynısını Tekrar
-  Sayısı** (tüm aralık kaç kez baştan alınsın) seçiliyor; ikisi de 1-99. Sıra:
+- **Dinle** -- birikimli tekrar. Kârî (Husarî / Abdülbâsıt Abdüssamed; sure
+  gibi ayrı bir alt panelden seçiliyor), **Ayet Tekrar Sayısı** (her ayet
+  kaç kez okunsun) ve **Aynısını Tekrar Sayısı** (tüm aralık kaç kez baştan
+  alınsın) seçiliyor; ikisi de 1-99. Sıra:
   eûzü, besmele, 1. ayet (tekrar sayısı kadar), sonra aralığın başından o
   ayete kadar her ayet bir kez ("tekrar zinciri"), sonra 2. ayet (tekrar
   sayısı kadar) ve yine başından 2. ayete kadar zincir... -- yani zincir her
@@ -1478,12 +1479,188 @@ gerçek Chromium ölçümü başsızdı. Gerçek ekran okuyucu (NVDA/JAWS/VoiceO
 TalkBack) çalıştırılmadı: "sekme, 2/4" anonsu, seçimin her ok adımında
 duyulması ve Tab'ın panele geçişi cihazda sınanmadı (kontrol listesi, madde
 22); Firefox ve Safari'de denenmedi. Ayrıca ölçüm sırasında bu yamanın konusu
-olmayan bir sorun görüldü, dokunulmadı: Ezber'de bir sekmedeki Sure
+olmayan bir sorun görüldü, bu yamada dokunulmadı: Ezber'de bir sekmedeki Sure
 düğmesine (sure adını gösteren düğme) basınca ve seçiciden Geri'ye dönünce
-odak `<body>`'ye düşüyor (düğmenin ve Geri'nin içinde bulunduğu bölüm
+odak `<body>`'ye düşüyordu (düğmenin ve Geri'nin içinde bulunduğu bölüm
 `hidden` oluyor); aynı Chromium davranışı Konu modalının Geri düğmesinde daha
 önce düzeltilmişti ("`hidden` özniteliği ve konu modalının Geri düğmesi"
-paragrafı), Ezber'in sure seçicisinde düzeltilmedi.
+paragrafı), Ezber'in sure seçicisi sonraki "Ezber seçicileri" paragrafında
+düzeltildi.
+
+**Ezber seçicileri: Kârî de Sure gibi seçiliyor.** Ezber'in Kârî alanı yerel
+bir `<select>`ti, Sure alanı ise düğme + alt panel listesiydi (uygulamanın
+öteki seçicileriyle aynı kalıp). İstek: Kârî de Sure'nin aynısı olsun. İki alan
+artık aynı işaretlemeden ve aynı koddan geçiyor; bu sırada Sure seçicisinde
+ölçülen kusurlar da giderildi. Gerçek Chromium'da (430x900, sayfa 50,
+Playwright klavyesi gerçek tuş olayları üretiyor) yamadan ÖNCE ölçülen durum:
+
+- Sure düğmesine Enter: odak `<body>`'ye düşüyor (düğmenin ve Geri'nin içinde
+  bulunduğu bölüm `hidden` oluyor; ekran okuyucuya seçicinin açıldığını
+  duyuracak bir odak olayı yok). Geri'ye Enter ya da bir sure seçmek de odağı
+  `<body>`'ye düşürüyor ve sonraki Tab formun başına değil sayfanın altındaki
+  "Kaynak Kod" bağlantısına gidiyor. Fareyle de aynı;
+- Oku ya da Yaz sekmesinde Sure seçici AÇIKKEN Esc'e basıp Ezber'i yeniden
+  açınca iki form birden görünüyor (Dinle + Oku, Dinle + Yaz): `closeModal`
+  önce Dinle sekmesine dönüyor, sonra seçiciyi kapatırken seçicinin açıldığı
+  sekmenin formunu da geri getiriyordu;
+- kayıtlı sure 60 iken seçici listenin başından açılıyor, etkin satır 3605 px
+  aşağıda kalıyor (Oku'da kayıtlı sure 100: 6045 px): ortalama çağrısı
+  (`scrollIntoView`) seçici hâlâ `hidden` iken yapılıyordu, düzeni olmayan
+  öğede ise hiçbir şey yapmıyor;
+- erişilebilirlik ağacı: Sure düğmesinin adı yalnızca "3. Âl-i İmrân" (alanın
+  adı yok); Kârî `combobox` "Kârî", `hasPopup: menu`. `<select>`te Aşağı ok
+  değeri sessizce değiştiriyordu (Husarî -> Abdülbâsıt). Kayıtlı kârî değeri
+  `toString`, `__proto__` ya da `constructor` iken (bozuk depolama) eski
+  doğrulama (`RECITERS[d.reciter]`) bunu geçerli sayıyor, `<select>`te hiçbir
+  seçenek seçili kalmıyordu (`selectedIndex` -1, değer boş).
+
+Değişiklik. `index.html`'de `<select id="ezber-reciter">` gitti; yerine Sure
+alanının aynısı geldi: etiket (`#ezber-dinle-reciter-label`), düğme
+(`#ezber-dinle-reciter-btn`, `aria-haspopup="listbox"`, adı etiket + gösterilen
+değer: "Kârî Husarî (Mücevved)") ve gizli giriş `#ezber-dinle-reciter` (değeri
+`RECITERS` anahtarı, `husary`). Sure düğmeleri de aynı biçimde adlandırıldı
+("Sure 3. Âl-i İmrân"). İki seçici (`#ezber-surah-picker`,
+`#ezber-reciter-picker`) birebir aynı yapıda: `role="group"`, adı başlığa bağlı,
+`tabindex="-1"`, Geri, başlık, `.modal-list`. `css/style.css`'te
+`.ezber-surah-btn*` ve `.ezber-surah-picker*` genel adlara
+(`.ezber-picker-btn*`, `.ezber-picker*`) taşındı, `.ezber-field select` kuralı
+gitti, Kârî satırı için `.modal-item-title` (15 px) eklendi. `js/app.js`'te
+(`// <ezber-picker>` bloğu) tek bir `ezberPicker = { kind, target, opener }`
+kaydı ve iki işlev var, `openEzberPicker(kind, target)` ve
+`closeEzberPicker({ restoreFocus })`: Sure ve Kârî aynı koddan geçiyor (kopya
+yok), Kârî listesi `RECITERS`'tan kuruluyor. Ölçülen kusurların düzeltmeleri:
+
+- seçiciye girerken odak seçicinin kapsayıcısına alınıyor (ekran okuyucu "Sure
+  Seç" ya da "Kârî Seç" başlığını okur, Tab Geri'den sürer; Konu modalı ve Sure
+  Bilgisi ayrıntısıyla aynı kalıp). Geri'de ve satır seçiminde odak seçiciyi
+  açan düğmeye dönüyor; düğme odak alamazsa modalın kapsayıcısına gidiyor
+  (`<body>`'ye düşmüyor). `.ezber-picker:focus { outline: none }`: kapsayıcı
+  etkileşimli değil, odak halkası içindeki düğmelerde
+  (`.modal-sheet:focus` ile aynı gerekçe);
+- `closeModal` önce seçiciyi, sonra Dinle sekmesini sıfırlıyor (sıra değişti);
+- etkin satırın ortalanması seçici görünür olduktan SONRA yapılıyor;
+- kayıtlı kârî `Object.hasOwn(RECITERS, ...)` ile doğrulanıyor, geçersizse
+  `husary`;
+- seçici açıkken sheet hep en yüksek boyda
+  (`.modal-sheet:has(> .ezber-picker:not([hidden])) { height: min(78vh, 640px) }`):
+  114 satırlık Sure listesi sheet'i zaten dolduruyordu, iki satırlık Kârî
+  listesinde sheet çökerdi (430x900'de Dinle 607 px, kuralsız Kârî seçici
+  255 px, kuralla 640 px).
+
+Şimdi (aynı sahneler, yamadan önce -> sonra):
+
+- Sure düğmesine Enter: odak `<body>` -> seçicinin kapsayıcısı
+  (`#ezber-surah-picker`); Tab -> Geri; Enter (Geri) -> Sure düğmesi; sonraki
+  Tab Başlangıç ayetine ("Kaynak Kod" bağlantısı yerine), Shift+Tab Sure
+  düğmesine. Bir sure seçmek (5. Mâide): odak `<body>` -> Sure düğmesi, aralık
+  1-120. Yaz'da fareyle aynı (aç, Geri, aç, 2. sure: odak hep Yaz'ın Sure
+  düğmesinde);
+- Kârî düğmesine Tab, Enter -> odak `#ezber-reciter-picker`, Tab -> Geri,
+  Enter -> Kârî düğmesi; yeniden aç, ikinci satır (Abdülbâsıt Abdüssamed), Enter
+  -> Kârî düğmesi ("Abdülbâsıt Abdüssamed (Mücevved)"), sonraki Tab Sure
+  düğmesi. Uygula'dan sonra depolamada `reciter: "abdulsamad"`, yeniden
+  açılışta o;
+- Dinle'de Tab durakları: Kapat, Dinle, Kârî, Sure, Başlangıç ayeti (üçüncü
+  durak eskiden `<select>`ti). Aşağı ok artık Kârî'yi değiştirmiyor;
+- seçici açıkken Esc: odak Ezber düğmesinde; Oku ya da Yaz'da seçici açıkken
+  Esc'ten sonra yeniden açılışta yalnızca Dinle paneli ("dinle,oku" ve
+  "dinle,yaz" -> "dinle");
+- kayıtlı sure 60: etkin satır görünür (liste kaydırması 0 -> 3391, satır
+  489 px'lik listenin ortasında); Oku'da kayıtlı 100 (6045 px aşağıda) da
+  görünür;
+- erişilebilirlik ağacı: Kârî `button` "Kârî Husarî (Mücevved)", Sure `button`
+  "Sure 3. Âl-i İmrân", ikisinde `hasPopup: listbox`;
+- kayıtlı kârî `toString`, `__proto__`, `constructor`, `nope`: dördünde de
+  Husarî;
+- Dinle formu 2 px kısaldı (609 -> 607 px; Kârî alanı 65 -> 63 px: düğme
+  `<select>`ten biraz alçak). Seçici açıkken sheet 640 px (78vh'den küçük
+  ekranlarda 78vh, ikisinde de aynı; 390x600'de 468 px);
+- sayfada hata yok.
+
+Görünüm: Oku, Yaz ve Sure seçici, 430 ve 1200 px, hareket azaltma açık, sheet'in
+ekran görüntüsü yamasız ağaçla piksel piksel aynı. Dinle'de Sure alanı ve
+altı (alt kenara hizalı) 430 px'te aynı; üst bölgede 8 piksel (yuvarlak üst
+köşeler) ve 1200 px'te 93 piksel (yuvarlak köşeler; en büyük kanal farkı
+40/255) fark var. Değişen tek yer Kârî alanı: `<select>` yerine Sure'nin aynısı
+(beyaz kart + ok).
+
+Karar ve ödünleşmeler:
+
+- **`aria-haspopup="listbox"` korundu** (Sure düğmesinde zaten vardı, Kârî
+  aynısı olsun diye ona da verildi), ama satırlar `role="option"` değil düz
+  düğme ve seçici bir `listbox` kalıbı değil (oklar, tek Tab durağı,
+  `aria-selected` yok): ekran okuyucu "liste kutusu" ipucu verip düğmelerden
+  oluşan bir grup açıyor. Doğru kalıp iki seçici için birlikte, ayrı bir iş.
+- Etkin satır yalnızca renkle işaretli (`.active`; `aria-current` yok): iki
+  listede de ve uygulamanın öteki modal listelerinde aynı, dokunulmadı.
+- **Yerel `<select>`in kolaylıkları gitti:** yazarak arama ve Aşağı/Yukarı ile
+  değer değiştirme, işletim sisteminin kendi seçim penceresi. Kârî'de yalnızca
+  iki seçenek var; tutarlılık için bilinçli ödünleşme (istek buydu).
+- **Sheet yüksekliği `:has()` ile sabitleniyor** (Chrome 105+, Safari 15.4+,
+  Firefox 121+). Desteklemeyen tarayıcıda kural yok sayılır: Sure seçicisi
+  eskisi gibi dolu kalır, Kârî seçicisi kısalır (kullanılabilir, daha
+  küçük). `:has()` yokluğu sınanmadı.
+- **`closeEzberPicker` odağı yalnızca istenince taşıyor** (`restoreFocus`
+  varsayılanı kapalı): `closeModal`'ın sıfırlaması da buradan geçiyor ve
+  kapanan modalda odağa dokunulmuyor, odağı `modal-odak.js` modalı açan
+  düğmeye veriyor. Geri ve satır seçimi `() => closeEzberPicker({ restoreFocus:
+  true })` olarak bağlı; `closeEzberPicker`'ı doğrudan dinleyici yapmak odağı
+  geri vermezdi (olay nesnesi seçenek yerine geçer), testte denetleniyor.
+
+`test/ezber_secici_test.mjs` (yeni; jsdom + kaynak denetimi, 187 kontrol,
+≈ 11-15 sn): `index.html`'de Kârî alanı Sure alanıyla (kimlik/sekme/metin
+normalize edilince) ve iki seçici birbiriyle birebir aynı yapıda, `<select>`
+yok, kimlikler tekil, `aria-labelledby` başvuruları var olan kimliklere
+çıkıyor, varsayılan değerler `RECITERS`'la tutarlı, eski sınıf adları HTML ve
+CSS'te yok, CSS kuralları (`outline`, `:has` yüksekliği, `[hidden]`,
+`.modal-item-title`); `app.js`'ten işaretler arasından çıkarılan GERÇEK
+`openEzberPicker`/`closeEzberPicker`/`setEzberReciter`/liste kurucuları, GERÇEK
+`closeModal` ve `setupEzberModal` x GERÇEK `index.html` x GERÇEK
+`createModalFocus` ve `setupTablist`, Chromium'un "odak düzeltmesi"ni (gizlenen
+bölümdeki odak `<body>`'ye düşer; jsdom yapmıyor, ölçüme dayalı bir yardımcıyla
+taklit ediliyor): listelerin kurulumu (114 + 2 satır), kayıtlı kârî geri
+yüklemesi (geçerli, eksik, bozuk, `toString`/`__proto__`/`constructor`), Tab
+durakları, üç sekmede Sure + Dinle'de Kârî seçicisinin açılışı (odak, gizlenen
+bölümler, etkin satır, ortalamanın seçici görünürken çağrılması), Geri ve satır
+seçimi (değer, etiket, aralık, odak, başka sekmelere dokunulmaması), Uygula'dan
+sonra depolama ve oturum, seçici açıkken kapatma (üç sekme + Kârî: tek form,
+odak modalı açan düğmede, yeniden açılış), `closeEzberPicker()`'ın seçenek
+verilmeden odağı taşımaması, açan düğme odak alamazken yedek, yanlış/boş
+tıklamalar, art arda açma/kapama; 24 tohumlu rastgele dizi (açma, sekme, iki
+seçici, Geri, satır seçimi, Uygula, kapatma; tohum başına 140 işlem) x bağımsız
+bir model; jsdom'da olay dinleyicilerinde yakalanmamış hata yok. Dört
+düzeltmesiz taban (Kârî seçici var; girişte odak seçiciye alınmıyor, Geri ve
+satır seçiminde geri verilmiyor, `closeModal` ve ortalama sırası eski) 187
+kontrolün 33'ünü kırıyor; kodun her parçası tek tek bozularak 91 mutasyon
+denendi, hepsi yakalandı: `setEzberReciter`'in değeri ya da etiketi
+yazmaması/yanlış yazması; liste satırlarının sayısı, anahtarı, sınıfı, metni
+ve hedef listesi; `openEzberPicker`'ın her adımı (iki gizleme, gösterme,
+ortalamanın sırası ve hedefi, odak, `preventScroll`, açan düğme kaydı);
+`closeEzberPicker`'ın her adımı (iki seçici, sekme çubuğu, form, kayıt yoksa
+dönüş, `restoreFocus` koruması ve varsayılanı, açana odak, yedek); Geri ve satır
+bağlamaları (olay nesnesi, iki koruma, yanlış tür/sekme/öznitelik,
+`autofillRange`, bağlanmamış düğme, doldurulmayan liste); açılışta kârî geri
+yükleme (varsayılan, `hasOwn`, yok sayma); `els.ezberReciter`; `closeModal`'daki
+iki çağrının sırası ve yokluğu; `index.html`'de 21 ve CSS'te 9 bozulma.
+Yalnızca `preventScroll`'un yokluğu kaynak denetimiyle yakalanıyor (kaydırma
+jsdom'da gözlenemiyor). Mutasyonsuz hâl 25 test dosyasının hepsiyle geçiyor.
+
+Sınır: jsdom'da gerçek odak halkası, odak düzeltmesi, düzen ve ekran okuyucu
+yok; Chromium ölçümü başsızdı (kaydırma, yükseklik, odak, piksel karşılaştırması
+orada yapıldı). Gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack)
+çalıştırılmadı: "Sure Seç, grup" / "Kârî Seç, grup" anonsu, düğmenin alan adı ve
+değeriyle okunması, `aria-haspopup="listbox"` ipucunun düz düğmelerden oluşan
+bir gruba uyması ve Geri'den sonra düğmenin yeni değeriyle okunması cihazda
+sınanmadı (kontrol listesi, madde 23); Firefox ve Safari'de denenmedi. Ayrıca
+ölçüm sırasında bu yamanın konusu olmayan ve işlevi bozan bir sorun görüldü,
+dokunulmadı: Ezber'de (üç sekmede de) geçersiz bir aralık gönderilince (ör.
+başlangıç 5, bitiş 2) `Bitiş` alanına `setCustomValidity` ile yazılan uyarı
+yalnızca `readEzberRange`'de ve sure yeniden seçilince temizleniyor; aralık
+düzeltilince tarayıcının kendi doğrulaması bu bayat uyarıyla göndermeyi
+engelliyor ve işleyici hiç çalışmıyor. Gerçek Chromium'da: 5-2 gönder, 1-3'e
+düzelt, yeniden gönder: modal açık kalıyor, `Bitiş` hâlâ geçersiz, mesaj hâlâ
+"Bitiş ayeti, başlangıç ayetinden küçük olamaz." (yamasız ve yamalı ağaçta
+aynı).
 
 **Ezber > Oku'da klavye ve ekran okuyucu yolu.** Oku'da bir kelimeyi açmanın
 tek yolu sayfadaki ayete dokunmaktı; sayfa tek bir `<svg>` olduğundan
@@ -2498,6 +2675,7 @@ test/ezber_metin_katmani_test.mjs    Ezber oturumunda kapak altı metin erişile
 test/tefsir_sekme_aria_test.mjs     Tefsir sekme düğmesi: aria-expanded .active ile tutarlı, kapanış bitince metin DOM'dan kalkıyor, aynı karede çift tıklama, veri gelirken kapatma, iki kaynak arasında geçiş, rastgele diziler (jsdom)
 test/sayfa_ok_tuslari_test.mjs      Sayfa çevirme okları: yalnızca düz Sol/Sağ çeviriyor; Alt/Ctrl/Meta/Shift+ok, tüketilmiş olay, IME bileşimi ve ok kullanan öğeler (yazı alanı, kaydırıcı...) çevirmiyor; Yaz klavyesiyle birlikte, rastgele diziler (jsdom)
 test/sekme_gezintisi_test.mjs     Sekme listeleri (Cüz, Ezber): ok tuşu gezintisi, tek Tab durağı, tabindex/aria-selected tutarlılığı, sayfa çevirmeyle çakışmama, rastgele diziler (jsdom)
+test/ezber_secici_test.mjs       Ezber Sure ve Kârî seçicileri: ortak yapı, odak (giriş, Geri, satır seçimi, kapanış), etkin satırın ortalanması, Oku/Yaz'da seçici açıkken kapatma, rastgele diziler (jsdom)
 ```
 
 ## Çalıştırma
@@ -2563,13 +2741,14 @@ kalmadı -- yazım hatası yüzünden "hiçbir test çalışmadı ama sonuç ye�
 SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
-`npm run test:fast` (tam tarama hariç, ≈ 83 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 24 dosyanın hepsi ≈
-2,5 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-72 sn, arama
+`npm run test:fast` (tam tarama hariç, ≈ 105 sn) ve `npm run test:corpus`
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 25 dosyanın hepsi ≈
+3 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-76 sn, arama
 arayüzü 19-22 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
 testi 8-10 sn, Ezber klavye testi ≈ 8 sn, Ezber metin katmanı testi ≈ 5 sn,
 tefsir sekme testi ≈ 6 sn, sayfa ok tuşları testi ≈ 3-5 sn,
-sekme gezinti testi ≈ 3-6 sn);
+sekme gezinti testi ≈ 3-6 sn,
+Ezber seçici testi ≈ 11-15 sn);
 GitHub Actions'taki ilk koşuda işin tamamı 1 dk 25 sn sürdü.
 
 **Tam tarama testi artık gerçekten doğruluyor.** `test/full_corpus_test.mjs`
@@ -2938,6 +3117,16 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     gidiyor mu? Sağ oku basılı tutmak ekran okuyucuyu boğuyor mu? Sekmeye
     gelince odak halkası net görünüyor mu? Pencereyi kapatıp açınca ilk sekme
     seçili mi?
+23. Ezber'de Kârî ve Sure alanları: ekran okuyucu düğmeyi alan adı ve değeriyle
+    ("Kârî Husarî (Mücevved)", "Sure 3. Âl-i İmrân") okuyor mu? "Liste kutusu"
+    gibi bir ipucu veriyor mu ve bu, düz düğmelerden oluşan bir grup açan
+    düğme için yanıltıcı mı? Düğmeye basınca "Sure Seç" / "Kârî Seç" başlığı
+    okunuyor mu, ardından Tab önce Geri'ye, sonra satırlara geçiyor mu?
+    Satır seçince ya da Geri'ye basınca odak düğmeye dönüyor ve düğme yeni
+    değeriyle okunuyor mu? Seçici açıkken Esc modalı kapatıyor ve odak Ezber
+    düğmesine dönüyor mu? Mevcut sure/kârî satırı "seçili" diye duyuluyor mu
+    (yalnızca renkle işaretli)? Kârî düğmesinde Aşağı ok bir şey yapmıyor,
+    değer yalnızca listeden değişiyor mu?
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal odak
 yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı, renk
@@ -2948,8 +3137,9 @@ Bilgisi'nde kapalı bölümlerin gizlenmesi, Ezber > Oku'nun klavye yolu (iki
 küçük düzeltmesiyle birlikte: Oku'da Türkçe karşılık verisinin yüklenmesi, ses
 başarısızken ayet atlama), Ezber > Yaz'ın klavye yolu, Ezber'de kapak altı
 metnin ağaçtan çıkarılması, tefsir sekme düğmesinin durumu ve sayfa çevirme
-oklarının yalnızca düz Sol/Sağ'a daraltılması ve Cüz/Ezber sekmelerinin ok
-tuşu gezintisi ayrı ayrı tek commit'tir, geri alınabilir.
+oklarının yalnızca düz Sol/Sağ'a daraltılması, Cüz/Ezber sekmelerinin ok
+tuşu gezintisi ve Ezber'in Kârî seçicisi (Sure seçiciyle aynı kalıp, odak
+düzeltmeleriyle) ayrı ayrı tek commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 

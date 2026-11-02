@@ -371,6 +371,8 @@ body {
   color: var(--ink-soft);
   margin-top: 1px;
 }
+/* Tek satırlık satır başlığı (Ezber Kârî listesi): Arapça ad + alt satır taşımayan listeler için. */
+.modal-item-title { font-size: 15px; }
 
 /* ---------------------------------------------------------------------
    Alt-modal sekme çubuğu: Cüz modalındaki Cüz/Hizb/Rub/Menzil VE Ezber
@@ -1010,7 +1012,7 @@ body {
 
 /* Sure Bilgisi içindeki linkler (js/surahinfo.js parseInfoLink, js/app.js
    openSurahInfoLink): #surah-info-body ile aynı .modal-sheet içinde bir
-   kardeş panel, .ezber-surah-picker'la birebir aynı "ikisinden biri her an
+   kardeş panel, .ezber-picker'la birebir aynı "ikisinden biri her an
    [hidden]" düzeni -- bkz. o bloğun üstündeki yorum. */
 .info-detail {
   display: flex;
@@ -1363,11 +1365,12 @@ body {
 /* ---------------------------------------------------------------------
    Ezber modalı -- Dinle/Oku/Yaz'ın ortak form dili. Form elemanları
    .page-jump-* ile aynı beyaz-kart/12px-köşe dilini kullanıyor, bu modala
-   özel yeni bir görsel dil icat edilmedi. Sure seçimi native <select>
-   yerine uygulamanın kendi sure listesiyle aynı satır tasarımını
-   (.modal-item) paylaşan bir buton + alt-görünüm liste (.ezber-surah-picker)
-   üzerinden yapılıyor -- üçü de (Dinle/Oku/Yaz) tek bir paylaşılan listeyi
-   kullanıyor (bkz. app.js'teki openEzberSurahPicker).
+   özel yeni bir görsel dil icat edilmedi. Sure ve Kârî seçimi native
+   <select> yerine uygulamanın kendi listeleriyle aynı satır tasarımını
+   (.modal-item) paylaşan bir buton (.ezber-picker-btn) + alt-görünüm liste
+   (.ezber-picker) üzerinden yapılıyor -- Sure listesini üç sekme de
+   (Dinle/Oku/Yaz) paylaşıyor, Kârî listesi yalnızca Dinle'de (bkz. app.js'teki
+   openEzberPicker).
    ------------------------------------------------------------------- */
 .ezber-panel {
   overflow-y: auto;
@@ -1392,7 +1395,6 @@ body {
   color: var(--ink-soft);
 }
 .ezber-field-label small { font-weight: 400; }
-.ezber-field select,
 .ezber-field input[type="number"] {
   font-family: var(--font-ui);
   font-size: 15px;
@@ -1404,8 +1406,8 @@ body {
 }
 /* Odak halkası genel kuraldan geliyor (select/input:focus-visible: 2px --gold, aşağıda). Burada eskiden
    `outline: none` vardı ve odağı yalnızca kenarlık rengi gösteriyordu (--gold-soft, beyaz alanda 2,4:1:
-   WCAG 1.4.11'in 3:1'inin altında, klavye odağı neredeyse görünmüyordu). */
-.ezber-field select:focus,
+   WCAG 1.4.11'in 3:1'inin altında, klavye odağı neredeyse görünmüyordu). Kârî de artık <select> değil
+   (.ezber-picker-btn), bu yüzden kural yalnızca sayı girişlerine bakıyor. */
 .ezber-field input[type="number"]:focus {
   border-color: var(--gold-soft);
 }
@@ -1438,7 +1440,7 @@ body {
 }
 .ezber-apply-btn:active { background: var(--emerald-deep); }
 
-.ezber-surah-btn {
+.ezber-picker-btn {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1454,22 +1456,31 @@ body {
   cursor: pointer;
   text-align: start;
 }
-.ezber-surah-btn:hover { border-color: var(--gold-soft); }
-.ezber-surah-btn-text {
+.ezber-picker-btn:hover { border-color: var(--gold-soft); }
+.ezber-picker-btn-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ezber-surah-btn-chevron { flex-shrink: 0; color: var(--ink-soft); }
+.ezber-picker-btn-chevron { flex-shrink: 0; color: var(--ink-soft); }
 
-.ezber-surah-picker {
+.ezber-picker {
   display: flex;
   flex-direction: column;
   min-height: 0;
   flex: 1;
 }
-.ezber-surah-picker[hidden] { display: none; }
-.ezber-surah-picker-header {
+.ezber-picker[hidden] { display: none; }
+/* Seçici açılınca odak kapsayıcının kendisine alınıyor (js/app.js openEzberPicker; ekran okuyucu "Sure Seç" ya da
+   "Kârî Seç" başlığını okusun diye). Kapsayıcı etkileşimli değil: klavyeyle açılınca bütün görünümün çevresine halka
+   çizilmesin (.modal-sheet:focus ile aynı gerekçe). Halka içindeki düğmelerde, olduğu gibi. */
+.ezber-picker:focus { outline: none; }
+/* Seçici (Sure ya da Kârî) açıkken sheet hep en yüksek boyda: 114 satırlık Sure listesi zaten sheet'i sonuna kadar
+   dolduruyordu; iki satırlık Kârî listesinde sheet, bu kural olmadan, Dinle formunun yüksekliğinden kısalıp bir
+   avuç satıra çökerdi (Chromium'da 430x900 görünümde ölçüldü: Dinle 607 px, kuralsız Kârî seçici 255 px, kuralla
+   640 px). Ezber'in kendi sekmeleri (Dinle/Oku/Yaz) kendi yüksekliklerini koruyor. */
+.modal-sheet:has(> .ezber-picker:not([hidden])) { height: min(78vh, 640px); }
+.ezber-picker-header {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1479,7 +1490,7 @@ body {
   color: var(--ink);
   flex-shrink: 0;
 }
-.ezber-surah-picker-back {
+.ezber-picker-back {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1492,8 +1503,8 @@ body {
   cursor: pointer;
   flex-shrink: 0;
 }
-.ezber-surah-picker-back:hover { background: var(--paper-edge); }
-.ezber-surah-picker .modal-list { flex: 1; overflow-y: auto; }
+.ezber-picker-back:hover { background: var(--paper-edge); }
+.ezber-picker .modal-list { flex: 1; overflow-y: auto; }
 
 /* Sabit alt bilgi -- Ezber modalının hangi sekmesi (Dinle/Oku/Yaz) veya
    Sure seçici açık olursa olsun her zaman en altta görünür (modal-sheet

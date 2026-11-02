@@ -837,13 +837,13 @@ try {
     const d = declMap(r.decls);
     if (d.outline && /^(none|0)(\s|$)/.test(d.outline)) outlineNone.push(r.selectors.join(", "));
   }
-  // izinli: kapsayıcı odaklarında (halka içerideki öğede/:focus-visible'da) ve arama giriş alanında (halkayı .arama-form:focus-within çiziyor)
-  const OUTLINE_NONE_OK = [".modal-sheet:focus", ".word-meal-panel:focus", ".arama-input"];
+  // izinli: kapsayıcı odaklarında (halka içerideki öğede/:focus-visible'da; .ezber-picker: Sure/Kârî seçicisi açılınca odak
+  // kapsayıcıya alınıyor, bkz. app.js openEzberPicker) ve arama giriş alanında (halkayı .arama-form:focus-within çiziyor)
+  const OUTLINE_NONE_OK = [".modal-sheet:focus", ".word-meal-panel:focus", ".ezber-picker:focus", ".arama-input"];
   check(`\`outline: none\` yalnızca yerine başka gösterge konmuş yerlerde (${OUTLINE_NONE_OK.join(", ")})${outlineNone.length ? " -- bulunan: " + outlineNone.join(" | ") : ""}`, outlineNone.length === OUTLINE_NONE_OK.length && OUTLINE_NONE_OK.every((x) => outlineNone.includes(x)));
-  check(".ezber-field select/input:focus: outline kapatılmıyor (halka genel select/input:focus-visible kuralından geliyor)", (() => {
-    const sel = '.ezber-field select:focus';
-    const sel2 = '.ezber-field input[type="number"]:focus';
-    const found = rules.filter((r) => r.selectors.includes(sel) || r.selectors.includes(sel2));
+  check(".ezber-field input:focus: outline kapatılmıyor (halka genel input:focus-visible kuralından geliyor; Kârî artık <select> değil, düğme)", (() => {
+    const sel = '.ezber-field input[type="number"]:focus';
+    const found = rules.filter((r) => r.selectors.includes(sel));
     return found.length > 0 && found.every((r) => !("outline" in declMap(r.decls)));
   })());
   check("genel odak halkası: select/input/button:focus-visible -> 2px solid var(--gold)", (() => {

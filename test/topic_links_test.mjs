@@ -123,7 +123,7 @@ if (TOPICS_BLOCK && MODAL_START > 0 && MODAL_END > MODAL_START && ESCAPE_SRC) {
     const gotoCalls = [];
     const api = new Function(
       "els", "state", "document", "createModalFocus", "requestAnimationFrame", "setTimeout",
-      "closeAllAyahGrids", "closeSurahInfoDetail", "switchJuzTab", "switchEzberTab", "closeEzberSurahPicker",
+      "closeAllAyahGrids", "closeSurahInfoDetail", "switchJuzTab", "switchEzberTab", "closeEzberPicker",
       "parseAyahsField", "parseRelatedTopicsField", "topicCategoryLabels", "markArabicSpans", "markTopicLinks", "getTopicsIndex",
       "getCachedMealData", "ayahArabicText", "renderMealHTML", "getMealText", "goToAyah",
       `${ESCAPE_SRC[0]}\n${appSource.slice(MODAL_START, MODAL_END)}\n${TOPICS_BLOCK[1]}\n` +

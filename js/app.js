@@ -189,14 +189,11 @@ const els = {
   ezberModal: document.getElementById("ezber-modal"),
   ezberTabs: document.getElementById("ezber-tabs"),
   ezberDinleForm: document.getElementById("ezber-dinle-form"),
-  ezberReciter: document.getElementById("ezber-reciter"),
+  ezberReciter: document.getElementById("ezber-dinle-reciter"), // gizli giriş: değer = RECITERS anahtarı (Kârî düğmesi bunu gösterir)
   ezberRepeat: document.getElementById("ezber-repeat"),
   ezberRepeatAll: document.getElementById("ezber-repeat-all"),
   ezberOkuForm: document.getElementById("ezber-oku-form"),
   ezberYazForm: document.getElementById("ezber-yaz-form"),
-  ezberSurahPicker: document.getElementById("ezber-surah-picker"),
-  ezberSurahPickerList: document.getElementById("ezber-surah-picker-list"),
-  ezberSurahPickerBack: document.getElementById("ezber-surah-picker-back"),
 
   ezberBtn: document.getElementById("ezber-btn"),
   ezberReveal: document.getElementById("ezber-reveal"),
@@ -722,8 +719,10 @@ function closeModal(modalEl, { restoreFocus = true } = {}) {
   if (modalEl === els.topicsModal) resetTopicsModal(); // Konu Fihristi hep kök konudan açılsın, kaldığı alt konuda değil
   if (modalEl === els.juzModal) switchJuzTab("juz"); // Cüz modalı hep "Cüz" sekmesinde açılsın
   if (modalEl === els.ezberModal) {
+    // Önce seçici: açık olduğu sekmenin formunu geri getiriyor; switchEzberTab SONRA çalışmalı, yoksa Oku/Yaz'da
+    // seçici açıkken kapatılan modal bir sonraki açılışta Dinle formuyla birlikte o sekmenin formunu da gösterirdi.
+    closeEzberPicker(); // sure/kârî seçici listesi değil, ilgili formu göstersin
     switchEzberTab("dinle"); // Ezber modalı hep Dinle sekmesinde açılsın
-    closeEzberSurahPicker(); // ... ve sure seçici listesi değil, ilgili formu göstersin
   }
 
   // wait for the slide/fade transition to actually finish before hiding,
@@ -878,7 +877,7 @@ function setupModals() {
 
 // ---------------------------------------------------------------------
 // Ezber modal: Dinle / Oku / Yaz. All three share the same Sure picker
-// (see openEzberSurahPicker) and the same "auto-fill from/to with that
+// (see openEzberPicker) and the same "auto-fill from/to with that
 // surah's first ayah on pick" behaviour (this message's 2nd request).
 // Oku/Yaz's actual reveal-as-you-go study sessions are further down (see
 // startEzberOku/startEzberYaz) -- this block is just their modal/settings
@@ -923,6 +922,27 @@ function saveEzberSettings(tabName, settings) {
   }
 }
 
+// Ezber seçicileri: Sure (Dinle/Oku/Yaz'da ortak liste) ve Kârî (yalnızca Dinle). İkisi de aynı kalıp: alan düğmesi
+// (.ezber-picker-btn) sekme çubuğunu ve sekmenin formunu gizleyip yerine alt-görünüm listeyi (.ezber-picker) gösterir;
+// bir satıra dokunmak ya da Geri alanı değiştirip formu geri getirir. Kârî eskiden yerel <select>ti (Sure'den farklı
+// bir denetim: açılır pencere, ok tuşuyla değer değiştirme, ayrı görünüm); şimdi Sure'nin birebir aynısı.
+//
+// Odak: iki seçicide de, düğmeye Enter (ya da dokunuş) ve Geri/satır seçimi odaktaki öğeyi gizlenen bölümün içinde
+// bırakıyordu. Gerçek Chromium'da ölçülen durum (430 px, yalnızca Tab ve Enter): Sure düğmesine Enter -> odak <body>
+// (ekran okuyucu seçicinin açıldığını duymuyor); Geri'ye ya da bir sureye Enter -> yine <body>, sonraki Tab formun
+// başına değil sayfanın altındaki "Kaynak Kod" bağlantısına gidiyor (kullanıcı formdaki yerini kaybediyor). Düzeltme
+// konu modalındaki ve Sure Bilgisi ayrıntısındaki kalıpla aynı: seçiciye GİRERKEN odak seçicinin kapsayıcısına alınır
+// ("Sure Seç, grup" ya da "Kârî Seç, grup" okunur; Tab Geri'den sürer), Geri'de ve satır seçiminde odak seçiciyi
+// açan düğmeye döner (etiket yeni değeri okur). Modal kapanırken (closeModal) odağa dokunulmaz: modal-odak.js
+// onu modalı açan düğmeye geri veriyor.
+//
+// Mevcut satır: setActiveModalItem seçili satırı ortalamak için scrollIntoView çağırıyor, ama seçici hâlâ `hidden`
+// iken çağrılıyordu (düzen yok, hiçbir şey yapmıyor): gerçek Chromium'da 60. sure seçiliyken liste hep en baştan
+// açılıyordu, etkin satır 3605 px aşağıda kalıyordu. Artık seçici görünür olduktan SONRA çağrılıyor.
+//
+// test/ezber_secici_test.mjs bu bloğu iki işaret arasından çıkarıp jsdom'da çalıştırıyor -- işaretleri silmeyin.
+// <ezber-picker>
+
 // Sets a tab's Sure field (hidden input + visible button label) and,
 // unless told not to, resets its From/To to that surah's own 1st ayah
 // (this message's 1st request) -- every caller of this wants that except
@@ -942,6 +962,12 @@ function setEzberSurah(target, surahNum, { autofillRange = false } = {}) {
   }
 }
 
+// Kârî alanı (gizli giriş + görünen düğme etiketi), Sure alanının aynısı. Değer RECITERS anahtarı ("husary").
+function setEzberReciter(target, reciterKey) {
+  document.getElementById(`ezber-${target}-reciter`).value = reciterKey;
+  document.getElementById(`ezber-${target}-reciter-btn-text`).textContent = RECITERS[reciterKey].label;
+}
+
 function populateEzberSurahPickerList() {
   const frag = document.createDocumentFragment();
   for (let i = 1; i <= 114; i++) {
@@ -958,33 +984,62 @@ function populateEzberSurahPickerList() {
       </span>`;
     frag.appendChild(btn);
   }
-  els.ezberSurahPickerList.appendChild(frag);
+  document.getElementById("ezber-surah-picker-list").appendChild(frag);
 }
 
-// Which tab's Sure field the picker is currently open for -- null while
-// closed. One shared picker/list (114 rows) rather than one per tab.
-let ezberSurahPickerTarget = null;
+// Kârî listesi: her satır tek satırlık bir .modal-item (Sure satırlarının Arapça ad + alt satırı yok).
+function populateEzberReciterPickerList() {
+  const frag = document.createDocumentFragment();
+  for (const [key, reciter] of Object.entries(RECITERS)) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "modal-item";
+    btn.dataset.reciter = key;
+    const main = document.createElement("span");
+    main.className = "modal-item-main";
+    const title = document.createElement("span");
+    title.className = "modal-item-title";
+    title.textContent = reciter.label;
+    main.appendChild(title);
+    btn.appendChild(main);
+    frag.appendChild(btn);
+  }
+  document.getElementById("ezber-reciter-picker-list").appendChild(frag);
+}
 
-function openEzberSurahPicker(target) {
-  ezberSurahPickerTarget = target;
-  const current = parseInt(document.getElementById(`ezber-${target}-surah`).value, 10);
-  setActiveModalItem(els.ezberSurahPickerList, "surah", current);
+// Açık seçici: { kind: "surah" | "reciter", target: "dinle" | "oku" | "yaz", opener: düğme } ya da null (kapalı).
+// kind kimliklerin ve satırların data özniteliğinin de adı (#ezber-<kind>-picker, data-<kind>, #ezber-<sekme>-<kind>-btn).
+// Sure için tek paylaşılan liste (114 satır) var, her sekme için ayrı değil.
+let ezberPicker = null;
+
+function openEzberPicker(kind, target) {
+  const picker = document.getElementById(`ezber-${kind}-picker`);
+  ezberPicker = { kind, target, opener: document.getElementById(`ezber-${target}-${kind}-btn`) };
   els.ezberTabs.hidden = true;
   document.getElementById(`ezber-panel-${target}`).hidden = true;
-  els.ezberSurahPicker.hidden = false;
-}
-function closeEzberSurahPicker() {
-  els.ezberSurahPicker.hidden = true;
-  els.ezberTabs.hidden = false;
-  if (ezberSurahPickerTarget) document.getElementById(`ezber-panel-${ezberSurahPickerTarget}`).hidden = false;
-  ezberSurahPickerTarget = null;
+  picker.hidden = false;
+  // Görünür olduktan SONRA: hidden bir listede scrollIntoView hiçbir şey yapmıyor (bkz. yukarıdaki not).
+  setActiveModalItem(document.getElementById(`ezber-${kind}-picker-list`), kind, document.getElementById(`ezber-${target}-${kind}`).value);
+  picker.focus({ preventScroll: true }); // az önce gizlenen düğmede kalmasın: odak <body>'ye düşerdi
 }
 
-function populateEzberReciterSelect() {
-  els.ezberReciter.innerHTML = Object.entries(RECITERS)
-    .map(([key, r]) => `<option value="${key}">${r.label}</option>`)
-    .join("");
+// restoreFocus: Geri ve satır seçimi odağı seçiciyi açan düğmeye geri verir. Varsayılan KAPALI: closeModal'ın
+// sıfırlaması da buradan geçiyor ve kapanan modalda odağa dokunulmaz. Bir tıklama olayını seçenek nesnesi olarak
+// geçmeyin (closeAllModals'taki gibi): hep `() => closeEzberPicker({ restoreFocus: true })`.
+function closeEzberPicker({ restoreFocus = false } = {}) {
+  const open = ezberPicker;
+  ezberPicker = null;
+  document.getElementById("ezber-surah-picker").hidden = true;
+  document.getElementById("ezber-reciter-picker").hidden = true;
+  els.ezberTabs.hidden = false;
+  if (!open) return;
+  document.getElementById(`ezber-panel-${open.target}`).hidden = false;
+  if (!restoreFocus) return;
+  open.opener.focus();
+  // Düğme odak alamadıysa (kopmuş/gizli/devre dışı) odak <body>'ye düşmesin: modalın kapsayıcısına
+  if (document.activeElement !== open.opener) modalFocus.enter(els.ezberModal);
 }
+// </ezber-picker>
 
 // Validates a tab's From/To pair against the selected surah's ayah count;
 // returns {surah,from,to} on success or null (and reports the error on
@@ -1009,7 +1064,7 @@ function readEzberRange(target, formEl) {
 }
 
 function setupEzberModal() {
-  populateEzberReciterSelect();
+  populateEzberReciterPickerList();
   populateEzberSurahPickerList();
 
   els.ezberBtn.addEventListener("click", () => {
@@ -1024,7 +1079,7 @@ function setupEzberModal() {
         const fallbackAyah = state.selectedAyah ? state.selectedAyah.ayah : 1;
 
         const d = saved.dinle;
-        els.ezberReciter.value = d && RECITERS[d.reciter] ? d.reciter : "husary";
+        setEzberReciter("dinle", d && Object.hasOwn(RECITERS, d.reciter) ? d.reciter : "husary"); // hasOwn: "toString" gibi bozuk bir kayıt kârî sayılmasın
         setEzberSurah("dinle", d ? d.surah : fallbackSurah);
         document.getElementById("ezber-dinle-from").value = d ? d.from : fallbackAyah;
         document.getElementById("ezber-dinle-to").value = d ? d.to : fallbackAyah;
@@ -1051,15 +1106,19 @@ function setupEzberModal() {
   setupTablist(els.ezberTabs, (tabBtn) => switchEzberTab(tabBtn.dataset.tab));
 
   for (const target of EZBER_TABS) {
-    document.getElementById(`ezber-${target}-surah-btn`).addEventListener("click", () => openEzberSurahPicker(target));
+    document.getElementById(`ezber-${target}-surah-btn`).addEventListener("click", () => openEzberPicker("surah", target));
   }
-  els.ezberSurahPickerBack.addEventListener("click", closeEzberSurahPicker);
-  els.ezberSurahPickerList.addEventListener("click", (e) => {
-    const item = e.target.closest(".modal-item");
-    if (!item || !ezberSurahPickerTarget) return;
-    setEzberSurah(ezberSurahPickerTarget, parseInt(item.dataset.surah, 10), { autofillRange: true });
-    closeEzberSurahPicker();
-  });
+  document.getElementById("ezber-dinle-reciter-btn").addEventListener("click", () => openEzberPicker("reciter", "dinle"));
+  for (const kind of ["surah", "reciter"]) {
+    document.getElementById(`ezber-${kind}-picker-back`).addEventListener("click", () => closeEzberPicker({ restoreFocus: true }));
+    document.getElementById(`ezber-${kind}-picker-list`).addEventListener("click", (e) => {
+      const item = e.target.closest(".modal-item");
+      if (!item || !ezberPicker || ezberPicker.kind !== kind) return;
+      if (kind === "surah") setEzberSurah(ezberPicker.target, parseInt(item.dataset.surah, 10), { autofillRange: true });
+      else setEzberReciter(ezberPicker.target, item.dataset.reciter);
+      closeEzberPicker({ restoreFocus: true });
+    });
+  }
 
   els.ezberDinleForm.addEventListener("submit", (e) => {
     e.preventDefault();

@@ -447,8 +447,8 @@ for (const set of SETS) {
   const set = SETS[1];
   const env = makeEnv();
   reset(env, set, 2);
-  env.els.ezberTabs.hidden = true; // openEzberSurahPicker'ın yaptığı
-  env.els.ezberTabs.hidden = false; // closeEzberSurahPicker'ın yaptığı
+  env.els.ezberTabs.hidden = true; // openEzberPicker'ın yaptığı
+  env.els.ezberTabs.hidden = false; // closeEzberPicker'ın yaptığı
   check("Ezber: Sure seçici açılıp kapanınca (sekme çubuğu hidden açılıp kapanınca) Yaz seçili ve tek durak kalıyor", same({ ...snap(env, set), active: "" }, { ...stateFor(set, 2), active: "" }));
   check("Ezber: seçici kapanıp çubuk yeniden görününce Sol ok Yaz'dan Oku'ya geçiyor (roving durum seçiciden etkilenmedi)", (() => {
     el(env, set.tabs[2]).focus();

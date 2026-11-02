@@ -216,15 +216,19 @@
 
   <div class="ezber-panel" id="ezber-panel-dinle" role="tabpanel" aria-labelledby="ezber-tab-dinle">
     <form class="ezber-form" id="ezber-dinle-form">
-      <label class="ezber-field">
-        <span class="ezber-field-label">Kârî</span>
-        <select id="ezber-reciter"></select>
-      </label>
       <div class="ezber-field">
-        <span class="ezber-field-label">Sure</span>
-        <button type="button" class="ezber-surah-btn" id="ezber-dinle-surah-btn" aria-haspopup="listbox">
-          <span class="ezber-surah-btn-text" id="ezber-dinle-surah-btn-text">1. Fâtiha</span>
-          <svg class="ezber-surah-btn-chevron" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="ezber-field-label" id="ezber-dinle-reciter-label">Kârî</span>
+        <button type="button" class="ezber-picker-btn" id="ezber-dinle-reciter-btn" aria-haspopup="listbox" aria-labelledby="ezber-dinle-reciter-label ezber-dinle-reciter-btn-text">
+          <span class="ezber-picker-btn-text" id="ezber-dinle-reciter-btn-text">Husarî (Mücevved)</span>
+          <svg class="ezber-picker-btn-chevron" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <input type="hidden" id="ezber-dinle-reciter" value="husary" />
+      </div>
+      <div class="ezber-field">
+        <span class="ezber-field-label" id="ezber-dinle-surah-label">Sure</span>
+        <button type="button" class="ezber-picker-btn" id="ezber-dinle-surah-btn" aria-haspopup="listbox" aria-labelledby="ezber-dinle-surah-label ezber-dinle-surah-btn-text">
+          <span class="ezber-picker-btn-text" id="ezber-dinle-surah-btn-text">1. Fâtiha</span>
+          <svg class="ezber-picker-btn-chevron" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <input type="hidden" id="ezber-dinle-surah" value="1" />
       </div>
@@ -251,10 +255,10 @@
   <div class="ezber-panel" id="ezber-panel-oku" role="tabpanel" aria-labelledby="ezber-tab-oku" hidden>
     <form class="ezber-form" id="ezber-oku-form">
       <div class="ezber-field">
-        <span class="ezber-field-label">Sure</span>
-        <button type="button" class="ezber-surah-btn" id="ezber-oku-surah-btn" aria-haspopup="listbox">
-          <span class="ezber-surah-btn-text" id="ezber-oku-surah-btn-text">1. Fâtiha</span>
-          <svg class="ezber-surah-btn-chevron" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="ezber-field-label" id="ezber-oku-surah-label">Sure</span>
+        <button type="button" class="ezber-picker-btn" id="ezber-oku-surah-btn" aria-haspopup="listbox" aria-labelledby="ezber-oku-surah-label ezber-oku-surah-btn-text">
+          <span class="ezber-picker-btn-text" id="ezber-oku-surah-btn-text">1. Fâtiha</span>
+          <svg class="ezber-picker-btn-chevron" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <input type="hidden" id="ezber-oku-surah" value="1" />
       </div>
@@ -274,10 +278,10 @@
   <div class="ezber-panel" id="ezber-panel-yaz" role="tabpanel" aria-labelledby="ezber-tab-yaz" hidden>
     <form class="ezber-form" id="ezber-yaz-form">
       <div class="ezber-field">
-        <span class="ezber-field-label">Sure</span>
-        <button type="button" class="ezber-surah-btn" id="ezber-yaz-surah-btn" aria-haspopup="listbox">
-          <span class="ezber-surah-btn-text" id="ezber-yaz-surah-btn-text">1. Fâtiha</span>
-          <svg class="ezber-surah-btn-chevron" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="ezber-field-label" id="ezber-yaz-surah-label">Sure</span>
+        <button type="button" class="ezber-picker-btn" id="ezber-yaz-surah-btn" aria-haspopup="listbox" aria-labelledby="ezber-yaz-surah-label ezber-yaz-surah-btn-text">
+          <span class="ezber-picker-btn-text" id="ezber-yaz-surah-btn-text">1. Fâtiha</span>
+          <svg class="ezber-picker-btn-chevron" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <input type="hidden" id="ezber-yaz-surah" value="1" />
       </div>
@@ -294,14 +298,24 @@
     </form>
   </div>
 
-  <div class="ezber-surah-picker" id="ezber-surah-picker" hidden>
-    <div class="ezber-surah-picker-header">
-      <button type="button" class="ezber-surah-picker-back" id="ezber-surah-picker-back" aria-label="Geri dön">
+  <div class="ezber-picker" id="ezber-surah-picker" role="group" aria-labelledby="ezber-surah-picker-title" tabindex="-1" hidden>
+    <div class="ezber-picker-header">
+      <button type="button" class="ezber-picker-back" id="ezber-surah-picker-back" aria-label="Geri dön">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <span>Sure Seç</span>
+      <span id="ezber-surah-picker-title">Sure Seç</span>
     </div>
     <div class="modal-list" id="ezber-surah-picker-list"></div>
+  </div>
+
+  <div class="ezber-picker" id="ezber-reciter-picker" role="group" aria-labelledby="ezber-reciter-picker-title" tabindex="-1" hidden>
+    <div class="ezber-picker-header">
+      <button type="button" class="ezber-picker-back" id="ezber-reciter-picker-back" aria-label="Geri dön">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <span id="ezber-reciter-picker-title">Kârî Seç</span>
+    </div>
+    <div class="modal-list" id="ezber-reciter-picker-list"></div>
   </div>
 
   <div class="ezber-modal-footer">

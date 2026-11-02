@@ -149,7 +149,7 @@ function harness({ mealReady = true } = {}) {
   const meal = { ready: mealReady, finish: null };
   const api = new Function(
     "els", "state", "document", "createModalFocus", "requestAnimationFrame", "setTimeout",
-    "closeAllAyahGrids", "resetTopicsModal", "switchJuzTab", "switchEzberTab", "closeEzberSurahPicker",
+    "closeAllAyahGrids", "resetTopicsModal", "switchJuzTab", "switchEzberTab", "closeEzberPicker",
     "parseInfoLink", "goToAyah", "goToSurah",
     "getCachedMealData", "ayahArabicText", "renderMealHTML", "getMealText", "isMealDataReady", "loadMealData", "WORD_MEAL_LOADING_HTML",
     `${ESCAPE_SRC[0]}\n${appSource.slice(MODAL_START, MODAL_END)}\n${BLOCK[1]}\n` +
