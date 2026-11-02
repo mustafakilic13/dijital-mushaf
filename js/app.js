@@ -943,6 +943,19 @@ function saveEzberSettings(tabName, settings) {
 // test/ezber_secici_test.mjs bu bloğu iki işaret arasından çıkarıp jsdom'da çalıştırıyor -- işaretleri silmeyin.
 // <ezber-picker>
 
+// Bir sekmenin aralık alanlarındaki özel doğrulama iletisini siler (readEzberRange yazıyor, yalnızca Bitiş alanına). İleti
+// kendiliğinden kalkmıyor ve tarayıcının kendi doğrulaması gönderme olayından ÖNCE çalışıyor: bayat bir ileti, aralık
+// düzeltilse bile, iletiyi yeniden hesaplayan tek yer olan gönderme işleyicisinin hiç çalışmamasına yol açıyordu. Gerçek
+// Chromium'da (430 px, üç sekmede de) ölçülen durum: 5-2 gönder, 1-3'e düzelt (yazarak, Yukarı okla ya da Başlangıç'ı
+// değiştirerek), yeniden gönder (Uygula ya da Enter) -> modal açık kalır, Bitiş hâlâ geçersiz, ileti hâlâ "Bitiş ayeti,
+// başlangıç ayetinden küçük olamaz."; Esc ile kapatıp yeniden açmak da kurtarmıyordu (kayıtlı geçerli aralıkla bile).
+// Yalnızca Sure'yi yeniden seçmek (aşağıda) iletiyi siliyordu. Artık Başlangıç/Bitiş düzenlenince, modal açılınca ve Sure
+// seçilince siliniyor.
+function clearEzberRangeError(target) {
+  document.getElementById(`ezber-${target}-from`).setCustomValidity("");
+  document.getElementById(`ezber-${target}-to`).setCustomValidity("");
+}
+
 // Sets a tab's Sure field (hidden input + visible button label) and,
 // unless told not to, resets its From/To to that surah's own 1st ayah
 // (this message's 1st request) -- every caller of this wants that except
@@ -957,8 +970,7 @@ function setEzberSurah(target, surahNum, { autofillRange = false } = {}) {
     const toEl = document.getElementById(`ezber-${target}-to`);
     fromEl.value = 1;
     toEl.value = info.versesCount;
-    fromEl.setCustomValidity("");
-    toEl.setCustomValidity("");
+    clearEzberRangeError(target);
   }
 }
 
@@ -1045,6 +1057,8 @@ function closeEzberPicker({ restoreFocus = false } = {}) {
 // returns {surah,from,to} on success or null (and reports the error on
 // the `to` field, matching the browser's own validation-bubble style --
 // see the Dinle submit handler this was factored out of) on failure.
+// Bu iletiyi kaldıran yer clearEzberRangeError (alanlar düzenlenince, modal açılınca, Sure seçilince): burada yalnızca
+// yazılıyor ve her çağrıda baştan hesaplanıyor.
 function readEzberRange(target, formEl) {
   const surah = parseInt(document.getElementById(`ezber-${target}-surah`).value, 10);
   const fromEl = document.getElementById(`ezber-${target}-from`);
@@ -1095,6 +1109,9 @@ function setupEzberModal() {
         setEzberSurah("yaz", y ? y.surah : fallbackSurah);
         document.getElementById("ezber-yaz-from").value = y ? y.from : fallbackAyah;
         document.getElementById("ezber-yaz-to").value = y ? y.to : fallbackAyah;
+
+        // Önceki açılıştan kalan bayat uyarı yeni (geçerli) değerleri kilitlemesin
+        for (const target of EZBER_TABS) clearEzberRangeError(target);
       },
     });
   });
@@ -1118,6 +1135,15 @@ function setupEzberModal() {
       else setEzberReciter(ezberPicker.target, item.dataset.reciter);
       closeEzberPicker({ restoreFocus: true });
     });
+  }
+
+  // Aralık düzenlenince eski uyarı kalkar: readEzberRange iletiyi yalnızca gönderme işleyicisinde yeniden hesaplıyor, ama
+  // tarayıcının kendi doğrulaması bayat iletiyle göndermeyi işleyici çalışmadan engelliyordu (bkz. clearEzberRangeError).
+  // `input`: yazma, sayı oklarıyla artırma/azaltma, yapıştırma ve silme hepsi bu olayı üretiyor.
+  for (const target of EZBER_TABS) {
+    for (const field of ["from", "to"]) {
+      document.getElementById(`ezber-${target}-${field}`).addEventListener("input", () => clearEzberRangeError(target));
+    }
   }
 
   els.ezberDinleForm.addEventListener("submit", (e) => {

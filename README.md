@@ -1653,14 +1653,101 @@ değeriyle okunması, `aria-haspopup="listbox"` ipucunun düz düğmelerden olu�
 bir gruba uyması ve Geri'den sonra düğmenin yeni değeriyle okunması cihazda
 sınanmadı (kontrol listesi, madde 23); Firefox ve Safari'de denenmedi. Ayrıca
 ölçüm sırasında bu yamanın konusu olmayan ve işlevi bozan bir sorun görüldü,
-dokunulmadı: Ezber'de (üç sekmede de) geçersiz bir aralık gönderilince (ör.
-başlangıç 5, bitiş 2) `Bitiş` alanına `setCustomValidity` ile yazılan uyarı
-yalnızca `readEzberRange`'de ve sure yeniden seçilince temizleniyor; aralık
-düzeltilince tarayıcının kendi doğrulaması bu bayat uyarıyla göndermeyi
-engelliyor ve işleyici hiç çalışmıyor. Gerçek Chromium'da: 5-2 gönder, 1-3'e
-düzelt, yeniden gönder: modal açık kalıyor, `Bitiş` hâlâ geçersiz, mesaj hâlâ
-"Bitiş ayeti, başlangıç ayetinden küçük olamaz." (yamasız ve yamalı ağaçta
-aynı).
+bu yamada dokunulmadı: Ezber'de (üç sekmede de) geçersiz bir aralık
+gönderilince (ör. başlangıç 5, bitiş 2) `Bitiş` alanına `setCustomValidity` ile
+yazılan uyarı yalnızca `readEzberRange`'de ve sure yeniden seçilince
+temizleniyor; aralık düzeltilince tarayıcının kendi doğrulaması bu bayat
+uyarıyla göndermeyi engelliyor ve işleyici hiç çalışmıyor. Gerçek Chromium'da:
+5-2 gönder, 1-3'e düzelt, yeniden gönder: modal açık kalıyor, `Bitiş` hâlâ
+geçersiz, mesaj hâlâ "Bitiş ayeti, başlangıç ayetinden küçük olamaz."
+(yamasız ve yamalı ağaçta aynı). Sonraki "Ezber aralık uyarısı" paragrafında
+düzeltildi.
+
+**Ezber aralık uyarısı: bir yanlış girişten sonra form kilitlenmiyor.** Ezber'de
+(Dinle, Oku, Yaz; üçünde de aynı kod) başlangıç ayeti bitişten büyük ya da
+bitiş sure uzunluğundan fazla girilip Uygula'ya basılınca `readEzberRange`
+uyarıyı `Bitiş` alanına `setCustomValidity` ile yazıyor. Uyarıyı silen tek
+yerler `readEzberRange`'in kendisi ve Sure'yi yeniden seçmekti. Tarayıcının
+kendi doğrulaması ise gönderme olayından ÖNCE çalışıyor: bayat uyarı duruyorsa
+alan geçersiz sayılıyor ve uyarıyı yeniden hesaplayan tek yer olan gönderme
+işleyicisi hiç çalışmıyor. Bu hata önceki paragrafın "Sınır" notunda, Kârî
+seçici ölçülürken görülmüş, o yamanın konusu olmadığı için bırakılmıştı.
+
+Başsız Chromium'da (430x900, sayfa 50, gerçek tuş olayları, her senaryo taze
+sayfada, üç sekmede de) yamadan ÖNCE ölçülen: sekme başına 8 senaryodan 7'si
+kilitli kalıyordu (24 senaryonun 21'i):
+
+- 5-2 gönder, `Bitiş`'i 7 yap (yazarak), Uygula: modal açık, `Bitiş` geçersiz,
+  uyarı hâlâ "Bitiş ayeti, başlangıç ayetinden küçük olamaz.", ayar
+  kaydedilmiyor, oturum başlamıyor. Aynısı Enter ile göndermekte, `Bitiş`'te
+  Yukarı okla (2 -> 3) ve hatanın `Bitiş`'te, düzeltmenin `Başlangıç`'ta
+  olduğu durumda (5-2 -> 1-2) da;
+- Esc ile kapatıp yeniden açmak da kurtarmıyordu: yeniden açılışta
+  varsayılan GEÇERLİ aralık (1-1) bile Uygula'da gönderilmiyordu;
+- uyarı yanlış da çıkıyordu: 5-999 (3. sure, 200 ayet) için "Bu sure 200
+  ayetten oluşuyor." yerine eski "başlangıç ayetinden küçük" uyarısı;
+- kurtaran tek yol Sure'yi yeniden seçmekti (aralığı 1-N'ye sıfırlıyor);
+  sayfayı yenilemek de kurtarıyordu.
+
+Şimdi (aynı 24 senaryo): 24'ü de düzeliyor. Her birinde yeniden gönderince
+oturum başlıyor, modal kapanıyor, ayar kaydediliyor; Esc'ten sonra yeniden
+açılışta Uygula çalışıyor; 5-999 için doğru uyarı ("Bu sure 200 ayetten
+oluşuyor.") çıkıyor; sayfada hata yok.
+
+Düzeltme (`js/app.js`; yorumlarla 28 satır eklendi, 2 satır çıktı):
+`clearEzberRangeError(target)` bir sekmenin Başlangıç ve Bitiş alanlarındaki
+özel uyarıyı siliyor. `setEzberSurah`'ta zaten böyle iki satır vardı; ortak
+yardımcıya taşındı ve üç yerden çağrılıyor:
+
+- Başlangıç ve Bitiş alanlarının `input` olayında (3 sekme x 2 alan): yazma,
+  sayı oklarıyla artırma/azaltma, yapıştırma ve silme hepsi bu olayı üretiyor.
+  `change` seçilmedi: alandan çıkılana kadar tetiklenmiyor, Enter'la
+  göndermeden önce uyarı silinmemiş olabilir;
+- modal açılırken üç sekme için: değerler koddan yazılıyor ve `input` olayı
+  üretmiyor, yeniden açılışta bayat uyarı kalmasın;
+- Sure seçilip aralık sıfırlanırken (`setEzberSurah`, `autofillRange`).
+
+`readEzberRange` değişmedi: uyarıyı her çağrıda baştan hesaplıyor, yalnızca
+yazıyor (yeni yorumda belirtildi).
+
+`test/ezber_aralik_test.mjs` (yeni; jsdom + kaynak denetimi, 156 kontrol,
+≈ 15-19 sn): `app.js`'ten işaretler arasından çıkarılan GERÇEK `<ezber-picker>`
+bloğu, `readEzberRange`, `setupEzberModal`, `openModal`/`closeModal` (GERÇEK
+`createModalFocus` ve `setupTablist` ile) x GERÇEK `index.html` x GERÇEK
+`surahs.json`. jsdom da tarayıcı doğrulamasını gönderme olayından önce
+çalıştırıyor (Uygula'ya tıklamak, geçersizse olayı hiç üretmiyor): hata orada
+da yeniden üretiliyor. Kontroller: kaynak (yardımcı iki alanı siliyor, üç çağrı
+yeri, `setCustomValidity` yalnızca beş yerde, yani yeni bir yazıcı eklenirse
+test uyarıyor); `index.html` (altı alan `type=number min=1 required`, formlar
+`novalidate` değil: hatanın önkoşulu); her sekmede temel gönderim, yazarak ve
+Başlangıç'ı değiştirerek düzeltme, uyarının güncel kalması (5-999, sonra 5-1),
+kapatıp yeniden açma (varsayılan, kayıtlı ayarlar, seçili ayet), Sure'yi
+yeniden seçme, kapsam (bir sekmenin alanlarını düzenlemek ötekinin uyarısını
+silmiyor; Dinle'nin tekrar sayıları da silmiyor), tarayıcının kendi
+doğrulaması (boş alan, 0) yerinde, art arda 6 geçersiz-düzelt-yeniden aç turu,
+iki alanın uyarısının birlikte silinmesi (uyarılar elle enjekte ediliyor),
+`readEzberRange`'in her çağrıda baştan hesaplaması; 24 tohumlu rastgele dizi
+(yazma, gönderme, sure seçme, sekme, kapatma, yeniden açma; tohum başına 140
+işlem) x bağımsız bir model; jsdom'da olay dinleyicilerinde yakalanmamış hata
+yok. Düzeltmesiz tabanda 51 kontrol kırılıyor; kodun her parçası tek tek
+bozularak 40 mutasyon denendi, hepsi yakalandı: yardımcının her satırı ve
+hedef sekmesi (silmeme, yanlış sekme, boş gövde, boşluk yazma, başka işlev),
+Sure seçimindeki çağrı, `readEzberRange`'in baştan hesaplaması ve uyarının
+yazıldığı alan, modal açılışındaki döngü (hiç, yalnızca Dinle, her sekme
+için tek tek atlama), `input` dinleyicisi (yok, `change`, yalnızca bir alan,
+yalnızca bir sekme, her sekme için tek tek atlama, hep Dinle'yi temizleme,
+üç sekmeyi birden temizleme, tek seferlik, `var` kapanış hatası, yanlış
+bağımsız değişken, alan yerine forma bağlama, boş işlev), `index.html`'de
+altı bozulma (üç `novalidate`, `min`, `required`, `type`). Mutasyonsuz hâl 26
+test dosyasının hepsiyle geçiyor.
+
+Sınır: jsdom'da doğrulama balonu yok (uyarı yalnızca `validationMessage` ve
+`validity` olarak sınanıyor), gerçek tuş ve odak yok; Chromium ölçümü başsızdı
+ve Firefox ile Safari'de denenmedi. Gerçek ekran okuyucuyla (NVDA, JAWS,
+VoiceOver, TalkBack) denenmedi: balondaki uyarının okunması ve düzeltince
+Uygula'nın oturumu başlatması cihazda sınanmadı (kontrol listesi, madde 24).
+Uyarı hâlâ yalnızca Uygula'ya basılınca çıkıyor; alan düzenlenirken anlık
+denetim yok (öyle de değildi).
 
 **Ezber > Oku'da klavye ve ekran okuyucu yolu.** Oku'da bir kelimeyi açmanın
 tek yolu sayfadaki ayete dokunmaktı; sayfa tek bir `<svg>` olduğundan
@@ -2676,6 +2763,7 @@ test/tefsir_sekme_aria_test.mjs     Tefsir sekme düğmesi: aria-expanded .activ
 test/sayfa_ok_tuslari_test.mjs      Sayfa çevirme okları: yalnızca düz Sol/Sağ çeviriyor; Alt/Ctrl/Meta/Shift+ok, tüketilmiş olay, IME bileşimi ve ok kullanan öğeler (yazı alanı, kaydırıcı...) çevirmiyor; Yaz klavyesiyle birlikte, rastgele diziler (jsdom)
 test/sekme_gezintisi_test.mjs     Sekme listeleri (Cüz, Ezber): ok tuşu gezintisi, tek Tab durağı, tabindex/aria-selected tutarlılığı, sayfa çevirmeyle çakışmama, rastgele diziler (jsdom)
 test/ezber_secici_test.mjs       Ezber Sure ve Kârî seçicileri: ortak yapı, odak (giriş, Geri, satır seçimi, kapanış), etkin satırın ortalanması, Oku/Yaz'da seçici açıkken kapatma, rastgele diziler (jsdom)
+test/ezber_aralik_test.mjs       Ezber aralık alanları: geçersiz aralıktan sonra uyarı siliniyor (alan düzenlenince, modal açılınca, Sure seçilince), sekme başına kapsam, rastgele diziler (jsdom)
 ```
 
 ## Çalıştırma
@@ -2741,14 +2829,15 @@ kalmadı -- yazım hatası yüzünden "hiçbir test çalışmadı ama sonuç ye�
 SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
-`npm run test:fast` (tam tarama hariç, ≈ 105 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 25 dosyanın hepsi ≈
-3 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-76 sn, arama
+`npm run test:fast` (tam tarama hariç, ≈ 135 sn) ve `npm run test:corpus`
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 26 dosyanın hepsi ≈
+3,5 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-86 sn, arama
 arayüzü 19-22 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
 testi 8-10 sn, Ezber klavye testi ≈ 8 sn, Ezber metin katmanı testi ≈ 5 sn,
 tefsir sekme testi ≈ 6 sn, sayfa ok tuşları testi ≈ 3-5 sn,
 sekme gezinti testi ≈ 3-6 sn,
-Ezber seçici testi ≈ 11-15 sn);
+Ezber seçici testi ≈ 11-15 sn,
+Ezber aralık testi ≈ 15-19 sn);
 GitHub Actions'taki ilk koşuda işin tamamı 1 dk 25 sn sürdü.
 
 **Tam tarama testi artık gerçekten doğruluyor.** `test/full_corpus_test.mjs`
@@ -3127,6 +3216,13 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     düğmesine dönüyor mu? Mevcut sure/kârî satırı "seçili" diye duyuluyor mu
     (yalnızca renkle işaretli)? Kârî düğmesinde Aşağı ok bir şey yapmıyor,
     değer yalnızca listeden değişiyor mu?
+24. Ezber'de (Dinle, Oku, Yaz) geçersiz aralık: başlangıcı bitişten büyük
+    (5-2) ya da sure uzunluğunu aşan (3. sure için 5-999) bir aralıkla
+    Uygula'ya basınca uyarı okunuyor mu ("Bitiş ayeti, başlangıç ayetinden
+    küçük olamaz." / "Bu sure 200 ayetten oluşuyor.") ve odak Bitiş alanında
+    mı? Bitişi düzeltip (yazarak ya da sayı okuyla) Uygula'ya basınca oturum
+    başlıyor mu? Esc'le kapatıp yeniden açınca Uygula çalışıyor mu? Ekran
+    okuyucu düzeltme sırasında eski uyarıyı yeniden okuyor mu?
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal odak
 yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı, renk
@@ -3138,8 +3234,9 @@ küçük düzeltmesiyle birlikte: Oku'da Türkçe karşılık verisinin yüklenm
 başarısızken ayet atlama), Ezber > Yaz'ın klavye yolu, Ezber'de kapak altı
 metnin ağaçtan çıkarılması, tefsir sekme düğmesinin durumu ve sayfa çevirme
 oklarının yalnızca düz Sol/Sağ'a daraltılması, Cüz/Ezber sekmelerinin ok
-tuşu gezintisi ve Ezber'in Kârî seçicisi (Sure seçiciyle aynı kalıp, odak
-düzeltmeleriyle) ayrı ayrı tek commit'tir, geri alınabilir.
+tuşu gezintisi, Ezber'in Kârî seçicisi (Sure seçiciyle aynı kalıp, odak
+düzeltmeleriyle) ve Ezber aralık uyarısının silinmesi ayrı ayrı tek
+commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 
