@@ -1516,8 +1516,9 @@ Playwright klavyesi gerçek tuş olayları üretiyor) yamadan ÖNCE ölçülen d
 
 Değişiklik. `index.html`'de `<select id="ezber-reciter">` gitti; yerine Sure
 alanının aynısı geldi: etiket (`#ezber-dinle-reciter-label`), düğme
-(`#ezber-dinle-reciter-btn`, `aria-haspopup="listbox"`, adı etiket + gösterilen
-değer: "Kârî Husarî (Mücevved)") ve gizli giriş `#ezber-dinle-reciter` (değeri
+(`#ezber-dinle-reciter-btn`, adı etiket + gösterilen değer: "Kârî Husarî
+(Mücevved)"; o sırada `aria-haspopup="listbox"` da vardı, sonradan kaldırıldı)
+ve gizli giriş `#ezber-dinle-reciter` (değeri
 `RECITERS` anahtarı, `husary`). Sure düğmeleri de aynı biçimde adlandırıldı
 ("Sure 3. Âl-i İmrân"). İki seçici (`#ezber-surah-picker`,
 `#ezber-reciter-picker`) birebir aynı yapıda: `role="group"`, adı başlığa bağlı,
@@ -1586,13 +1587,16 @@ köşeler) ve 1200 px'te 93 piksel (yuvarlak köşeler; en büyük kanal farkı
 
 Karar ve ödünleşmeler:
 
-- **`aria-haspopup="listbox"` korundu** (Sure düğmesinde zaten vardı, Kârî
-  aynısı olsun diye ona da verildi), ama satırlar `role="option"` değil düz
-  düğme ve seçici bir `listbox` kalıbı değil (oklar, tek Tab durağı,
+- **`aria-haspopup="listbox"` bu yamada korundu** (Sure düğmesinde zaten
+  vardı, Kârî aynısı olsun diye ona da verildi), ama satırlar `role="option"`
+  değil düz düğme ve seçici bir `listbox` kalıbı değil (oklar, tek Tab durağı,
   `aria-selected` yok): ekran okuyucu "liste kutusu" ipucu verip düğmelerden
-  oluşan bir grup açıyor. Doğru kalıp iki seçici için birlikte, ayrı bir iş.
-- Etkin satır yalnızca renkle işaretli (`.active`; `aria-current` yok): iki
-  listede de ve uygulamanın öteki modal listelerinde aynı, dokunulmadı.
+  oluşan bir grup açıyor. Doğru kalıp iki seçici için birlikte, ayrı bir iş:
+  sonradan "Modal listelerinin ekran okuyucu anlamı" paragrafında ipucu dört
+  düğmeden de kaldırıldı (`listbox`a çevrilmedi).
+- Etkin satır bu yamada yalnızca renkle işaretliydi (`.active`; `aria-current`
+  yok): iki listede de ve uygulamanın öteki modal listelerinde aynı,
+  dokunulmadı. Sonradan hepsine `aria-current="true"` eklendi (aynı paragraf).
 - **Yerel `<select>`in kolaylıkları gitti:** yazarak arama ve Aşağı/Yukarı ile
   değer değiştirme, işletim sisteminin kendi seçim penceresi. Kârî'de yalnızca
   iki seçenek var; tutarlılık için bilinçli ödünleşme (istek buydu).
@@ -1650,8 +1654,9 @@ yok; Chromium ölçümü başsızdı (kaydırma, yükseklik, odak, piksel karş�
 orada yapıldı). Gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack)
 çalıştırılmadı: "Sure Seç, grup" / "Kârî Seç, grup" anonsu, düğmenin alan adı ve
 değeriyle okunması, `aria-haspopup="listbox"` ipucunun düz düğmelerden oluşan
-bir gruba uyması ve Geri'den sonra düğmenin yeni değeriyle okunması cihazda
-sınanmadı (kontrol listesi, madde 23); Firefox ve Safari'de denenmedi. Ayrıca
+bir gruba uyması (ipucu sonradan kaldırıldı) ve Geri'den sonra düğmenin yeni
+değeriyle okunması cihazda sınanmadı (kontrol listesi, madde 23); Firefox ve
+Safari'de denenmedi. Ayrıca
 ölçüm sırasında bu yamanın konusu olmayan ve işlevi bozan bir sorun görüldü,
 bu yamada dokunulmadı: Ezber'de (üç sekmede de) geçersiz bir aralık
 gönderilince (ör. başlangıç 5, bitiş 2) `Bitiş` alanına `setCustomValidity` ile
@@ -1748,6 +1753,112 @@ VoiceOver, TalkBack) denenmedi: balondaki uyarının okunması ve düzeltince
 Uygula'nın oturumu başlatması cihazda sınanmadı (kontrol listesi, madde 24).
 Uyarı hâlâ yalnızca Uygula'ya basılınca çıkıyor; alan düzenlenirken anlık
 denetim yok (öyle de değildi).
+
+**Modal listelerinin ekran okuyucu anlamı.** Sure, Cüz (Cüz/Hizb/Rub/Menzil) ve
+Ezber'in Sure/Kârî seçicilerinin satırlarında, Sure modalındaki ayet
+düğmelerinde ve Ezber'in dört seçici düğmesinde ekran okuyucuya eksik ya da
+yanlış bilgi gidiyordu. Başsız Chromium'da (430x900, sayfa 50: Sure 3 etkin;
+erişilebilirlik ağacı CDP ile okundu) yamadan ÖNCE ölçülen:
+
+- etkin satır yalnızca renkle ayrılıyordu (`.active`: %12 zümrüt zemin ve kalın
+  zümrüt rakam; WCAG 1.4.1). Erişilebilirlik ağacında etkin ve etkin olmayan
+  satır aynıydı (rol düğme, ad "3 آل عمران Âl-i İmrân · 200 ayet", hiçbir
+  durum yok): Cüz 3, Hizb 5, Rub 20, Menzil 1, Ezber'in Sure ve Kârî
+  seçicilerinin etkin satırı ve etkin ayet düğmesi için de aynı;
+- ayet düğmelerinin adı yalnızca görünen sayıydı ("3", "1"): 286 düğmelik
+  Bakara ızgarasında hangi surenin ayeti olduğu okunmuyordu (ızgara rolsüz bir
+  `<div>`, adı da yok);
+- Ezber'in dört seçici düğmesi (Dinle > Kârî, Dinle/Oku/Yaz > Sure)
+  `aria-haspopup="listbox"` taşıyordu (Chromium `hasPopup="listbox"`): ekran
+  okuyucu "liste kutusu" der ve ok tuşuyla gezinti bekletir; oysa açılan şey
+  `role="group"` içinde düz düğmeler (ne `listbox` ne `option`, ok tuşu
+  gezintisi yok). İpucu Sure düğmesinde zaten vardı, Kârî'ye aynısı olsun diye
+  verilmişti ("Ezber seçicileri" paragrafında "doğru kalıp ayrı bir iş" diye
+  not edildi).
+
+Şimdi (aynı ölçüm): etkin satırda DOM'da `aria-current="true"` var (Sure 3,
+Cüz 3, Hizb 5, Rub 20, Menzil 1, Ezber'in Sure ve Kârî seçicileri, ayet
+gezgininden seçilen 3:3 için etkin ayet düğmesi), etkin olmayanlarda yok; ayet
+düğmeleri "Âl-i İmrân Suresi, 3. ayet" ve "Âl-i İmrân Suresi, 1. ayet"; dört
+düğmede `hasPopup` ve `aria-haspopup` yok. Tab sayıları DEĞİŞMEDİ (Sure
+modalında Yâsîn'e 72, son sureye 228, modalda 229 Tab durağı; Rub'da son satıra
+240; Ezber Sure seçicisinde son sureye 115): ok tuşuyla liste gezintisi ayrı
+bir iş. Sayfada hata yok.
+
+Düzeltme (`js/app.js`: yorumlarla 23 satır eklendi, 5 satır çıktı;
+`index.html`: 4 satır değişti):
+
+- `setActiveModalItem` (Sure, Cüz/Hizb/Rub/Menzil ve iki Ezber seçicisinin tek
+  yazıcısı), `setActiveAyahChip` ve `syncAyahGridHighlight` etkin öğede
+  `.active` ile birlikte `aria-current="true"` yazıp siliyor: ikisi hep tek
+  `on` değerinden değişiyor, ayrışamazlar. Öznitelik `setAttribute` /
+  `removeAttribute` ile yazılıyor, `toggleAttribute` ile değil: boş değerli
+  öznitelik (`""`) "false" sayılır ve etkin öğe bildirilmezdi. Değer `true`
+  ("kümedeki geçerli öğe"; ayet gezgininin düğmeleriyle aynı bildirim, `page`
+  ya da `location` bu listelere uymuyor). Görünüm aynı: `.active` kuralları
+  duruyor, renk artık tek başına bilgi taşımıyor;
+- ayet düğmeleri `aria-label="<Sure> Suresi, <N>. ayet"` alıyor (ayet gezgininin
+  düğmeleriyle birebir aynı biçim: iki ayet düğmesi ailesi aynı okunuyor). Ad
+  görünen sayıyı içeriyor (WCAG 2.5.3 Label in Name);
+- dört Ezber düğmesinden `aria-haspopup="listbox"` kaldırıldı. Seçici
+  `listbox`a ÇEVRİLMEDİ: o kalıp `role="option"`, `aria-selected`, ok tuşu
+  gezintisi ve tek Tab durağı ister; uygulamanın öteki seçicileri (Sure, Cüz)
+  düz düğme ve Kârî seçicisinin onlarla aynı olması istenmişti. Düz düğme +
+  `aria-current` her listede aynı ve doğru bir söz veriyor. Dört modal açıcı
+  (`Cüz`, `Sayfa`, `Sure`, `Arama`) `aria-haspopup="dialog"` taşımaya devam
+  ediyor: doğru (modal diyalog açıyorlar).
+
+`test/modal_liste_aria_test.mjs` (yeni; jsdom + kaynak denetimi + axe-core,
+73 kontrol, ≈ 8-12 sn): `app.js`'ten çıkarılan GERÇEK
+`populateSurahList`, `populateUnitList`, `toggleAyahGrid`, `setActiveAyahChip`,
+`syncAyahGridHighlight`, `setActiveModalItem` ve `<ezber-picker>` bloğu x GERÇEK
+`index.html` x GERÇEK `data/*.json`. Kontroller: kaynak (`.active` ve
+`aria-current` tek `on` değerinden; `aria-current` yazan 2, silen 3 yer, hep
+`"true"`; `toggleAttribute` yok; `.active` yazan 4 yer, yani yeni bir yazıcı
+eklenirse test uyarıyor; ayet düğmesi adının biçimi ve ayet gezgininin biçimiyle
+aynılığı); `index.html` ve CSS (dört Ezber düğmesinde `aria-haspopup` yok ve
+adları duruyor, kalan `aria-haspopup` yalnızca dört modal açıcıda ve hep
+`dialog`, `listbox`/`option` rolü yok, iki seçici grubu duruyor, `.active`
+kuralları duruyor); her listede (Sure 114, Cüz 30, Hizb 60, Rub 240, Menzil 7)
+her değer için TEK `.active` satır = TEK `aria-current="true"` satırı, aynı
+satır; eşleşmeyen değerler (0, N+1, -1, 1.5, "x", "", `undefined`, `null`)
+ikisini de siliyor; satırlar düz düğme kaldı (`role`, `aria-selected`,
+`aria-pressed` yok) ve etkin satır görünür alana getirilmeye devam ediyor; Ezber
+Sure seçicisinde 3 sekme x 114 sure, Kârî seçicisinde 2 kârî ve iki listenin
+birbirinden bağımsızlığı; 6236 ayet düğmesinin hepsi "<Sure> Suresi, <N>. ayet"
+adında, görünen sayıyı içeriyor ve adlar eşsiz (axe-core'un ad hesaplamasıyla da
+doğrulanıyor: elle yazılmış bir ad değil); ayet seçimi değişince vurgunun (sınıf
+ve öznitelik birlikte) aynı surede, başka surede ve gizli ızgarada taşınması; 6
+tohum x 45 işlemlik rastgele dizi (satır seçimi, Sure modalı açılışı, iki
+seçici, ızgara açma/kapama, ayet seçimi) x bağımsız model, her adımda bütün
+listeler ve kurulmuş ızgaralar modelle birebir; axe-core (Sure, Cüz ve Ezber
+modalları doldurulmuşken `aria-allowed-attr`, `aria-valid-attr`,
+`aria-valid-attr-value`, `aria-roles`, `button-name` ihlali yok); jsdom'da olay
+dinleyicilerinde yakalanmamış hata yok. `test/ezber_secici_test.mjs`'te tek
+kontrol uyarlandı (Kârî düğmesi artık `aria-haspopup` taşımıyor, Sure düğmesiyle
+aynı). Düzeltmesiz tabanda 36 kontrol kırılıyor; kodun her parçası tek tek
+bozularak 55 mutasyon denendi, hepsi yakalandı: üç yazıcının her biri için
+(yazmama, silmeme, yanlış değer `page`/`""`/`false`, `toggleAttribute`, ters
+koşul, yanlış öğe, belirli bir listeyi atlama, `.active`'i yazmama), değerin
+dizgeye çevrilmemesi, etkin satırın görünür alana getirilmemesi, silmenin
+yalnızca ilk satırla sınırlanması, `sync`'in başka sure dalı, ızgara açılırken
+vurgu, açma düğmesine başıboş yazıcı, Ezber seçicisinin açılışı, ayet adının her
+bozulması (yok, "Suresi" yok, ters sıra, Arapça ad, sure numarası, bir fazla
+ayet, sayısız, ayet sayısı, ilk düğmede, `title`, ızgaraya yazma),
+`index.html`'de 14 bozulma (dört düğmede `listbox`, `menu`, `true`; dört açıcıda
+`dialog` yok ya da `listbox`; `role="listbox"`; seçici grubu; düğme adı), CSS'te
+2 ve ayet gezgininin adında 1. Mutasyonsuz hâl 27 test dosyasının hepsiyle
+geçiyor.
+
+Sınır: Chromium'un CDP erişilebilirlik ağacı `aria-current`'ı hiç listelemiyor
+(etkin satırda yalnızca rol, ad ve `focusable` var), yani gerçek Chromium
+ölçümü DOM özniteliğini ve hesaplanan adı gösteriyor; özniteliğin ekran
+okuyucuda "geçerli" diye okunması gerçek NVDA, JAWS, VoiceOver ya da TalkBack
+ile DENENMEDİ (kontrol listesi, madde 25). jsdom'da düzen yok. Firefox ve
+Safari'de denenmedi. Ok tuşuyla gezinti bu yamada yok: Sure listesinde son
+sureye 228 Tab, Rub listesinde 240 (ok tuşu ve tek Tab durağı için ayrı bir
+iş). Seçiciler ileride `listbox`a çevrilirse `aria-haspopup="listbox"` ancak o
+zaman geri verilmeli.
 
 **Ezber > Oku'da klavye ve ekran okuyucu yolu.** Oku'da bir kelimeyi açmanın
 tek yolu sayfadaki ayete dokunmaktı; sayfa tek bir `<svg>` olduğundan
@@ -2764,6 +2875,7 @@ test/sayfa_ok_tuslari_test.mjs      Sayfa çevirme okları: yalnızca düz Sol/S
 test/sekme_gezintisi_test.mjs     Sekme listeleri (Cüz, Ezber): ok tuşu gezintisi, tek Tab durağı, tabindex/aria-selected tutarlılığı, sayfa çevirmeyle çakışmama, rastgele diziler (jsdom)
 test/ezber_secici_test.mjs       Ezber Sure ve Kârî seçicileri: ortak yapı, odak (giriş, Geri, satır seçimi, kapanış), etkin satırın ortalanması, Oku/Yaz'da seçici açıkken kapatma, rastgele diziler (jsdom)
 test/ezber_aralik_test.mjs       Ezber aralık alanları: geçersiz aralıktan sonra uyarı siliniyor (alan düzenlenince, modal açılınca, Sure seçilince), sekme başına kapsam, rastgele diziler (jsdom)
+test/modal_liste_aria_test.mjs     Modal listeleri (Sure, Cüz, Ezber seçicileri): etkin satır/ayet düğmesi aria-current, ayet düğmesi adı "<Sure> Suresi, <N>. ayet", Ezber düğmelerinde aria-haspopup yok, rastgele diziler, axe-core (jsdom)
 ```
 
 ## Çalıştırma
@@ -2829,15 +2941,16 @@ kalmadı -- yazım hatası yüzünden "hiçbir test çalışmadı ama sonuç ye�
 SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
-`npm run test:fast` (tam tarama hariç, ≈ 135 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 26 dosyanın hepsi ≈
-3,5 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-86 sn, arama
+`npm run test:fast` (tam tarama hariç, ≈ 110-135 sn) ve `npm run test:corpus`
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 27 dosyanın hepsi ≈
+3-3,5 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-86 sn, arama
 arayüzü 19-22 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
 testi 8-10 sn, Ezber klavye testi ≈ 8 sn, Ezber metin katmanı testi ≈ 5 sn,
 tefsir sekme testi ≈ 6 sn, sayfa ok tuşları testi ≈ 3-5 sn,
 sekme gezinti testi ≈ 3-6 sn,
 Ezber seçici testi ≈ 11-15 sn,
-Ezber aralık testi ≈ 15-19 sn);
+Ezber aralık testi ≈ 15-19 sn,
+modal liste testi ≈ 8-12 sn);
 GitHub Actions'taki ilk koşuda işin tamamı 1 dk 25 sn sürdü.
 
 **Tam tarama testi artık gerçekten doğruluyor.** `test/full_corpus_test.mjs`
@@ -3208,14 +3321,13 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     seçili mi?
 23. Ezber'de Kârî ve Sure alanları: ekran okuyucu düğmeyi alan adı ve değeriyle
     ("Kârî Husarî (Mücevved)", "Sure 3. Âl-i İmrân") okuyor mu? "Liste kutusu"
-    gibi bir ipucu veriyor mu ve bu, düz düğmelerden oluşan bir grup açan
-    düğme için yanıltıcı mı? Düğmeye basınca "Sure Seç" / "Kârî Seç" başlığı
-    okunuyor mu, ardından Tab önce Geri'ye, sonra satırlara geçiyor mu?
-    Satır seçince ya da Geri'ye basınca odak düğmeye dönüyor ve düğme yeni
-    değeriyle okunuyor mu? Seçici açıkken Esc modalı kapatıyor ve odak Ezber
-    düğmesine dönüyor mu? Mevcut sure/kârî satırı "seçili" diye duyuluyor mu
-    (yalnızca renkle işaretli)? Kârî düğmesinde Aşağı ok bir şey yapmıyor,
-    değer yalnızca listeden değişiyor mu?
+    gibi bir ipucu VERMİYOR mu (`aria-haspopup` kaldırıldı)? Düğmeye basınca
+    "Sure Seç" / "Kârî Seç" başlığı okunuyor mu, ardından Tab önce Geri'ye,
+    sonra satırlara geçiyor mu? Satır seçince ya da Geri'ye basınca odak
+    düğmeye dönüyor ve düğme yeni değeriyle okunuyor mu? Seçici açıkken Esc
+    modalı kapatıyor ve odak Ezber düğmesine dönüyor mu? Kârî düğmesinde Aşağı
+    ok bir şey yapmıyor, değer yalnızca listeden değişiyor mu? (Mevcut satırın
+    "geçerli" diye okunması madde 25'te.)
 24. Ezber'de (Dinle, Oku, Yaz) geçersiz aralık: başlangıcı bitişten büyük
     (5-2) ya da sure uzunluğunu aşan (3. sure için 5-999) bir aralıkla
     Uygula'ya basınca uyarı okunuyor mu ("Bitiş ayeti, başlangıç ayetinden
@@ -3223,6 +3335,14 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     mı? Bitişi düzeltip (yazarak ya da sayı okuyla) Uygula'ya basınca oturum
     başlıyor mu? Esc'le kapatıp yeniden açınca Uygula çalışıyor mu? Ekran
     okuyucu düzeltme sırasında eski uyarıyı yeniden okuyor mu?
+25. Modal listeleri (Sure, Cüz/Hizb/Rub/Menzil, Ezber'in Sure ve Kârî
+    seçicileri): ekran okuyucu şu anki satırı "geçerli" diye okuyor mu (Sure 3
+    açıkken "3 ... Âl-i İmrân, geçerli")? Etkin olmayan satırlar "geçerli"
+    demiyor, başka satıra geçince eski satırdan işaret kalkıyor mu? Sure
+    satırındaki "ayetlerini listele" düğmesiyle ayet düğmeleri açılınca düğme
+    "Âl-i İmrân Suresi, 3. ayet" diye okunuyor, seçili ayet "geçerli" mi ve
+    ayet gezgininin düğmeleriyle aynı biçimde mi? Ezber'in dört seçici düğmesi
+    "liste kutusu" demiyor mu?
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal odak
 yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı, renk
@@ -3235,7 +3355,8 @@ başarısızken ayet atlama), Ezber > Yaz'ın klavye yolu, Ezber'de kapak altı
 metnin ağaçtan çıkarılması, tefsir sekme düğmesinin durumu ve sayfa çevirme
 oklarının yalnızca düz Sol/Sağ'a daraltılması, Cüz/Ezber sekmelerinin ok
 tuşu gezintisi, Ezber'in Kârî seçicisi (Sure seçiciyle aynı kalıp, odak
-düzeltmeleriyle) ve Ezber aralık uyarısının silinmesi ayrı ayrı tek
+düzeltmeleriyle), Ezber aralık uyarısının silinmesi ve modal listelerinin ekran
+okuyucu anlamı (`aria-current`, ayet düğmesi adı, `aria-haspopup`) ayrı ayrı tek
 commit'tir, geri alınabilir.
 
 ### Kelime tahlili

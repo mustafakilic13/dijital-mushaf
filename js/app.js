@@ -549,13 +549,16 @@ function toggleAyahGrid(surahNum, gridEl, expandBtn) {
   closeAllAyahGrids();
 
   if (!gridEl.dataset.built) {
-    const versesCount = state.surahs[String(surahNum)].versesCount;
+    const info = state.surahs[String(surahNum)];
     const frag = document.createDocumentFragment();
-    for (let a = 1; a <= versesCount; a++) {
+    for (let a = 1; a <= info.versesCount; a++) {
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "ayah-chip";
       chip.textContent = a;
+      // Görünen metin yalnızca sayı: ekran okuyucu düğmeyi "3, düğme" diye okuyordu (hangi sure?). Ad, ayet
+      // gezgininin düğmeleriyle aynı biçimde ve görünen sayıyı içeriyor (WCAG 2.5.3, ad görünen etiketi kapsasın).
+      chip.setAttribute("aria-label", `${info.nameTurkish} Suresi, ${a}. ayet`);
       chip.dataset.surah = surahNum;
       chip.dataset.ayah = a;
       frag.appendChild(chip);
@@ -586,9 +589,16 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 }
 
+// Etkin ayet düğmesi (ve aşağıdaki setActiveModalItem'daki etkin satır) yalnızca renkle (.active) değil aria-current ile de
+// bildirilir: ekran okuyucu "geçerli" der. Gerçek Chromium'da (430 px) etkin satır/düğmenin erişilebilirlik düğümünde hiçbir
+// durum yoktu. İkisi hep birlikte değişir (.active <=> aria-current="true"); özniteliğin boş değeri ("") "false" sayılır, o
+// yüzden toggleAttribute değil setAttribute/removeAttribute.
 function setActiveAyahChip(gridEl, ayahNum) {
   gridEl.querySelectorAll(".ayah-chip").forEach((chip) => {
-    chip.classList.toggle("active", parseInt(chip.dataset.ayah, 10) === ayahNum);
+    const on = parseInt(chip.dataset.ayah, 10) === ayahNum;
+    chip.classList.toggle("active", on);
+    if (on) chip.setAttribute("aria-current", "true");
+    else chip.removeAttribute("aria-current");
   });
   const active = gridEl.querySelector(".ayah-chip.active");
   if (active && active.scrollIntoView) active.scrollIntoView({ block: "center" });
@@ -605,7 +615,10 @@ function syncAyahGridHighlight() {
     if (surahNum === state.selectedAyah.surah) {
       setActiveAyahChip(gridEl, state.selectedAyah.ayah);
     } else {
-      gridEl.querySelectorAll(".ayah-chip.active").forEach((c) => c.classList.remove("active"));
+      gridEl.querySelectorAll(".ayah-chip.active").forEach((c) => {
+        c.classList.remove("active");
+        c.removeAttribute("aria-current");
+      });
     }
   });
 }
@@ -674,9 +687,14 @@ function switchJuzTab(tabName) {
   if (activeItem && activeItem.scrollIntoView) activeItem.scrollIntoView({ block: "center" });
 }
 
+// Etkin satır: .active (görünüm) ile aria-current="true" (ekran okuyucu) birlikte, bkz. setActiveAyahChip'in üstündeki not.
+// Sure, Cüz/Hizb/Rub/Menzil listelerinin ve Ezber'in Sure/Kârî seçicilerinin hepsi buradan geçiyor.
 function setActiveModalItem(listEl, matchAttr, value) {
   listEl.querySelectorAll(".modal-item").forEach((item) => {
-    item.classList.toggle("active", item.dataset[matchAttr] === String(value));
+    const on = item.dataset[matchAttr] === String(value);
+    item.classList.toggle("active", on);
+    if (on) item.setAttribute("aria-current", "true");
+    else item.removeAttribute("aria-current");
   });
   const active = listEl.querySelector(".modal-item.active");
   if (active && active.scrollIntoView) active.scrollIntoView({ block: "center" });
