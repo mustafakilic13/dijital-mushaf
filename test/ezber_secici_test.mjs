@@ -31,6 +31,8 @@
 // Bu test kuralı elle taklit ediyor (her işlemden sonra: odak [hidden] bir atanın içindeyse blur), yani düzeltilmemiş kod burada da
 // "odak <body>'de" diye yakalanıyor. Gerçek Chromium ölçümü README'de; gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) testinin YERİNİ
 // TUTMAZ; "Sure Seç, grup" anonsu cihazda sınanmadı (README kontrol listesi, madde 23). Firefox ve Safari'de denenmedi.
+// Liste satırlarının tek Tab durağı ve ok tuşları ayrı bir iş (js/liste-gezintisi.js, test/liste_gezintisi_test.mjs); burada yalnızca
+// modalın Tab durakları sınanıyor: Kapat, Geri, geçerli satır (listenin tek durağı), alt bilgi.
 //
 //   node ezber_secici_test.mjs
 import fs from "fs";
@@ -39,6 +41,7 @@ import { fileURLToPath } from "url";
 import { JSDOM, VirtualConsole } from "jsdom";
 import { createModalFocus, tabbablesIn } from "../js/modal-odak.js";
 import { setupTablist } from "../js/sekme-gezintisi.js";
+import { setupListNav, syncListStop, listRows } from "../js/liste-gezintisi.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
@@ -278,12 +281,12 @@ function makeEnv({ saved = null } = {}) {
   const code = [TABS_SRC, KEY_SRC, RECITERS_SRC, SW.switchEzberTab, SW.setActiveModalItem, SW.readEzberRange, SW.loadEzberSettings, SW.saveEzberSettings, appSource.slice(MODAL_START, MODAL_END), BLOCK[1], SW.setupEzberModal,
     "return { openModal, closeModal, closeAllModals, modalFocus, setupEzberModal, openEzberPicker, closeEzberPicker, switchEzberTab };"].join("\n");
   const api = new Function(
-    "els", "state", "document", "localStorage", "createModalFocus", "setupTablist", "requestAnimationFrame", "setTimeout",
+    "els", "state", "document", "localStorage", "createModalFocus", "setupTablist", "setupListNav", "syncListStop", "listRows", "requestAnimationFrame", "setTimeout",
     "closeAllAyahGrids", "closeSurahInfoDetail", "resetTopicsModal", "switchJuzTab",
     "startEzberPlayback", "startEzberOku", "startEzberYaz", "endEzberStudy",
     code
   )(
-    els, state, d, win.localStorage, createModalFocus, setupTablist,
+    els, state, d, win.localStorage, createModalFocus, setupTablist, setupListNav, syncListStop, listRows,
     (fn) => rafQ.push(fn),
     (fn, ms) => timers.push({ fn, at: now + ms }),
     () => {}, () => {}, () => {}, () => {},
@@ -406,9 +409,10 @@ for (const t of TABS) {
   check(`Sure seçici (${t}): açıldı; sekme çubuğu ve tüm formlar gizli, Kârî seçici kapalı`, h.pickers().join() === "surah" && !h.shown("ezber-tabs") && h.panels().length === 0);
   check(`Sure seçici (${t}): odak seçicinin kapsayıcısında (düğmede kalmadı, <body>'ye düşmedi)`, h.active() === picker && !h.fixupHidden() && h.modal.contains(h.active()));
   check(`Sure seçici (${t}): kapsayıcının adı 'Sure Seç', rolü grup`, accName(h.d, picker) === "Sure Seç" && picker.getAttribute("role") === "group");
-  check(`Sure seçici (${t}): Tab durakları Kapat, Geri, 114 sure, alt bilgi (formun öğeleri yok)`, (() => {
+  // Liste TEK Tab durağı (roving tabindex, js/liste-gezintisi.js): önce 114 sure düğmesinin her biri ayrı bir durak, modalda 117 durak vardı.
+  check(`Sure seçici (${t}): Tab durakları Kapat, Geri, geçerli sure (${cur}) satırı (listenin tek durağı), alt bilgi (formun öğeleri yok)`, (() => {
     const ids = tabbablesIn(h.modal);
-    return ids.length === 117 && ids[0].classList.contains("modal-close") && ids[1].id === "ezber-surah-picker-back" && ids.slice(2, 116).every((e, i) => e.dataset.surah === String(i + 1)) && ids[116].classList.contains("ezber-modal-footer-link");
+    return ids.length === 4 && ids[0].classList.contains("modal-close") && ids[1].id === "ezber-surah-picker-back" && ids[2].dataset.surah === String(cur) && ids[3].classList.contains("ezber-modal-footer-link");
   })());
   const rows = h.activeRows("surah");
   check(`Sure seçici (${t}): etkin satır tek ve geçerli sure (${cur}) -- ${rows.map((r) => r.dataset.surah).join()}`, rows.length === 1 && rows[0].dataset.surah === String(cur));
@@ -460,7 +464,8 @@ for (const t of TABS) {
   check("Kârî seçici: açıldı (yalnızca Kârî seçici); sekme çubuğu ve formlar gizli, Sure seçici kapalı", h.pickers().join() === "reciter" && !h.shown("ezber-tabs") && h.panels().length === 0);
   check("Kârî seçici: odak seçicinin kapsayıcısında (düğmede kalmadı, <body>'ye düşmedi)", h.active() === picker && !h.fixupHidden() && h.modal.contains(h.active()));
   check("Kârî seçici: kapsayıcının adı 'Kârî Seç', rolü grup", accName(h.d, picker) === "Kârî Seç" && picker.getAttribute("role") === "group");
-  check("Kârî seçici: Tab durakları Kapat, Geri, kârî satırları, alt bilgi", h.tabIds().join(">") === `modal-close>ezber-reciter-picker-back>${RECITER_KEYS.map(() => "modal-item").join(">")}>ezber-modal-footer-link`);
+  // Kârî satırları da listenin tek Tab durağı (önce her kârî ayrı bir durak, modalda 5 durak vardı): geçerli kârî (abdulsamad).
+  check("Kârî seçici: Tab durakları Kapat, Geri, geçerli kârî satırı (listenin tek durağı), alt bilgi", h.tabIds().join(">") === "modal-close>ezber-reciter-picker-back>modal-item>ezber-modal-footer-link" && tabbablesIn(h.modal)[2].dataset.reciter === "abdulsamad");
   check("Kârî seçici: etkin satır tek ve geçerli kârî (abdulsamad), ortalama seçici görünürken çağrıldı", h.activeRows("reciter").length === 1 && h.activeRows("reciter")[0].dataset.reciter === "abdulsamad" && h.scrolls.some((s) => s.reciter === "abdulsamad" && s.pickerHidden === false));
   // Geri: değer aynı, odak Kârî düğmesinde
   h.press(h.$("ezber-reciter-picker-back"));
@@ -674,9 +679,9 @@ function runRandom(seed, steps) {
         const rows = h.activeRows(M.picker.kind);
         if (rows.length !== 1 || rows[0].dataset[M.picker.kind] !== cur) bad(`etkin satır ${rows.map((r) => r.dataset[M.picker.kind])} != ${cur}`);
         if (heavy) {
-          const t = h.tabIds();
-          const expectLen = 2 + (M.picker.kind === "surah" ? 114 : RECITER_KEYS.length) + 1;
-          if (t.length !== expectLen || t[1] !== `ezber-${M.picker.kind}-picker-back`) bad(`seçicide Tab durakları ${t.length} (beklenen ${expectLen})`);
+          // liste tek durak (js/liste-gezintisi.js): Kapat, Geri, geçerli satır, alt bilgi
+          const tb = tabbablesIn(h.modal);
+          if (tb.length !== 4 || tb[1].id !== `ezber-${M.picker.kind}-picker-back` || tb[2].dataset[M.picker.kind] !== cur) bad(`seçicide Tab durakları ${tb.length} (beklenen 4: Kapat, Geri, geçerli satır, alt bilgi)`);
         }
       } else if (heavy) {
         const t = h.tabIds();

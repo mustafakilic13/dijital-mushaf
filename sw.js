@@ -54,6 +54,7 @@ const PRECACHE_URLS = [
   "js/arama.js",
   "js/ayet-gezgini.js",
   "js/justify.js",
+  "js/liste-gezintisi.js",
   "js/meal.js",
   "js/modal-odak.js",
   "js/render.js",

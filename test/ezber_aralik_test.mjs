@@ -34,6 +34,7 @@ import { fileURLToPath } from "url";
 import { JSDOM, VirtualConsole } from "jsdom";
 import { createModalFocus } from "../js/modal-odak.js";
 import { setupTablist } from "../js/sekme-gezintisi.js";
+import { setupListNav, syncListStop, listRows } from "../js/liste-gezintisi.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
@@ -187,12 +188,12 @@ function makeEnv({ saved = null, selectedAyah = null } = {}) {
   const code = [TABS_SRC, KEY_SRC, RECITERS_SRC, SW.switchEzberTab, SW.setActiveModalItem, SW.readEzberRange, SW.loadEzberSettings, SW.saveEzberSettings, appSource.slice(MODAL_START, MODAL_END), BLOCK[1], SW.setupEzberModal,
     "return { openModal, closeModal, closeAllModals, setupEzberModal, switchEzberTab, readEzberRange };"].join("\n");
   const api = new Function(
-    "els", "state", "document", "localStorage", "createModalFocus", "setupTablist", "requestAnimationFrame", "setTimeout",
+    "els", "state", "document", "localStorage", "createModalFocus", "setupTablist", "setupListNav", "syncListStop", "listRows", "requestAnimationFrame", "setTimeout",
     "closeAllAyahGrids", "closeSurahInfoDetail", "resetTopicsModal", "switchJuzTab",
     "startEzberPlayback", "startEzberOku", "startEzberYaz", "endEzberStudy",
     code
   )(
-    els, state, d, win.localStorage, createModalFocus, setupTablist,
+    els, state, d, win.localStorage, createModalFocus, setupTablist, setupListNav, syncListStop, listRows,
     (fn) => rafQ.push(fn),
     (fn, ms) => timers.push({ fn, at: now + ms }),
     () => {}, () => {}, () => {}, () => {},

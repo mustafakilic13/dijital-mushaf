@@ -15,8 +15,8 @@
 // Düzeltme: setActiveModalItem (Sure/Cüz/Hizb/Rub/Menzil ve iki Ezber seçicisinin tek yazıcısı), setActiveAyahChip ve
 // syncAyahGridHighlight etkin öğede .active ile birlikte aria-current="true" yazıp siliyor (ayet gezgininin düğmeleriyle aynı bildirim,
 // js/ayet-gezgini.js); ayet düğmeleri "<Sure> Suresi, <N>. ayet" adını taşıyor (ayet gezgininin düğmeleriyle aynı biçim, görünen sayıyı
-// içeriyor: WCAG 2.5.3); dört Ezber düğmesinden aria-haspopup="listbox" kaldırıldı (satırlar düz düğme kaldı; ok tuşu gezintisi ayrı bir
-// iş). Görünüm aynı: .active kuralları duruyor.
+// içeriyor: WCAG 2.5.3); dört Ezber düğmesinden aria-haspopup="listbox" kaldırıldı (satırlar düz düğme kaldı; ok tuşu gezintisi ve tek Tab
+// durağı sonradan eklendi: js/liste-gezintisi.js, roller aynı). Görünüm aynı: .active kuralları duruyor.
 //
 // Burada kontrol edilenler:
 //   (1) kaynak: .active ile aria-current'ın tek değerden ("on") yazılması, yazıcı sayıları (yeni bir .active yazıcısı aria-current'ı
@@ -36,8 +36,8 @@
 // SINIR: jsdom'da düzen yok; aria-current'ın ekran okuyucuda "geçerli" diye okunması burada DOĞRULANAMIYOR (yalnızca özniteliğin doğru
 // öğede ve doğru değerde olması sınanıyor; Chromium'un CDP erişilebilirlik ağacı aria-current'ı hiç listelemiyor, yani gerçek Chromium
 // ölçümü de DOM özniteliğini ve hesaplanan adı gösteriyor). Gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) testinin YERİNİ
-// TUTMAZ (README kontrol listesi, madde 25). Ok tuşuyla liste gezintisi bu testin konusu DEĞİL (Sure listesinde son satıra 228 Tab: ayrı
-// bir iş). Firefox ve Safari'de denenmedi.
+// TUTMAZ (README kontrol listesi, madde 25). Ok tuşuyla liste gezintisi ve tek Tab durağı bu testin konusu DEĞİL
+// (test/liste_gezintisi_test.mjs). Firefox ve Safari'de denenmedi.
 //
 //   node modal_liste_aria_test.mjs
 import fs from "fs";
@@ -45,6 +45,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { JSDOM, VirtualConsole } from "jsdom";
 import axeCore from "axe-core";
+import { syncListStop } from "../js/liste-gezintisi.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
@@ -135,11 +136,11 @@ check("js/ayet-gezgini.js: ayet düğmelerinin adı aynı biçimde (`<Sure> Sure
   const D = new JSDOM(html).window.document;
   const four = ["dinle-reciter", "dinle-surah", "oku-surah", "yaz-surah"].map((k) => D.getElementById(`ezber-${k}-btn`));
   check("index.html: Ezber'in dört seçici düğmesi var, gerçek <button type=button>", four.every((b) => !!b && b.tagName === "BUTTON" && b.type === "button"));
-  check("index.html: dört seçici düğmede de aria-haspopup YOK (açılan şey düz düğmelerden oluşan bir grup: liste kutusu/menü değil, ok tuşu gezintisi sözü vermesin)", four.every((b) => b && !b.hasAttribute("aria-haspopup")));
+  check("index.html: dört seçici düğmede de aria-haspopup YOK (açılan şey düz düğmelerden oluşan bir grup: liste kutusu/menü değil, listbox sözleşmesi vaat edilmesin)", four.every((b) => b && !b.hasAttribute("aria-haspopup")));
   check("index.html: dört düğmenin adı korunuyor (aria-labelledby = alan etiketi + görünen değer)", ["dinle-reciter", "dinle-surah", "oku-surah", "yaz-surah"].every((k) => D.getElementById(`ezber-${k}-btn`).getAttribute("aria-labelledby") === `ezber-${k}-label ezber-${k}-btn-text`));
   const popups = [...D.querySelectorAll("[aria-haspopup]")];
   check(`index.html: aria-haspopup yalnızca dört modal açıcıda (juz-btn, page-btn, surah-btn, arama-btn) ve hep "dialog"; "listbox" hiç yok (bulunan: ${popups.map((e) => `${e.id}=${e.getAttribute("aria-haspopup")}`).join(", ")})`, popups.map((e) => e.id).sort().join() === "arama-btn,juz-btn,page-btn,surah-btn" && popups.every((e) => e.getAttribute("aria-haspopup") === "dialog"));
-  check("index.html: listbox/option rolü yok (satırlar düz düğme: listbox deseni ok tuşu gezintisi ister, o ayrı bir iş; yarım dönüşüm yanlış söz verirdi)", !D.querySelector('[role="listbox"],[role="option"]'));
+  check("index.html: listbox/option rolü yok (satırlar düz düğme; ok tuşu gezintisi js/liste-gezintisi.js'te ama roller aynı: tam listbox deseni (seçim, yazarak arama) ayrı bir iş, yarım dönüşüm yanlış söz verirdi)", !D.querySelector('[role="listbox"],[role="option"]'));
   const groups = ["ezber-surah-picker", "ezber-reciter-picker"].map((id) => D.getElementById(id));
   check('index.html: iki Ezber seçicisi role="group", başlığına aria-labelledby ile bağlı ("Sure Seç, grup": odak açılışta buraya geliyor)', groups.every((g) => g && g.getAttribute("role") === "group" && !!D.getElementById(g.getAttribute("aria-labelledby") || "none")));
 }
@@ -174,7 +175,7 @@ function makeEnv({ selectedAyah = null } = {}) {
   const modalFocus = { enter() {}, restore() {}, remember() {} };
   const code = [SRC.surahLabel, SRC.populateSurahList, SRC.toggleAyahGrid, SRC.closeAllAyahGrids, SRC.setActiveAyahChip, SRC.syncAyahGridHighlight, SRC.populateUnitList, SRC.setActiveModalItem, RECITERS_SRC, BLOCK[1],
     "return { populateSurahList, toggleAyahGrid, setActiveAyahChip, syncAyahGridHighlight, populateUnitList, setActiveModalItem, populateEzberSurahPickerList, populateEzberReciterPickerList, openEzberPicker, closeEzberPicker, setEzberSurah, setEzberReciter };"].join("\n");
-  const api = new Function("els", "state", "document", "modalFocus", code)(els, state, d, modalFocus);
+  const api = new Function("els", "state", "document", "modalFocus", "syncListStop", code)(els, state, d, modalFocus, syncListStop);
   api.populateSurahList();
   api.populateUnitList(els.juzList, state.juz, 30, "juz");
   api.populateUnitList(els.hizbList, state.hizb, 60, "hizb");

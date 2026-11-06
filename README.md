@@ -1593,7 +1593,9 @@ Karar ve ödünleşmeler:
   `aria-selected` yok): ekran okuyucu "liste kutusu" ipucu verip düğmelerden
   oluşan bir grup açıyor. Doğru kalıp iki seçici için birlikte, ayrı bir iş:
   sonradan "Modal listelerinin ekran okuyucu anlamı" paragrafında ipucu dört
-  düğmeden de kaldırıldı (`listbox`a çevrilmedi).
+  düğmeden de kaldırıldı (`listbox`a çevrilmedi). Oklar ve tek Tab durağı da
+  sonradan geldi ("Modal listelerinde ok tuşu gezintisi ve tek Tab durağı"
+  paragrafı); roller aynı kaldı.
 - Etkin satır bu yamada yalnızca renkle işaretliydi (`.active`; `aria-current`
   yok): iki listede de ve uygulamanın öteki modal listelerinde aynı,
   dokunulmadı. Sonradan hepsine `aria-current="true"` eklendi (aynı paragraf).
@@ -1783,7 +1785,8 @@ düğmeleri "Âl-i İmrân Suresi, 3. ayet" ve "Âl-i İmrân Suresi, 1. ayet"; 
 düğmede `hasPopup` ve `aria-haspopup` yok. Tab sayıları DEĞİŞMEDİ (Sure
 modalında Yâsîn'e 72, son sureye 228, modalda 229 Tab durağı; Rub'da son satıra
 240; Ezber Sure seçicisinde son sureye 115): ok tuşuyla liste gezintisi ayrı
-bir iş. Sayfada hata yok.
+bir işti, sonradan yapıldı ("Modal listelerinde ok tuşu gezintisi ve tek Tab
+durağı" paragrafı). Sayfada hata yok.
 
 Düzeltme (`js/app.js`: yorumlarla 23 satır eklendi, 5 satır çıktı;
 `index.html`: 4 satır değişti):
@@ -1856,9 +1859,140 @@ Sınır: Chromium'un CDP erişilebilirlik ağacı `aria-current`'ı hiç listele
 okuyucuda "geçerli" diye okunması gerçek NVDA, JAWS, VoiceOver ya da TalkBack
 ile DENENMEDİ (kontrol listesi, madde 25). jsdom'da düzen yok. Firefox ve
 Safari'de denenmedi. Ok tuşuyla gezinti bu yamada yok: Sure listesinde son
-sureye 228 Tab, Rub listesinde 240 (ok tuşu ve tek Tab durağı için ayrı bir
-iş). Seçiciler ileride `listbox`a çevrilirse `aria-haspopup="listbox"` ancak o
-zaman geri verilmeli.
+sureye 228 Tab, Rub listesinde 240 (ok tuşu ve tek Tab durağı ayrı bir işti,
+sonradan yapıldı: bir sonraki paragraf). Seçiciler ileride `listbox`a çevrilirse
+`aria-haspopup="listbox"` ancak o zaman geri verilmeli.
+
+**Modal listelerinde ok tuşu gezintisi ve tek Tab durağı.** Sure, Cüz
+(Cüz/Hizb/Rub/Menzil) ve Ezber'in Sure/Kârî seçicilerinin her satırı ayrı bir
+Tab durağıydı ve ok tuşları hiçbir listede bir şey yapmıyordu. Başsız
+Chromium'da (430x900, sayfa 50: Sure 3 etkin; her senaryo taze sayfa, yalnızca
+klavye) yamadan ÖNCE ölçülen:
+
+- Sure modalında 229 Tab durağı (Kapat, 114 sure düğmesi, 114 "ayetlerini
+  listele" düğmesi). Kapat'tan sonraki ilk Tab, Sure 3 etkin olsa da ilk satıra
+  gidiyor; Yâsîn'e (36) 72, son sureye (114) 228 Tab. Cüz modalı (Cüz sekmesi)
+  32 durak; sekme çubuğundan son satıra Cüz'de 30, Hizb'de 60, Rub'da 240,
+  Menzil'de 7 Tab. Ezber Sure seçicisinde 117 durak, Geri'den sonra 36. sureye
+  37, 114. sureye 115 Tab; Kârî seçicisinde 5 durak;
+- Yukarı, Aşağı, Home, End, PageUp, PageDown, Sol ve Sağ hiçbir listede odağı
+  oynatmıyordu: tuşlar listeyi kaydırıyor, odaklı satır görünür alandan
+  çıkıyordu (Sure modalında iki Aşağı'dan sonra odaklı 1. satır ekranda yok).
+  End'den sonra Enter, 114. sureyi değil 1. sureyi seçiyordu (`#page=1`). Yani
+  listenin sonundaki bir sureye klavyeyle varmak yüzlerce Tab demekti.
+
+Şimdi (aynı sahneler):
+
+- Sure modalında 2 Tab durağı (229 -> 2: Kapat ve şu anki sure). Kapat'tan
+  sonraki Tab Sure 3'ün satırına geliyor (odak halkası `solid 2px`, satır
+  görünür alanda);
+- Sure 3'ten tuş dizisi, her adımda odak beklenen hücrede ve görünür alanda:
+  Aşağı 4, Aşağı 5, Yukarı 4, PageDown 14, PageUp 4, End 114, Home 1, Sağ 1.
+  surenin "ayetlerini listele" düğmesi, Aşağı 2'ninki, Sol 2. sure düğmesi,
+  PageDown 12, End 114;
+- End'den sonra Enter 114. sureyi seçiyor (`#page=604`), modal kapanıyor ve odak
+  açan düğmeye (`#surah-btn`) dönüyor; modal yeniden açılınca durak şu anki sure
+  (114);
+- ayet düğmeleri normal Tab durağı olarak kaldı: "ayetlerini listele"ye Enter
+  ızgarayı açıyor, Tab 3:1'e, bir daha 3:2'ye geçiyor, iki Shift+Tab açma
+  düğmesine dönüyor; ızgara açıkken açma düğmesinden Aşağı bir sonraki satırın
+  açma düğmesine (4) gidiyor;
+- Cüz modalında 3 durak (32 -> 3: Kapat, Cüz sekmesi ve şu anki satır: Cüz 3,
+  Hizb 5, Rub 20, Menzil'de 1). End son satıra (30, 60, 240, 7), Home ilk
+  satıra, PageDown 11. satıra (Menzil'de yalnızca 7 satır var: 7), Sol hiçbir
+  şey yapmıyor;
+- Ezber Sure seçicisinde 4 durak (117 -> 4: Geri, şu anki sure, alt bağlantı,
+  Kapat), Kârî seçicisinde 4 (5 -> 4: Geri, şu anki kârî, alt bağlantı, Kapat).
+  Sure seçicide Geri'den sonraki Tab Sure 3'e geliyor; Aşağı 4, PageDown 14, End
+  114, Home 1, Sağ yerinde duruyor; End + Enter 114. sureyi seçiyor (Sure alanı
+  `114`), seçici kapanıyor ve odak Sure düğmesine dönüyor. Kârî'de End + Enter
+  son kârîyi (`abdulsamad`) seçiyor ve odak Kârî düğmesine dönüyor;
+- sayfada hata yok. Sonuçlar 430, 320 ve 1200 px genişlikte aynı.
+
+Düzeltme (`js/liste-gezintisi.js` yeni, 138 satır; `js/app.js`: yorumlarla 13
+satır eklendi, 1 satır çıktı; `sw.js`: 1 satır eklendi):
+
+- **Tek Tab durağı (roving tabindex).** Bir listenin tek durağı var
+  (`tabindex="0"`), öteki hücreler `-1`. Durak, şu anki öğe
+  (`aria-current="true"`; Sure 3 açıkken 3. sure), yoksa ilk hücre; sonra
+  odaklanan hücre (`focusin`: Tab, ok, fare, programatik). `setActiveModalItem`
+  (listelerin tek yazıcısı) `.active` ve `aria-current`'ı yazdıktan sonra
+  `syncListStop` çağırıyor: durak etkin satırla aynı yerde ve aynı anda
+  yazılıyor, ayrışamazlar; modal yeniden açılınca durak ok tuşlarıyla gezilen
+  son satırda değil şu anki satırda. `modal-odak.js`'in `tabbablesIn`'i
+  `tabindex < 0` olanları zaten saymıyor: modalın ilk ve son durağı hesabı doğru
+  kalıyor;
+- **Tuşlar.** Yukarı/Aşağı bir satır, Home/End ilk/son satır, PageUp/PageDown 10
+  satır (`PAGE_STEP`; Sure modalı 430x900'de ve 1200x800'de ≈ 9,4, 320x640'ta ≈
+  7,1 satır gösteriyor, yani yaklaşık bir ekran; 430x900'de 583 px yüksek liste
+  / 62 px satır adımı). Uçlarda dönülmüyor (ayet gezgininde de böyle; 114
+  satırlık listede sondan başa sıçramak şaşırtıcı). Sure listesinde bir satır
+  iki hücre (sure düğmesi ve "ayetlerini listele" düğmesi): Sağ/Sol aralarında
+  geçiyor, Yukarı/Aşağı sütunu koruyor. Tek hücreli listelerde (Cüz, Hizb, Rub,
+  Menzil, Ezber seçicileri) Sol/Sağ işlenmiyor. Tuş basılı tutulunca
+  (`e.repeat`) gezinti sürüyor;
+- **Dokunulmayanlar.** Değiştiricili tuşlar (Alt+Sol tarayıcıda geri, Ctrl+Home,
+  Shift+ok) ve başka bir işleyicinin tükettiği olaylar yok sayılıyor; yalnızca
+  gerçekten işlenen tuşun varsayılanı engelleniyor (liste ok tuşlarıyla
+  kaymasın; uçta da). Tab, Enter, Boşluk, Escape ve öteki tuşlara dokunulmuyor;
+- **Roller aynı.** Satırlar düz düğme (`listbox`/`option` yok), etkin satır
+  `aria-current` ile bildiriliyor; ekran okuyucu kullanıcısı sanal imleçle
+  `tabindex="-1"` satırlara yine gidebilir (`-1` erişilebilirlik ağacından
+  çıkarmıyor). Ayet düğmeleri (açılan ızgara) bu gezintiye GİRMİYOR, normal Tab
+  durağı olarak duruyor: ızgara kaydırmalı bir satır dizisi, ona uygun gezinti
+  ayrı bir iş;
+- `sw.js` yeni modülü önbelleğe alıyor (uygulama kabuğunun import ağacındaki her
+  modül `PRECACHE_URLS`'te olmalı; `sw_test` zorunlu kılıyor).
+
+`test/liste_gezintisi_test.mjs` (yeni; jsdom + kaynak denetimi, 91 kontrol, ≈ 7
+sn): (1) kaynak: dışa aktarılanlar, `PAGE_STEP`, `app.js`'in import'u,
+`setActiveModalItem`'deki `syncListStop`, yedi listenin kaydı, `tabindex` yazan
+yerler, `sw.js` önbelleği; (2) saf `targetCell`: 25 satırlık tablo, 114 satırda
+PageUp/PageDown, geçersiz girdiler (null), donmuş girdi, 4 satıra kadar bütün
+küçük matrisler x 9 tuş ve 600 rastgele matris x bağımsız model; (3) GERÇEK
+`setupModals`, `setupEzberModal`, `modal-odak.js`, `index.html` ve `data/*.json`
+ile jsdom'da: Sure modalı (durak sayısı, Tab turu, 26 adımlık tuş tablosu,
+işlenmeyen tuşlar, 32 değiştiricili tuş, önceden tüketilmiş olay, basılı tutma,
+satıra tıklayınca sure seçimi, modal yeniden açılınca durak, ayet düğmelerinin
+davranışı), Cüz'ün dört sekmesi, Ezber seçicileri,
+`syncListStop`/`listRows`/dispose uç durumları (`aria-current="false"`, boş
+liste, modalsız Tab/Enter/Boşluk/Escape); (4) 8 tohum x 70 işlemlik rastgele
+dizi (tuş, odaklama, etkin satır değişimi, ızgara açma/kapama, ayet düğmesinde
+tuş) x bağımsız model: yedi listede de `tabindex`, odak, `aria-current` ve tuşun
+engellenmesi modelle birebir; jsdom'da yakalanmamış hata yok.
+`test/ezber_secici_test.mjs`'te üç beklenti uyarlandı (seçici duraklar artık 4:
+Kapat, Geri, şu anki satır, alt bağlantı; Kârî'de eskiden 5; rastgele dizideki
+Tab denetimi de); `test/ezber_aralik_test.mjs` ve
+`test/modal_liste_aria_test.mjs`'te yalnızca işlev kaynağına enjekte edilen
+yardımcılar eklendi (gerçek `setupListNav`, `syncListStop`, `listRows`).
+Kablolanmamış tabanda (yeni modül ve test eklenmiş, `app.js` eski) yeni testte
+91 kontrolün 55'i, `ezber_secici` testinde 5 kontrol kırılıyor; kodun her
+parçası tek tek bozularak 125 mutasyon denendi: 122'si yakalandı (hepsini yeni
+testin kendisi), 3'ü denk (davranışı değiştirmiyor: `rowLengths.length === 0`
+denetimi, çünkü sonraki aralık denetimi boş diziyi zaten reddediyor;
+`syncListStop`'taki boş liste erken dönüşü; zaten odaklı hücreye ikinci
+`focus()`). Mutasyonlar: `PAGE_STEP` değerleri; `targetCell`'in girdi
+korumaları, kırpması, her tuşun dalı (yanlış yön ya da adım, yerinde kalma,
+işlenmeme), Sol/Sağ (tek hücreli satırda işlenme, iki hücreli satırda işlenmeme,
+ters yön, kırpma yok, dönüş, hep ilk/son sütun) ve sütun korunumu; `listRows`,
+`locate`, `setStop` ve `syncListStop`'un her dalı; `setupListNav`'ın kaydı,
+başlangıç durağı, iki dinleyicisi, her değiştirici ve `defaultPrevented`
+denetimi, `preventDefault`, odak taşıma, `focusin`, tuş tekrarı ve dinleyicileri
+kaldıran işlev; `app.js`'te import, `setActiveModalItem`'deki çağrı (yok, yanlış
+liste, işaretlemeden önce), yedi listenin kaydı tek tek ve seçicileri (Sure'de
+satır/hücre seçicisi, açma düğmeleri, ayet düğmeleri), Ezber seçicilerinin
+kaydı; `sw.js` önbellek satırı. Mutasyon denemesinde iki gerçek açık bulundu ve
+kapatıldı (`listRows`'un seçicileri, `aria-current="false"`'un etkin sayılması).
+Mutasyonsuz hâl 28 test dosyasının hepsiyle geçiyor.
+
+Sınır: jsdom'da düzen ve gerçek Tab yok: Tab, gerçek `modal-odak.js` sarması ve
+DOM sırasındaki sonraki durakla benzetiliyor; kaydırma, görünürlük ve odak
+halkası yalnızca başsız Chromium'da ölçüldü. Gerçek ekran okuyucuyla (NVDA,
+JAWS, VoiceOver, TalkBack) DENENMEDİ: satırların okunması, sanal imlecin
+`tabindex="-1"` satırlara gitmesi ve okuyucunun ok tuşlarını tüketip tüketmediği
+cihazda sınanmadı (kontrol listesi, madde 26). Firefox ve Safari'de denenmedi.
+Ayet düğmeleri (açılan ızgara) gezintiye dahil değil: onlara ayrı bir, iki
+boyutlu ok tuşu gezintisi gerekir.
 
 **Ezber > Oku'da klavye ve ekran okuyucu yolu.** Oku'da bir kelimeyi açmanın
 tek yolu sayfadaki ayete dokunmaktı; sayfa tek bir `<svg>` olduğundan
@@ -2815,6 +2949,7 @@ js/search.js               Arama: saf mantık (normalleştirme, sorgu ayrıştı
 js/arama.js                 Arama modalı: arayüz + olaylar (bkz. "Arama")
 js/modal-odak.js             Modal odak yönetimi: açılışta odağı modala al, Tab'i içeride döndür, kapanışta açana geri ver (bkz. "Erişilebilirlik")
 js/sekme-gezintisi.js          Sekme listeleri (Cüz, Ezber): Sol/Sağ/Home/End ile gezinti + roving tabindex, ARIA "Tabs" kalıbı (bkz. "Erişilebilirlik")
+js/liste-gezintisi.js          Modal listeleri (Sure, Cüz/Hizb/Rub/Menzil, Ezber seçicileri): ok tuşu gezintisi + tek Tab durağı (roving tabindex), düz düğmeler (bkz. "Erişilebilirlik")
 js/ayet-gezgini.js              Ayet gezgini: sayfadaki ayet/sure başlığı için görünmez <nav> -- klavye ve ekran okuyucu erişimi (bkz. "Erişilebilirlik")
 js/app.js               Sayfa yükleme, önbellek, gezinme, modaller, ayet seçimi, ayet detay paneli, konu fihristi
 data/mushaf.json         604 sayfa × satır × kelime (QUL'dan üretildi, ~3MB)
@@ -2876,6 +3011,7 @@ test/sekme_gezintisi_test.mjs     Sekme listeleri (Cüz, Ezber): ok tuşu gezint
 test/ezber_secici_test.mjs       Ezber Sure ve Kârî seçicileri: ortak yapı, odak (giriş, Geri, satır seçimi, kapanış), etkin satırın ortalanması, Oku/Yaz'da seçici açıkken kapatma, rastgele diziler (jsdom)
 test/ezber_aralik_test.mjs       Ezber aralık alanları: geçersiz aralıktan sonra uyarı siliniyor (alan düzenlenince, modal açılınca, Sure seçilince), sekme başına kapsam, rastgele diziler (jsdom)
 test/modal_liste_aria_test.mjs     Modal listeleri (Sure, Cüz, Ezber seçicileri): etkin satır/ayet düğmesi aria-current, ayet düğmesi adı "<Sure> Suresi, <N>. ayet", Ezber düğmelerinde aria-haspopup yok, rastgele diziler, axe-core (jsdom)
+test/liste_gezintisi_test.mjs      Modal listelerinde ok tuşu gezintisi ve tek Tab durağı: saf targetCell (tüm küçük matrisler x model), GERÇEK kablolama (Sure, Cüz, Ezber seçicileri), rastgele diziler x model (jsdom)
 ```
 
 ## Çalıştırma
@@ -2941,16 +3077,17 @@ kalmadı -- yazım hatası yüzünden "hiçbir test çalışmadı ama sonuç ye�
 SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
-`npm run test:fast` (tam tarama hariç, ≈ 110-135 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 27 dosyanın hepsi ≈
-3-3,5 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 58-86 sn, arama
+`npm run test:fast` (tam tarama hariç, ≈ 105-135 sn) ve `npm run test:corpus`
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 28 dosyanın hepsi ≈
+2,5-3,5 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 53-86 sn, arama
 arayüzü 19-22 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
 testi 8-10 sn, Ezber klavye testi ≈ 8 sn, Ezber metin katmanı testi ≈ 5 sn,
 tefsir sekme testi ≈ 6 sn, sayfa ok tuşları testi ≈ 3-5 sn,
 sekme gezinti testi ≈ 3-6 sn,
 Ezber seçici testi ≈ 11-15 sn,
 Ezber aralık testi ≈ 15-19 sn,
-modal liste testi ≈ 8-12 sn);
+modal liste testi ≈ 8-12 sn,
+liste gezinti testi ≈ 6-8 sn);
 GitHub Actions'taki ilk koşuda işin tamamı 1 dk 25 sn sürdü.
 
 **Tam tarama testi artık gerçekten doğruluyor.** `test/full_corpus_test.mjs`
@@ -3323,11 +3460,11 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     ("Kârî Husarî (Mücevved)", "Sure 3. Âl-i İmrân") okuyor mu? "Liste kutusu"
     gibi bir ipucu VERMİYOR mu (`aria-haspopup` kaldırıldı)? Düğmeye basınca
     "Sure Seç" / "Kârî Seç" başlığı okunuyor mu, ardından Tab önce Geri'ye,
-    sonra satırlara geçiyor mu? Satır seçince ya da Geri'ye basınca odak
-    düğmeye dönüyor ve düğme yeni değeriyle okunuyor mu? Seçici açıkken Esc
-    modalı kapatıyor ve odak Ezber düğmesine dönüyor mu? Kârî düğmesinde Aşağı
-    ok bir şey yapmıyor, değer yalnızca listeden değişiyor mu? (Mevcut satırın
-    "geçerli" diye okunması madde 25'te.)
+    sonra şu anki satıra (listenin tek durağı, madde 26) geçiyor mu? Satır
+    seçince ya da Geri'ye basınca odak düğmeye dönüyor ve düğme yeni değeriyle
+    okunuyor mu? Seçici açıkken Esc modalı kapatıyor ve odak Ezber düğmesine
+    dönüyor mu? Kârî düğmesinde Aşağı ok bir şey yapmıyor, değer yalnızca
+    listeden değişiyor mu? (Mevcut satırın "geçerli" diye okunması madde 25'te.)
 24. Ezber'de (Dinle, Oku, Yaz) geçersiz aralık: başlangıcı bitişten büyük
     (5-2) ya da sure uzunluğunu aşan (3. sure için 5-999) bir aralıkla
     Uygula'ya basınca uyarı okunuyor mu ("Bitiş ayeti, başlangıç ayetinden
@@ -3343,6 +3480,22 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     "Âl-i İmrân Suresi, 3. ayet" diye okunuyor, seçili ayet "geçerli" mi ve
     ayet gezgininin düğmeleriyle aynı biçimde mi? Ezber'in dört seçici düğmesi
     "liste kutusu" demiyor mu?
+26. Modal listelerinde ok tuşu gezintisi (Sure, Cüz/Hizb/Rub/Menzil, Ezber'in
+    Sure ve Kârî seçicileri): Tab listeye TEK durakla giriyor mu (Sure modalında
+    Kapat'tan sonra şu anki sure, Cüz'de şu anki satır) ve sonraki Tab listeden
+    çıkarıyor mu (Sure modalında başa, Kapat'a dönüyor)? Ekran okuyucu satırı
+    adıyla ve "geçerli" durumuyla okuyor mu? Yukarı/Aşağı bir satır, Home/End
+    ilk/son satır, PageUp/PageDown yaklaşık bir ekran atlıyor mu; odaklanan
+    satır her adımda ekranda ve her adımda okunuyor mu; uçlarda odak yerinde
+    kalıyor mu? Sure satırlarında Sağ/Sol sure düğmesi ile "ayetlerini listele"
+    düğmesi arasında geçiyor, Yukarı/Aşağı sütunu koruyor mu?
+    Cüz/Hizb/Rub/Menzil listelerinde ve Ezber seçicilerinde Sol/Sağ bir şey
+    yapmıyor mu? NVDA/JAWS göz atma kipinde ok tuşlarını okuyucu kendisi
+    tüketiyor mu (satıra Tab'la gelince ok tuşu çalışıyor mu, yoksa odak/form
+    kipine geçmek mi gerekiyor)? Sanal imleç (Tab'sız) `tabindex="-1"` satırlara
+    da gidiyor mu? Ok tuşunu basılı tutmak okuyucuyu boğuyor mu? Enter satırı
+    seçiyor, modal kapanıyor ve odak açan düğmeye dönüyor mu? Ayet düğmeleri
+    (açılan ızgara) eskisi gibi tek tek Tab durağı mı?
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal odak
 yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı, renk
@@ -3355,9 +3508,10 @@ başarısızken ayet atlama), Ezber > Yaz'ın klavye yolu, Ezber'de kapak altı
 metnin ağaçtan çıkarılması, tefsir sekme düğmesinin durumu ve sayfa çevirme
 oklarının yalnızca düz Sol/Sağ'a daraltılması, Cüz/Ezber sekmelerinin ok
 tuşu gezintisi, Ezber'in Kârî seçicisi (Sure seçiciyle aynı kalıp, odak
-düzeltmeleriyle), Ezber aralık uyarısının silinmesi ve modal listelerinin ekran
-okuyucu anlamı (`aria-current`, ayet düğmesi adı, `aria-haspopup`) ayrı ayrı tek
-commit'tir, geri alınabilir.
+düzeltmeleriyle), Ezber aralık uyarısının silinmesi, modal listelerinin ekran
+okuyucu anlamı (`aria-current`, ayet düğmesi adı, `aria-haspopup`) ve modal
+listelerinin ok tuşu gezintisi (tek Tab durağı) ayrı ayrı tek commit'tir, geri
+alınabilir.
 
 ### Kelime tahlili
 

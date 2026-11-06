@@ -12,6 +12,7 @@ import { loadMealData, isMealDataReady, getCachedMealData, getMealText, renderMe
 import { setupArama } from "./arama.js";
 import { createModalFocus } from "./modal-odak.js";
 import { setupTablist } from "./sekme-gezintisi.js";
+import { setupListNav, syncListStop, listRows } from "./liste-gezintisi.js";
 import { createAyahNav, ayahsOnPage, surahsOfSvg, revealDelta } from "./ayet-gezgini.js";
 import {
   tafsirSourceIds,
@@ -696,6 +697,9 @@ function setActiveModalItem(listEl, matchAttr, value) {
     if (on) item.setAttribute("aria-current", "true");
     else item.removeAttribute("aria-current");
   });
+  // Listenin tek Tab durağı (roving tabindex, js/liste-gezintisi.js) etkin satırla AYNI yerde, AYNI anda ayarlanıyor: liste her
+  // açılışta durak şu anki satırda başlar, ok tuşlarıyla gezilen son satırda değil (hiçbiri etkin değilse ilk hücre).
+  syncListStop(listEl);
   const active = listEl.querySelector(".modal-item.active");
   if (active && active.scrollIntoView) active.scrollIntoView({ block: "center" });
 }
@@ -785,6 +789,11 @@ function setupModals() {
   populateUnitList(els.hizbList, state.hizb, 60, "hizb");
   populateUnitList(els.rubList, state.rub, 240, "rub");
   populateUnitList(els.manzilList, state.manzil, 7, "manzil");
+
+  // Ok tuşu gezintisi + tek Tab durağı (js/liste-gezintisi.js). Sure listesinde bir satır iki hücre (sure düğmesi + "ayetlerini
+  // listele"); açılan ayet ızgarasındaki düğmeler (.ayah-chip) bu gezintiye girmiyor.
+  setupListNav(els.surahList, listRows(els.surahList, ".modal-item, .surah-expand-btn", ".surah-row"));
+  for (const listEl of [els.juzList, els.hizbList, els.rubList, els.manzilList]) setupListNav(listEl, listRows(listEl, ".modal-item"));
 
   els.surahBtn.addEventListener("click", () => {
     openModal(els.surahModal, {
@@ -1146,7 +1155,10 @@ function setupEzberModal() {
   document.getElementById("ezber-dinle-reciter-btn").addEventListener("click", () => openEzberPicker("reciter", "dinle"));
   for (const kind of ["surah", "reciter"]) {
     document.getElementById(`ezber-${kind}-picker-back`).addEventListener("click", () => closeEzberPicker({ restoreFocus: true }));
-    document.getElementById(`ezber-${kind}-picker-list`).addEventListener("click", (e) => {
+    // Oklar + tek Tab durağı (js/liste-gezintisi.js); durak, seçici her açılışta şu anki satıra konuyor (setActiveModalItem).
+    const pickerList = document.getElementById(`ezber-${kind}-picker-list`);
+    setupListNav(pickerList, listRows(pickerList, ".modal-item"));
+    pickerList.addEventListener("click", (e) => {
       const item = e.target.closest(".modal-item");
       if (!item || !ezberPicker || ezberPicker.kind !== kind) return;
       if (kind === "surah") setEzberSurah(ezberPicker.target, parseInt(item.dataset.surah, 10), { autofillRange: true });
