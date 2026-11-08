@@ -46,6 +46,7 @@ import { fileURLToPath } from "url";
 import { JSDOM, VirtualConsole } from "jsdom";
 import axeCore from "axe-core";
 import { syncListStop } from "../js/liste-gezintisi.js";
+import { syncGridStop } from "../js/izgara-gezintisi.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
@@ -175,7 +176,7 @@ function makeEnv({ selectedAyah = null } = {}) {
   const modalFocus = { enter() {}, restore() {}, remember() {} };
   const code = [SRC.surahLabel, SRC.populateSurahList, SRC.toggleAyahGrid, SRC.closeAllAyahGrids, SRC.setActiveAyahChip, SRC.syncAyahGridHighlight, SRC.populateUnitList, SRC.setActiveModalItem, RECITERS_SRC, BLOCK[1],
     "return { populateSurahList, toggleAyahGrid, setActiveAyahChip, syncAyahGridHighlight, populateUnitList, setActiveModalItem, populateEzberSurahPickerList, populateEzberReciterPickerList, openEzberPicker, closeEzberPicker, setEzberSurah, setEzberReciter };"].join("\n");
-  const api = new Function("els", "state", "document", "modalFocus", "syncListStop", code)(els, state, d, modalFocus, syncListStop);
+  const api = new Function("els", "state", "document", "modalFocus", "syncListStop", "syncGridStop", code)(els, state, d, modalFocus, syncListStop, syncGridStop);
   api.populateSurahList();
   api.populateUnitList(els.juzList, state.juz, 30, "juz");
   api.populateUnitList(els.hizbList, state.hizb, 60, "hizb");

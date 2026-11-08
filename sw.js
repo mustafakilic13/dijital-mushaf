@@ -53,6 +53,7 @@ const PRECACHE_URLS = [
   "js/app.js",
   "js/arama.js",
   "js/ayet-gezgini.js",
+  "js/izgara-gezintisi.js",
   "js/justify.js",
   "js/liste-gezintisi.js",
   "js/meal.js",

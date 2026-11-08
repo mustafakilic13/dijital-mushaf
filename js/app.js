@@ -13,6 +13,7 @@ import { setupArama } from "./arama.js";
 import { createModalFocus } from "./modal-odak.js";
 import { setupTablist } from "./sekme-gezintisi.js";
 import { setupListNav, syncListStop, listRows } from "./liste-gezintisi.js";
+import { setupGridNav, syncGridStop } from "./izgara-gezintisi.js";
 import { createAyahNav, ayahsOnPage, surahsOfSvg, revealDelta } from "./ayet-gezgini.js";
 import {
   tafsirSourceIds,
@@ -573,6 +574,8 @@ function toggleAyahGrid(surahNum, gridEl, expandBtn) {
   if (state.selectedAyah && state.selectedAyah.surah === surahNum) {
     setActiveAyahChip(gridEl, state.selectedAyah.ayah);
   }
+  // Izgaranın tek Tab durağı (roving tabindex, js/izgara-gezintisi.js): seçili ayet, yoksa ilk düğme; ızgara her açılışta oradan başlar.
+  syncGridStop(gridEl);
   if (expandBtn.scrollIntoView) expandBtn.scrollIntoView({ block: "nearest" });
 }
 
@@ -601,6 +604,8 @@ function setActiveAyahChip(gridEl, ayahNum) {
     if (on) chip.setAttribute("aria-current", "true");
     else chip.removeAttribute("aria-current");
   });
+  // Izgaranın tek Tab durağı seçili ayetle AYNI yerde, AYNI anda ayarlanıyor (js/izgara-gezintisi.js).
+  syncGridStop(gridEl);
   const active = gridEl.querySelector(".ayah-chip.active");
   if (active && active.scrollIntoView) active.scrollIntoView({ block: "center" });
 }
@@ -620,6 +625,7 @@ function syncAyahGridHighlight() {
         c.classList.remove("active");
         c.removeAttribute("aria-current");
       });
+      syncGridStop(gridEl);
     }
   });
 }
@@ -791,9 +797,11 @@ function setupModals() {
   populateUnitList(els.manzilList, state.manzil, 7, "manzil");
 
   // Ok tuşu gezintisi + tek Tab durağı (js/liste-gezintisi.js). Sure listesinde bir satır iki hücre (sure düğmesi + "ayetlerini
-  // listele"); açılan ayet ızgarasındaki düğmeler (.ayah-chip) bu gezintiye girmiyor.
+  // listele"); açılan ayet ızgarasındaki düğmeler (.ayah-chip) bu gezintiye girmiyor, onlarınki ayrı (js/izgara-gezintisi.js).
   setupListNav(els.surahList, listRows(els.surahList, ".modal-item, .surah-expand-btn", ".surah-row"));
   for (const listEl of [els.juzList, els.hizbList, els.rubList, els.manzilList]) setupListNav(listEl, listRows(listEl, ".modal-item"));
+  // Ayet düğmeleri ızgarası: tek Tab durağı + iki boyutlu ok tuşu gezintisi. Izgaralar tembel kurulduğu için dinleyici Sure listesinde (olay devri).
+  setupGridNav(els.surahList);
 
   els.surahBtn.addEventListener("click", () => {
     openModal(els.surahModal, {

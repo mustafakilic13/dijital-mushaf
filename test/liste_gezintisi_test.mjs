@@ -23,17 +23,21 @@
 //       modal-odak.js x GERÇEK index.html x GERÇEK data/*.json, jsdom'da:
 //         Sure modalı: açılışta Tab durakları (Kapat + etkin satır), tek tabindex="0", Tab turu, tuş tablosu (Aşağı/Yukarı/PageDown/
 //         PageUp/Home/End/Sağ/Sol, uçlarda durma), işlenmeyen ve değiştiricili tuşlar, başka işleyicinin tükettiği olay, ayet düğmesinden
-//         gelen olay, Enter/tıklama odaktaki satırı seçiyor, yeniden açılışta durak etkin satıra dönüyor, ayet ızgarası açıkken Tab sırası;
+//         gelen olay, Enter/tıklama odaktaki satırı seçiyor, yeniden açılışta durak etkin satıra dönüyor, ayet ızgarası açıkken Tab sırası
+//         (liste durağı + ızgaranın tek durağı) ve ızgara düğmelerinden gelen tuşların liste gezintisine karışmaması;
 //         Cüz modalı: dört sekmede durak etkin satır, tuşlar, Sol/Sağ yok sayılıyor, sekme çubuğu + liste Tab sırası;
 //         Ezber: Sure ve Kârî seçicileri (Geri + tek durak + alt bilgi), tuşlar, seçim ve odağın açan düğmeye dönmesi;
 //         syncListStop kenar durumları (etkin satır yok, kayıtsız liste, boş liste), dispose;
 //   (4) 8 tohum x 70 işlemlik rastgele dizi (tuş, odaklama, etkin satırı değiştirme, ızgara açma, ayet düğmesinde tuş) x bağımsız model:
-//       yedi listenin hepsinde her adımdan sonra tabindex, odak, aria-current/.active ve tuşun engellenip engellenmediği modelle birebir.
+//       yedi listenin hepsinde her adımdan sonra tabindex, odak, aria-current/.active ve tuşun engellenip engellenmediği modelle birebir;
+//       açık ızgarada tek tabindex="0" (odaklanan düğme) ve ızgara düğmesindeki tuşun (jsdom'da yerleşim yok: tüm düğmeler tek görsel
+//       satır) ızgara gezintisince işlenip liste gezintisine ve listenin durağına karışmaması.
 //
 // SINIR: jsdom'da düzen ve gerçek Tab yok: Tab, modal-odak.js'in dönüş mantığı (GERÇEK) + DOM sırasında bir sonraki durak (taklit) ile
 // yürütülüyor; kaydırma (odaklanan satırın görünür alana gelmesi), odak halkası ve ekran okuyucu davranışı burada DOĞRULANAMIYOR (gerçek
 // Chromium'da ölçüldü, README'de var; NVDA/JAWS/VoiceOver/TalkBack ile DENENMEDİ, kontrol listesi madde 26). Ayet düğmeleri ızgarası
-// (.ayah-chip) bu gezintiye girmiyor, normal Tab durağı. Firefox ve Safari'de denenmedi.
+// (.ayah-chip) bu gezintiye girmiyor: kendi tek Tab durağı ve iki boyutlu gezintisi ayrı (js/izgara-gezintisi.js,
+// test/izgara_gezintisi_test.mjs); burada yalnızca iki gezintinin birbirine karışmadığı sınanıyor. Firefox ve Safari'de denenmedi.
 //
 //   node liste_gezintisi_test.mjs
 import fs from "fs";
@@ -42,6 +46,7 @@ import { fileURLToPath } from "url";
 import { JSDOM, VirtualConsole } from "jsdom";
 import { PAGE_STEP, targetCell, setupListNav, syncListStop, listRows } from "../js/liste-gezintisi.js";
 import * as listeModulu from "../js/liste-gezintisi.js";
+import { setupGridNav, syncGridStop } from "../js/izgara-gezintisi.js";
 import { createModalFocus, tabbablesIn } from "../js/modal-odak.js";
 import { setupTablist } from "../js/sekme-gezintisi.js";
 
@@ -303,12 +308,12 @@ function makeEnv({ surah = CURRENT.surah } = {}) {
     "return { openModal, closeModal, closeAllModals, setupModals, setupEzberModal, toggleAyahGrid, setActiveModalItem, switchJuzTab, openEzberPicker, closeEzberPicker };"].join("\n");
   const rec = (name) => (...a) => calls.push([name, ...a]);
   const api = new Function(
-    "els", "state", "document", "localStorage", "createModalFocus", "setupTablist", "setupListNav", "syncListStop", "listRows", "requestAnimationFrame", "setTimeout",
+    "els", "state", "document", "localStorage", "createModalFocus", "setupTablist", "setupListNav", "syncListStop", "listRows", "setupGridNav", "syncGridStop", "requestAnimationFrame", "setTimeout",
     "closeSurahInfoDetail", "resetTopicsModal", "goToAyah", "goToSurah", "goToJuzNum", "goToHizbNum", "goToRubNum", "goToManzilNum", "goToPage",
     "currentJuzNumber", "currentHizbNumber", "currentRubNumber", "currentManzilNumber", "closeWordMeal", "startEzberPlayback", "startEzberOku", "startEzberYaz", "endEzberStudy",
     code
   )(
-    els, state, d, win.localStorage, createModalFocus, setupTablist, setupListNav, syncListStop, listRows,
+    els, state, d, win.localStorage, createModalFocus, setupTablist, setupListNav, syncListStop, listRows, setupGridNav, syncGridStop,
     () => {}, // requestAnimationFrame: açılış animasyonu sınıfları bu testin konusu değil
     (fn) => timers.push(fn),
     () => {}, () => {}, rec("goToAyah"), rec("goToSurah"), rec("goToJuzNum"), rec("goToHizbNum"), rec("goToRubNum"), rec("goToManzilNum"), rec("goToPage"),
@@ -487,7 +492,8 @@ const HANDLED = ["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp", "A
   check("Açma düğmesindeyken kapatıp yeniden açmak: durak yine 7. sure SATIR düğmesinde (açma düğmesinde değil)", env.tabStops().join() === "kapat,satır:7" && singleStop(list, rows[6][0]));
   env.closeEsc();
 
-  // Ayet ızgarası: chip'ler gezintiye girmiyor, normal Tab durakları
+  // Ayet ızgarası: düğmeler bu listenin gezintisine girmiyor; kendi tek Tab durakları ve ok tuşu gezintileri js/izgara-gezintisi.js'te
+  // (test/izgara_gezintisi_test.mjs). Burada: iki gezinti birbirine karışmıyor.
   env.state.pageToSurah[50] = 3;
   env.open("surah-btn");
   env.tab();
@@ -496,17 +502,16 @@ const HANDLED = ["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp", "A
   env.active().click(); // ızgarayı aç
   const nChips = surahs["3"].versesCount;
   const stops = env.tabStops();
-  check(`Ayet ızgarası açıkken Tab durakları: Kapat, açma düğmesi (3), ${nChips} ayet düğmesi (ızgara DOM'da açma düğmesinden sonra); öteki 227 hücre dışarıda`, stops.length === 2 + nChips && stops[0] === "kapat" && stops[1] === "aç:3" && stops[2] === "ayet:3:1" && stops[stops.length - 1] === `ayet:3:${nChips}`);
+  check(`Ayet ızgarası açıkken Tab durakları: Kapat, açma düğmesi (3), ızgaranın TEK durağı (1. ayet düğmesi; ızgara DOM'da açma düğmesinden sonra); ${nChips} ayet düğmesinin ${nChips - 1}'i dışarıda, öteki 227 hücre dışarıda`, stops.join() === "kapat,aç:3,ayet:3:1");
   env.tab();
-  check("Tab: açma düğmesinden ilk ayet düğmesine (ızgara normal Tab durağı)", desc(env.active()) === "ayet:3:1");
-  const chip = env.active();
-  const chipKeys = HANDLED.map((k) => env.key(k));
-  check("Ayet düğmesinde ok/Home/End/PageUp/PageDown işlenmiyor: olay engellenmiyor (ızgara gezintisi bu yamada yok), odak yerinde", chipKeys.every((p) => p === false) && env.active() === chip);
-  check("Ayet düğmesine odak, listenin durağını değiştirmedi (hâlâ açma düğmesi: 3. sure)", singleStop(list, rows[2][1]));
+  check("Tab: açma düğmesinden ızgaranın durağına (ilk ayet düğmesi)", desc(env.active()) === "ayet:3:1");
+  const chipKeys = HANDLED.map((k) => [k, env.key(k), desc(env.active())]);
+  check("Ayet düğmesinde ok/Home/End/PageUp/PageDown'u ızgara gezintisi işliyor (olay engelleniyor) ve odak hep ayet düğmelerinde kalıyor: liste gezintisi karışıp satır hücrelerine ya da açma düğmelerine atlamıyor", chipKeys.every(([, prevented, at]) => prevented === true && at.startsWith("ayet:3:")));
+  check("Ayet düğmelerinde gezinirken listenin durağı hâlâ açma düğmesi (3. sure): liste ayet düğmesi olaylarıyla durağını taşımıyor", singleStop(list, rows[2][1]));
   env.tab(true);
-  check("Shift+Tab: ilk ayet düğmesinden açma düğmesine (listenin durağı) geri", desc(env.active()) === "aç:3");
+  check("Shift+Tab: ızgaranın durağından açma düğmesine (listenin durağı) geri", desc(env.active()) === "aç:3");
   env.key("ArrowDown");
-  check("Açma düğmesinden Aşağı: bir sonraki sure (4) açma düğmesi, açık ızgaranın ayet düğmelerini atlıyor", desc(env.active()) === "aç:4");
+  check("Açma düğmesinden Aşağı: bir sonraki sure (4) açma düğmesi, açık ızgaranın ayet düğmelerini atlıyor (ızgaraya Tab'la girilir)", desc(env.active()) === "aç:4");
   env.closeEsc();
   check("Sure modalı kapanınca ızgara da kapanıyor (closeAllAyahGrids); yeniden açılışta tek durak yine 3. sure satırı", (env.open("surah-btn"), env.tabStops().join() === "kapat,satır:3"));
   env.closeEsc();
@@ -774,7 +779,7 @@ const HANDLED = ["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp", "A
   }
   const invalid = ["0", "999", "-1", "1.5", "abc", "", null, undefined, "xx"];
   const MODEL_KEYS = [...HANDLED, "Tab", "Enter", " ", "a", "Escape"];
-  const gridOpen = { surah: null };
+  const gridOpen = { surah: null, stop: 1 }; // stop: açık ızgaranın tek Tab durağı (ayet numarası); seçili ayet yok (state.selectedAyah null) -> açılışta 1
   let walkSteps = 0;
   const bad = [];
   let handledCount = 0;
@@ -827,13 +832,19 @@ const HANDLED = ["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp", "A
       if (L.model.focus && d.activeElement !== L.rows[L.model.focus.r][L.model.focus.c]) bd(`${L.name}: odak ${desc(d.activeElement)} != ${desc(L.rows[L.model.focus.r][L.model.focus.c])}`);
       // listenin kendi Tab durakları: durak (+ ızgara açıksa chip'ler)
       const tb = tabbablesIn(L.el).map(desc).join();
-      const chips = L.name === "sure" && gridOpen.surah ? Array.from({ length: surahs[String(gridOpen.surah)].versesCount }, (_, i) => `ayet:${gridOpen.surah}:${i + 1}`) : [];
+      const chips = L.name === "sure" && gridOpen.surah ? [`ayet:${gridOpen.surah}:${gridOpen.stop}`] : [];
       const order = [desc(want), ...chips];
       // ızgara satırın hemen altında: durak ızgaranın SONRASINDAKİ bir satırdaysa sıra chip'ler önce, durak sonra
       const gridRow = L.name === "sure" && gridOpen.surah ? gridOpen.surah - 1 : -1;
       const stopRow = L.model.stop.r;
       const expected = gridRow >= 0 && stopRow > gridRow ? [...chips, desc(want)] : order;
       if (tb !== expected.join()) bd(`${L.name}: Tab durakları ${tb.slice(0, 80)} != ${expected.join().slice(0, 80)}`);
+      if (L.name === "sure" && gridOpen.surah) {
+        // ızgaranın roving tabindex'i: tek tabindex="0" (modeldeki durak), ötekilerin hepsi "-1"
+        const gridChips = Array.from(L.el.querySelectorAll(`.ayah-chip[data-surah="${gridOpen.surah}"]`));
+        const zeroChips = gridChips.filter((c) => c.getAttribute("tabindex") === "0");
+        if (zeroChips.length !== 1 || zeroChips[0].dataset.ayah !== String(gridOpen.stop) || !gridChips.every((c) => c === zeroChips[0] || c.getAttribute("tabindex") === "-1")) bd(`ızgara tabindex sapması (0 olan: ${zeroChips.map(desc).join("/")}, beklenen ayet:${gridOpen.surah}:${gridOpen.stop})`);
+      }
     }
   }
 
@@ -897,23 +908,41 @@ const HANDLED = ["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp", "A
         const wasOpen = !grid.hidden;
         env.api.toggleAyahGrid(s, grid, btn);
         gridOpen.surah = wasOpen ? null : s;
+        if (!wasOpen) gridOpen.stop = 1; // her açılışta durak yeniden kuruluyor (syncGridStop): seçili ayet yok -> ilk düğme
         touched = L;
       } else {
-        // açık ızgarada ayet düğmesine odak + işlenmesi gereken bir tuş: engellenmemeli, hiçbir şey değişmemeli
+        // açık ızgarada ayet düğmesine odak + tuş. İşlenen tuşu (değiştiricisiz) ızgara gezintisi işliyor: engelleniyor, odak hedef düğmeye
+        // gidiyor (jsdom'da yerleşim yok: tüm düğmeler TEK görsel satır, yani Sağ/Sol +-1, Home/End uçlar, Aşağı/Yukarı/PageUp/PageDown
+        // yerinde); işlenmeyen ya da değiştiricili tuşa dokunulmuyor. Listenin durağı hiçbir durumda değişmiyor.
         const L = LISTS[0];
         if (gridOpen.surah === null) {
           label = `${seed}#${i} (ızgara kapalı: atlandı)`;
         } else {
-          const chip = L.el.querySelector(`.ayah-chip[data-surah="${gridOpen.surah}"][data-ayah="${1 + Math.floor(rnd() * surahs[String(gridOpen.surah)].versesCount)}"]`);
-          label = `${seed}#${i} ayet ${desc(chip)}`;
+          const nChips = surahs[String(gridOpen.surah)].versesCount;
+          const k = 1 + Math.floor(rnd() * nChips);
+          const chip = L.el.querySelector(`.ayah-chip[data-surah="${gridOpen.surah}"][data-ayah="${k}"]`);
           chip.focus();
           for (const o of LISTS) o.model.focus = null;
-          const key = pick(HANDLED);
+          gridOpen.stop = k; // focusin: odaklanan düğme ızgaranın durağı
+          const key = rnd() < 0.75 ? pick(HANDLED) : pick(["Tab", "Enter", " ", "a", "Escape"]);
+          const mod = rnd() < 0.15 ? pick(["shiftKey", "ctrlKey", "altKey", "metaKey"]) : null;
+          label = `${seed}#${i} ayet ${desc(chip)} ${mod ? mod + "+" : ""}${JSON.stringify(key)}`;
           const stopBefore = wantStop(L);
-          const prevented = env.key(key);
+          const handled = !mod && HANDLED.includes(key);
+          let to = k;
+          if (handled) {
+            if (key === "ArrowRight") to = Math.min(k + 1, nChips);
+            else if (key === "ArrowLeft") to = Math.max(k - 1, 1);
+            else if (key === "Home") to = 1;
+            else if (key === "End") to = nChips;
+          }
+          const prevented = env.key(key, mod ? { [mod]: true } : {});
           chipKeyCount++;
-          if (prevented || d.activeElement !== chip) bad.push(`${label} ${key}: ayet düğmesinde tuş işlendi (engellendi=${prevented}, odak ${desc(d.activeElement)})`);
-          if (!singleStop(L.el, stopBefore)) bad.push(`${label} ${key}: ayet düğmesi listenin durağını değiştirdi`);
+          if (prevented !== handled) bad.push(`${label}: engellendi=${prevented} (beklenen ${handled})`);
+          const wantEl = L.el.querySelector(`.ayah-chip[data-surah="${gridOpen.surah}"][data-ayah="${to}"]`);
+          if (d.activeElement !== wantEl) bad.push(`${label}: odak ${desc(d.activeElement)} != ${desc(wantEl)}`);
+          gridOpen.stop = to;
+          if (!singleStop(L.el, stopBefore)) bad.push(`${label}: ayet düğmesi listenin durağını değiştirdi`);
         }
         touched = L;
       }
