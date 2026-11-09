@@ -1767,9 +1767,10 @@ erişilebilirlik ağacı CDP ile okundu) yamadan ÖNCE ölçülen:
   satır aynıydı (rol düğme, ad "3 آل عمران Âl-i İmrân · 200 ayet", hiçbir
   durum yok): Cüz 3, Hizb 5, Rub 20, Menzil 1, Ezber'in Sure ve Kârî
   seçicilerinin etkin satırı ve etkin ayet düğmesi için de aynı;
-- ayet düğmelerinin adı yalnızca görünen sayıydı ("3", "1"): 286 düğmelik
-  Bakara ızgarasında hangi surenin ayeti olduğu okunmuyordu (ızgara rolsüz bir
-  `<div>`, adı da yok);
+- ayet düğmelerinin adı yalnızca görünen sayıydı ("3", "1"): 286 düğmelik Bakara
+  ızgarasında hangi surenin ayeti olduğu okunmuyordu (ızgara rolsüz bir `<div>`,
+  adı da yok; ızgaranın adı sonradan yapıldı: "Ayet düğmeleri ızgarası: adlı
+  grup" paragrafı);
 - Ezber'in dört seçici düğmesi (Dinle > Kârî, Dinle/Oku/Yaz > Sure)
   `aria-haspopup="listbox"` taşıyordu (Chromium `hasPopup="listbox"`): ekran
   okuyucu "liste kutusu" der ve ok tuşuyla gezinti bekletir; oysa açılan şey
@@ -1812,7 +1813,7 @@ Düzeltme (`js/app.js`: yorumlarla 23 satır eklendi, 5 satır çıktı;
   ediyor: doğru (modal diyalog açıyorlar).
 
 `test/modal_liste_aria_test.mjs` (yeni; jsdom + kaynak denetimi + axe-core,
-73 kontrol, ≈ 8-12 sn): `app.js`'ten çıkarılan GERÇEK
+73 kontrol, ≈ 8-12 sn; ızgara grubuyla 86): `app.js`'ten çıkarılan GERÇEK
 `populateSurahList`, `populateUnitList`, `toggleAyahGrid`, `setActiveAyahChip`,
 `syncAyahGridHighlight`, `setActiveModalItem` ve `<ezber-picker>` bloğu x GERÇEK
 `index.html` x GERÇEK `data/*.json`. Kontroller: kaynak (`.active` ve
@@ -2179,8 +2180,141 @@ cihazda sınanmadı (kontrol listesi, madde 27). Firefox ve Safari'de denenmedi.
 Yukarı/Aşağı'da yatay konum belleği yok: her adımda en yakın merkez seçiliyor,
 bu yüzden Aşağı'dan sonra Yukarı her zaman başlanan düğmeye dönmüyor (Bakara 400
 px modelinde 283 düğmenin 6'sında: 2:96 Aşağı 2:104, Yukarı 2:95; kısa son
-satırda 2:279-283'ün hepsi Aşağı 2:286, Yukarı 2:278). Izgara hâlâ rolsüz ve
-adsız bir `<div>`: açılan grubun adı ekran okuyucuda duyulmuyor.
+satırda 2:279-283'ün hepsi Aşağı 2:286, Yukarı 2:278). Izgara o sırada hâlâ
+rolsüz ve adsız bir `<div>` idi, açılan grubun adı ekran okuyucuda duyulmuyordu:
+sonradan yapıldı (bir sonraki paragraf).
+
+**Ayet düğmeleri ızgarası: adlı grup.** Sure modalında "ayetlerini listele" ile
+açılan ayet düğmeleri ızgarasının (`.ayah-grid`, 114 tane) kendisi rolsüz ve
+adsız bir `<div>` idi: odak ızgaraya girince ekran okuyucu yalnızca düğmeyi
+okuyor, düğmelerin bir grup oluşturduğunu ve hangi surenin ayetleri olduğunu
+söylemiyordu. Başsız Chromium'da (430x900, sayfa 50: Sure 3 etkin; Bakara
+ızgarası, 286 düğme; yalnız klavye; erişilebilirlik ağacı CDP ile okundu)
+yamadan ÖNCE ölçülen:
+
+- açık ızgara erişilebilirlik ağacında rol `none` ve yok sayılıyor (`ignored`):
+  ağaçta ızgara diye bir düğüm yok. 114 ızgaranın 114'ünde `role` ve
+  `aria-label` yok (`id` de yok);
+- Tab'la gelinen düğmenin (2:1) ata zinciri: `button "Bakara Suresi, 1. ayet"`,
+  yok sayılan iki öğe (ızgara ve sarmalayıcısı), bir `generic`, `dialog "Sure
+  Seç"`, belge: düğmeyle diyalog arasında ekran okuyucunun duyurabileceği hiçbir
+  grup yok;
+- axe-core (gerçek Chromium, Sure modalı, Bakara ızgarası açık) 0 ihlal, 21
+  geçen kural, tamamlanamayan yok: otomatik denetim bu eksiği yakalamıyor, ağaç
+  ölçülmek zorunda.
+
+Şimdi (aynı ölçüm; 320x640 ve 1200x800'de de aynı):
+
+- açık ızgara `group "Bakara Suresi ayetleri"` (yok sayılmıyor) ve odaktaki
+  düğmenin atası: `button "Bakara Suresi, 1. ayet"`, `group "Bakara Suresi
+  ayetleri"`, yok sayılan sarmalayıcı, `generic`, `dialog "Sure Seç"`; kapalı
+  ızgaralar (Fâtiha) ağaçta yok (`ignored`);
+- 114 ızgaranın 114'ü `role="group"` ve 114 farklı `aria-label` taşıyor (`Fâtiha
+  Suresi ayetleri`, `Bakara Suresi ayetleri`, `Âl-i İmrân Suresi ayetleri`,
+  ...); açma düğmesinin adı (`Bakara ayetlerini listele`) ve `aria-expanded`
+  değeri aynı;
+- axe-core aynı (0 ihlal, 21 geçen kural, tamamlanamayan yok). Önceki yamanın
+  klavye ölçümü (Tab durakları, tuş dizileri, odak, görünürlük; 430x900) bu
+  ağaçta yeniden koşuldu ve çıktısı bayt bayt aynı: grup ağaca bir düğüm ekledi,
+  davranışa dokunmadı. Sayfada hata yok.
+
+Düzeltme (`js/app.js`: yorumlarla 5 satır eklendi, 0 satır çıktı):
+
+- **Adlı grup.** `populateSurahList` her `.ayah-grid`'e `role="group"` ve
+  `aria-label="<Sure> Suresi ayetleri"` yazıyor (ör. "Bakara Suresi ayetleri").
+  Öznitelikler 114 ızgaranın hepsine baştan yazılıyor, kapalı ve henüz
+  kurulmamış olanlara da: açma, kapama ve kurma yolunda ayrıca iş yok. Kapalı
+  ızgara `hidden` (CSS: `.ayah-grid[hidden] { display: none; }`) olduğu için
+  ağaçta yok: ad yalnızca açık ızgarada duyulur. Sure adı, düğme adlarının
+  (`<Sure> Suresi, <N>. ayet`) kullandığı alandan (`nameTurkish`) geliyor:
+  grubun ve içindeki düğmelerin söylediği sure aynı;
+- **Neden `group`.** Rolsüz `<div>` `generic`tir ve ARIA 1.2'de `generic`e
+  `aria-label` verilemez; `group` ad alabilir ve klavye ya da yapı sözü vermez.
+  `toolbar` ve `grid` ok tuşu gezintisi ve hücre yapısı vaat ederdi (ızgara
+  gerçekte görsel olarak satıra sarılmış düz düğmeler); `region` ve `navigation`
+  yer işareti (landmark) olur, 114 tanesi yer işareti listesini doldururdu;
+  `list` her düğmeyi `listitem` yapmayı isterdi. `group` ok tuşu sahibi de
+  sayılmıyor (`ARROW_KEY_OWNER_SELECTOR`'da yok): sayfa çevirme davranışı
+  değişmedi (modal açıkken zaten çevrilmiyor);
+- **Düğme adları değişmedi.** Düğmeler hâlâ `<Sure> Suresi, <N>. ayet`: ekran
+  okuyucu grubu okumadığı yerlerde (düğme listesi, sanal imleçle düğmeden
+  düğmeye, sesle denetim) ya da grup bağlamı kaçırıldığında düğme tek başına
+  anlaşılır kalıyor. Bedeli: ızgaraya girerken sure adı iki kez duyulabilir
+  ("Bakara Suresi ayetleri, grup, Bakara Suresi, 1. ayet, düğme"); ızgara içinde
+  ok tuşuyla gezerken grubun yeniden okunmaması beklenir (ekran okuyucuların
+  çoğu grubu yalnızca girişte okur; cihazda denenmedi);
+- **Bilerek yapılmayanlar.** `aria-controls` (açma düğmesi -> ızgara) yok: ekran
+  okuyucu desteği zayıf ve okuyucuya göre değişiyor, 114 `id` ve bağlantı yüzeyi
+  ekler; açma düğmesinin `aria-expanded`'ı durumu zaten bildiriyor.
+  `aria-labelledby` yok: Sure satırının adı sayıyı, Arapça adı ve ayet sayısını
+  da taşır, grup adı için gürültü olurdu. Izgara kendisi odaklanamıyor
+  (`tabindex` yok): tek Tab durağı hâlâ düğme.
+
+`test/modal_liste_aria_test.mjs`'e 13 kontrol eklendi (73 -> 86, ≈ 11 sn; yeni
+dosya yok: dosya zaten GERÇEK `populateSurahList` ve `toggleAyahGrid` x GERÇEK
+`index.html` x GERÇEK `data/*.json`'u jsdom'da koşturuyor). Kaynak (2):
+`populateSurahList` her ızgaraya `role="group"` ve `${info.nameTurkish} Suresi
+ayetleri` adını yazıyor (iki ifade bağımsız, sıra önemsiz); ızgara tek yerde
+oluşturuluyor ve `role="group"` uygulamada tek yerde yazılıyor. CSS (1):
+`.ayah-grid[hidden] { display: none; }` duruyor (kural bozulursa 114 boş adlı
+grup duyulurdu). Davranış (9): 114 ızgaranın hepsi kapalı ve kurulmamışken
+`role="group"` ve ad taşıyor; Sure listesinde `role` taşıyan öğe tam 114 ve
+hepsi ızgara, "... Suresi ayetleri" adı taşıyan öğe tam 114 ve hepsi ızgara
+(sarmalayıcı, satır ve düğmeler ayrıca grup olmuyor: iç içe ya da çift duyuru
+yok); 114 ad eşsiz; örnekler (Fâtiha, Bakara, Âl-i İmrân); ızgara yapısı eskisi
+gibi (gerçek `<div>`, başlangıçta gizli ve boş; öznitelikleri tam olarak
+`class`, `data-surah`, `hidden`, `role`, `aria-label`: `tabindex`,
+`aria-hidden`, `aria-labelledby`, `aria-live`, `id` yok); açma, kapama, akordeon
+ve yeniden açma sonrası (1, 2, 3, 36, 114) grup yerinde; 114 ızgara kurulup
+gezildikten sonra da yerinde ve adı içindeki 6236 düğmeyle aynı sureyi söylüyor;
+kurulup açıldıktan sonra da yalnızca beklenen öznitelikler; axe-core'un
+hesapladığı rol `group` ve ad `aria-label` (kurulu ve kurulmamış ızgarada).
+Rastgele dizide (6 tohum x 45 işlem) her adımda 114 ızgaranın grup rolü ve adı
+sınanıyor; axe-core taraması (Sure, Cüz, Ezber modalları) 114 grubun hepsini
+kapsıyor ve `aria-roles`, `aria-allowed-attr`, `aria-valid-attr-value`
+kurallarından geçiriyor (1). Düzeltmesiz tabanda (yeni test, `app.js` eski) 86
+kontrolün 14'i kırılıyor. Kodun her parçası tek tek bozularak 90 mutasyon
+denendi: 87'i yakalandı (hepsini bu test dosyası), 3'ü denk (davranışı
+değiştirmiyor: rol ve adın `appendChild`'dan sonra yazılması, iki özniteliğin
+sırasının ters olması, `hidden`'ın grup özniteliklerinden önce yazılması: nihai
+DOM aynı). Mutasyonlar: rol (yok, 15 yanlış değer: `region`, `list`, `toolbar`,
+`grid`, `listbox`, `presentation`, `none`, `navigation`, `radiogroup`,
+`tablist`, `menu`, `application`, büyük harfli `Group`, boş, sonunda boşluklu);
+ad (yok, 18 bozuk biçim: "Suresi" yok, "ayetleri" yok, sonda nokta, virgül,
+küçük harf, çift ve baş boşluk, Arapça ad, sure numarası, açma düğmesinin adı,
+ayet sayısı eklenmiş, sabit ad, "ayet düğmeleri", modal başlığı, olmayan alan,
+yanlış/sonraki/ters sırada sure adı; ad olarak yazılan altı yanlış öznitelik:
+`aria-labelledby`, `aria-description`, `title`, `aria-roledescription`, `label`,
+`data-label`); yanlış öğe (sarmalayıcı, satır, açma düğmesi, karışık); ızgara
+kendi grubunu korurken başka öğeye de grup ya da ad yazılması (sarmalayıcı,
+satır, Sure düğmesi); koşullu yazma (ilk sure hariç, son sure hariç, yalnız çift
+numaralılar, uzun sureler hariç); yalnızca kurulurken ya da açılırken yazma;
+`toggleAyahGrid`'in kapatma, kurma ve açma yollarında, `closeAllAyahGrids`'te,
+`setActiveAyahChip`'te ve `syncAyahGridHighlight`'ta silme ya da ezme; ızgaraya
+eklenen zararlı öznitelikler (`tabindex` iki biçimde, `aria-hidden`,
+`aria-labelledby`, `aria-live`, `id`, `aria-describedby`,
+`aria-roledescription`); öğe türü (`section`, `ul`, `fieldset`, `nav`, `span`);
+ikinci rol yazıcısı ve ikinci ızgara oluşturma yolu; düğme adının bozulması;
+CSS'te gizli kuralının silinmesi ve bozulması. İlk turda (83 mutant) 81'i
+yakalandı; sırası ters mutant kaynak denetiminin satır sırasına duyarlı olması
+yüzünden yakalanıyordu: denetim iki bağımsız ifadeye bölündü (zararsız bir satır
+taşıma testi kırmamalı). Sonuçları incelerken iki eksik daha görüldü ve
+kapatıldı: ızgara kendi grubunu korurken sarmalayıcıya ya da satıra ayrıca grup
+yazılmasını hiçbir kontrol görmüyordu (Sure listesindeki rol ve grup adı sayımı
+eklendi) ve `.ayah-grid[hidden]` kuralını hiçbir test korumuyordu (CSS kontrolü
+eklendi). Yedi mutant daha eklendi (dört ekstra grup, üç CSS) ve 90 mutantın
+hepsi nihai testle baştan koşuldu. Mutasyonsuz hâl 29 test dosyasının hepsiyle
+geçiyor.
+
+Sınır: gerçek ekran okuyucuyla (NVDA, JAWS, VoiceOver, TalkBack) DENENMEDİ:
+grubun nasıl söylendiği ("grup", "gruplama", "bölge"), ızgaraya girerken duyulup
+duyulmadığı ve sure adının iki kez duyulmasının rahatsız edip etmediği cihazda
+sınanmadı (kontrol listesi, madde 27). Chromium'un erişilebilirlik ağacı
+yalnızca ölçüldü, testin parçası değil: jsdom'da erişilebilirlik ağacı yok,
+testte öznitelikler ve axe-core'un rol ve ad hesabı sınanıyor. Firefox ve
+Safari'de denenmedi. Düğme adı grup bağlamında gereğinden uzun olabilir; ama
+düğme listesi gibi bağlamsız kullanımda düğmeyi ayırt edilemez kılacağı için
+kısaltılmadı.
 
 **Ezber > Oku'da klavye ve ekran okuyucu yolu.** Oku'da bir kelimeyi açmanın
 tek yolu sayfadaki ayete dokunmaktı; sayfa tek bir `<svg>` olduğundan
@@ -3199,7 +3333,7 @@ test/sayfa_ok_tuslari_test.mjs      Sayfa çevirme okları: yalnızca düz Sol/S
 test/sekme_gezintisi_test.mjs     Sekme listeleri (Cüz, Ezber): ok tuşu gezintisi, tek Tab durağı, tabindex/aria-selected tutarlılığı, sayfa çevirmeyle çakışmama, rastgele diziler (jsdom)
 test/ezber_secici_test.mjs       Ezber Sure ve Kârî seçicileri: ortak yapı, odak (giriş, Geri, satır seçimi, kapanış), etkin satırın ortalanması, Oku/Yaz'da seçici açıkken kapatma, rastgele diziler (jsdom)
 test/ezber_aralik_test.mjs       Ezber aralık alanları: geçersiz aralıktan sonra uyarı siliniyor (alan düzenlenince, modal açılınca, Sure seçilince), sekme başına kapsam, rastgele diziler (jsdom)
-test/modal_liste_aria_test.mjs     Modal listeleri (Sure, Cüz, Ezber seçicileri): etkin satır/ayet düğmesi aria-current, ayet düğmesi adı "<Sure> Suresi, <N>. ayet", Ezber düğmelerinde aria-haspopup yok, rastgele diziler, axe-core (jsdom)
+test/modal_liste_aria_test.mjs     Modal listeleri (Sure, Cüz, Ezber seçicileri): etkin satır/ayet düğmesi aria-current, ayet düğmesi adı "<Sure> Suresi, <N>. ayet", ayet ızgarasının role="group" + adı ("<Sure> Suresi ayetleri"), Ezber düğmelerinde aria-haspopup yok, rastgele diziler, axe-core (jsdom)
 test/liste_gezintisi_test.mjs      Modal listelerinde ok tuşu gezintisi ve tek Tab durağı: saf targetCell (tüm küçük matrisler x model), GERÇEK kablolama (Sure, Cüz, Ezber seçicileri), rastgele diziler x model (jsdom)
 test/izgara_gezintisi_test.mjs     Ayet düğmeleri ızgarası: CSS'ten türetilen düzen modeli (Chromium satır uzunluklarıyla doğrulanmış), saf targetChip (tüm küçük yerleşimler x model), GERÇEK kablolama (Bakara, Fâtiha), rastgele diziler x model (jsdom)
 ```
@@ -3691,21 +3825,23 @@ kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
     TEK durakla giriyor mu (seçili ayet varsa o, yoksa 1. ayet; Bakara'da 286
     Tab değil 1) ve sonraki Tab ızgaradan çıkarıyor mu (modalın başına,
     Kapat'a)? Ekran okuyucu düğmeyi "Bakara Suresi, 255. ayet" diye ve seçiliyse
-    "geçerli" diye okuyor mu? Sağ/Sol bir önceki/sonraki ayet (satır sonunda
-    yandaki satıra geçiyor), Yukarı/Aşağı bir üst/alt satırda yatay olarak en
-    yakın düğme (Bakara'da 100. ayetten sonra satıra 9 yerine 8 düğme sığıyor:
-    odak görsel olarak "tam üstüne/altına" mı gidiyor?), Home/End ilk/son ayet,
-    PageUp/PageDown 10 satır (yaklaşık bir ekran) atlıyor mu; odaklanan düğme
-    her adımda ekranda ve her adımda okunuyor mu; uçlarda odak yerinde kalıyor
-    mu? NVDA/JAWS göz atma kipinde ok tuşlarını okuyucu kendisi tüketiyor mu
-    (düğmeye Tab'la gelince ok tuşu çalışıyor mu, yoksa odak/form kipine geçmek
-    mi gerekiyor)? Sanal imleç (Tab'sız) `tabindex="-1"` ayet düğmelerine de
-    gidiyor mu? Ok tuşunu basılı tutmak okuyucuyu boğuyor mu? Enter ayeti
-    seçiyor, modal kapanıyor ve odak açan düğmeye dönüyor mu? Sesli okuma
-    sürerken (sayfa ve seçili ayet ilerlerken) ızgarada gezen kullanıcının odağı
-    yerinde kalıyor mu? Telefonu yatırınca ya da yazı boyutunu büyütünce
-    satırlar doğru hesaplanıyor mu (Yukarı/Aşağı yeni yerleşime göre mi
-    gidiyor)?
+    "geçerli" diye okuyor mu? Izgaraya girerken önce "Bakara Suresi ayetleri" ve
+    bir grup olduğu duyuluyor mu (ok tuşuyla gezerken yeniden okunmuyor mu),
+    düğme adındaki aynı sure adı ardından can sıkıcı bir tekrar mı? Sağ/Sol bir
+    önceki/sonraki ayet (satır sonunda yandaki satıra geçiyor), Yukarı/Aşağı bir
+    üst/alt satırda yatay olarak en yakın düğme (Bakara'da 100. ayetten sonra
+    satıra 9 yerine 8 düğme sığıyor: odak görsel olarak "tam üstüne/altına" mı
+    gidiyor?), Home/End ilk/son ayet, PageUp/PageDown 10 satır (yaklaşık bir
+    ekran) atlıyor mu; odaklanan düğme her adımda ekranda ve her adımda okunuyor
+    mu; uçlarda odak yerinde kalıyor mu? NVDA/JAWS göz atma kipinde ok tuşlarını
+    okuyucu kendisi tüketiyor mu (düğmeye Tab'la gelince ok tuşu çalışıyor mu,
+    yoksa odak/form kipine geçmek mi gerekiyor)? Sanal imleç (Tab'sız)
+    `tabindex="-1"` ayet düğmelerine de gidiyor mu? Ok tuşunu basılı tutmak
+    okuyucuyu boğuyor mu? Enter ayeti seçiyor, modal kapanıyor ve odak açan
+    düğmeye dönüyor mu? Sesli okuma sürerken (sayfa ve seçili ayet ilerlerken)
+    ızgarada gezen kullanıcının odağı yerinde kalıyor mu? Telefonu yatırınca ya
+    da yazı boyutunu büyütünce satırlar doğru hesaplanıyor mu (Yukarı/Aşağı yeni
+    yerleşime göre mi gidiyor)?
 
 Beklenenden farklı çıkarsa canlı bölge değişikliği, dil işaretleri, modal odak
 yönetimi, ayet gezgini, alt kopyanın gizlenmesi, Oynat düğmesinin adı, renk
@@ -3720,8 +3856,9 @@ oklarının yalnızca düz Sol/Sağ'a daraltılması, Cüz/Ezber sekmelerinin ok
 tuşu gezintisi, Ezber'in Kârî seçicisi (Sure seçiciyle aynı kalıp, odak
 düzeltmeleriyle), Ezber aralık uyarısının silinmesi, modal listelerinin ekran
 okuyucu anlamı (`aria-current`, ayet düğmesi adı, `aria-haspopup`), modal
-listelerinin ok tuşu gezintisi (tek Tab durağı) ve ayet düğmeleri ızgarasının ok
-tuşu gezintisi ayrı ayrı tek commit'tir, geri alınabilir.
+listelerinin ok tuşu gezintisi (tek Tab durağı), ayet düğmeleri ızgarasının ok
+tuşu gezintisi ve ayet düğmeleri ızgarasının adlı grubu ayrı ayrı tek
+commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 

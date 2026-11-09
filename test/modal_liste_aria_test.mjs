@@ -7,37 +7,48 @@
 //     "3 آل عمران Âl-i İmrân · 200 ayet", hiçbir durum yok): ekran okuyucu kullanıcısı "şu an hangi sure/cüz" bilgisine liste içinde
 //     ulaşamıyordu (WCAG 1.4.1 renk tek başına bilgi taşımamalı; 4.1.2 durum bildirilmeli);
 //   - Ayet düğmelerinin adı yalnızca görünen sayıydı ("3", "1"): 286 düğmelik bir ızgarada hangi surenin ayeti olduğu okunmuyordu
-//     (ızgaranın kendisi rolsüz bir <div>, adı da yok);
+//     (ızgaranın kendisi de rolsüz ve adsız bir <div>'di: aşağıda dördüncü madde);
 //   - Ezber'in dört seçici düğmesi (Dinle > Kârî, Dinle/Oku/Yaz > Sure) aria-haspopup="listbox" taşıyordu: Chromium hasPopup=listbox
 //     bildiriyor, ekran okuyucu "liste kutusu" diyor ve ok tuşlarıyla gezinti bekletiyor; oysa açılan şey role=group içinde düz
-//     <button> satırları (listbox da option da değil, ok tuşu gezintisi yok): ipucu olmayan bir sözleşmeyi vaat ediyordu.
+//     <button> satırları (listbox da option da değil, ok tuşu gezintisi yok): ipucu olmayan bir sözleşmeyi vaat ediyordu;
+//   - Sure modalındaki ayet düğmeleri ızgarasının (.ayah-grid, 114 tane) kendisi rolsüz ve adsız bir <div>'di: Chromium'un erişilebilirlik
+//     ağacında "none" (yok sayılıyor), 114'ünde de role ve aria-label yok. axe-core'un hiçbir ihlali de yoktu (kural bunu yakalamıyor: ağaç
+//     ölçülmeli). Odak ızgaraya girince ekran okuyucu yalnızca düğmeyi okuyordu ("Bakara Suresi, 1. ayet, düğme"); düğmelerin bir grup
+//     oluşturduğu ve grubun neyin ayetleri olduğu söylenmiyordu.
 //
 // Düzeltme: setActiveModalItem (Sure/Cüz/Hizb/Rub/Menzil ve iki Ezber seçicisinin tek yazıcısı), setActiveAyahChip ve
 // syncAyahGridHighlight etkin öğede .active ile birlikte aria-current="true" yazıp siliyor (ayet gezgininin düğmeleriyle aynı bildirim,
 // js/ayet-gezgini.js); ayet düğmeleri "<Sure> Suresi, <N>. ayet" adını taşıyor (ayet gezgininin düğmeleriyle aynı biçim, görünen sayıyı
 // içeriyor: WCAG 2.5.3); dört Ezber düğmesinden aria-haspopup="listbox" kaldırıldı (satırlar düz düğme kaldı; ok tuşu gezintisi ve tek Tab
 // durağı sonradan eklendi: js/liste-gezintisi.js, roller aynı). Görünüm aynı: .active kuralları duruyor.
+// Yama 20: populateSurahList her .ayah-grid'e role="group" ve aria-label="<Sure> Suresi ayetleri" yazıyor (114 ızgaranın hepsine baştan:
+// kapalı, gizli ve kurulmamış olsa da; açma, kapama ve kurma dokunmuyor). Gerçek Chromium'da ızgara artık group "Bakara Suresi ayetleri" ve
+// odaktaki ayet düğmesinin atası. Düğme adları aynı kaldı: grup bağlamının okunmadığı yerlerde (düğme listesi gibi) de düğmeyi ayırt ettiriyor.
 //
 // Burada kontrol edilenler:
 //   (1) kaynak: .active ile aria-current'ın tek değerden ("on") yazılması, yazıcı sayıları (yeni bir .active yazıcısı aria-current'ı
-//       atlayamaz), ayet düğmesi adının biçimi ve ayet gezgini ile aynılığı;
+//       atlayamaz), ayet düğmesi adının biçimi ve ayet gezgini ile aynılığı, ızgara grubunun (role + ad) tek oluşturma yolundan yazılması;
 //   (2) index.html + CSS: dört Ezber düğmesinde aria-haspopup yok, kalan aria-haspopup'lar dört modal açıcıda ve hep "dialog",
 //       listbox/option rolü yok, seçici grupları duruyor, .active görünümü duruyor;
 //   (3) davranış: GERÇEK populateSurahList/populateUnitList/toggleAyahGrid/setActiveAyahChip/syncAyahGridHighlight/setActiveModalItem ve
 //       GERÇEK <ezber-picker> bloğu x GERÇEK index.html x GERÇEK data/*.json, jsdom'da: her satır için (Sure 114, Cüz 30, Hizb 60, Rub 240,
 //       Menzil 7, Ezber Sure 114, Kârî 2) tek etkin satır = tek aria-current satırı; eşleşmeyen değerler ikisini de siliyor; 6236 ayet
 //       düğmesinin hepsi doğru ve eşsiz adı taşıyor (ad, axe-core'un ad hesaplamasıyla da doğrulanıyor); ayet seçimi değişince vurgu
-//       (sınıf + öznitelik) birlikte taşınıyor;
-//   (4) 12 tohumlu rastgele işlem dizisi (satır seçimi, Sure modalı açılışı, iki seçici, ızgara açma/kapama, ayet seçimi) x bağımsız bir
-//       model: her adımdan sonra bütün listeler ve kurulmuş ızgaralar modelle birebir; hiçbir yerde .active ile aria-current ayrışmıyor;
+//       (sınıf + öznitelik) birlikte taşınıyor; (3e) 114 ızgaranın hepsi adlı grup (kapalı ve kurulmamışken de, açma/kapama sonrası da), adın içindeki
+//       düğmelerle aynı sureyi söylemesi, axe-core'un rol/ad hesabı;
+//   (4) 6 tohumlu x 45 işlemlik rastgele işlem dizisi (satır seçimi, Sure modalı açılışı, iki seçici, ızgara açma/kapama, ayet seçimi) x bağımsız bir
+//       model: her adımdan sonra bütün listeler ve kurulmuş ızgaralar modelle birebir; hiçbir yerde .active ile aria-current ayrışmıyor; 114 ızgaranın grup rolü ve adı hiçbir işlemden etkilenmiyor;
 //   (5) axe-core (jsdom): üç modal (Sure, Cüz, Ezber) açık ve doldurulmuşken aria-allowed-attr, aria-valid-attr(-value), aria-roles,
-//       button-name ihlali yok.
+//       button-name ihlali yok; 114 ızgara grubunun hepsi taramaya girmiş ve geçmiş.
 //
 // SINIR: jsdom'da düzen yok; aria-current'ın ekran okuyucuda "geçerli" diye okunması burada DOĞRULANAMIYOR (yalnızca özniteliğin doğru
 // öğede ve doğru değerde olması sınanıyor; Chromium'un CDP erişilebilirlik ağacı aria-current'ı hiç listelemiyor, yani gerçek Chromium
 // ölçümü de DOM özniteliğini ve hesaplanan adı gösteriyor). Gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) testinin YERİNİ
 // TUTMAZ (README kontrol listesi, madde 25). Ok tuşuyla liste gezintisi ve tek Tab durağı bu testin konusu DEĞİL
-// (test/liste_gezintisi_test.mjs). Firefox ve Safari'de denenmedi.
+// (test/liste_gezintisi_test.mjs; ayet düğmeleri ızgarasında test/izgara_gezintisi_test.mjs). Grup adının ekran okuyucuda "grup"
+// ile birlikte okunması da burada DOĞRULANAMIYOR: jsdom'da erişilebilirlik ağacı yok, burada öznitelikler ve axe-core'un rol/ad hesabı
+// sınanıyor; Chromium'un ağacı (group "Bakara Suresi ayetleri", odaktaki düğmenin atası) yalnızca ölçüldü, README'de. Firefox ve Safari'de
+// denenmedi.
 //
 //   node modal_liste_aria_test.mjs
 import fs from "fs";
@@ -131,6 +142,8 @@ check("app.js: syncAyahGridHighlight: başka surenin ızgarasındaki etkin düğ
 }
 check("app.js: ayet düğmesinin adı `${info.nameTurkish} Suresi, ${a}. ayet` (toggleAyahGrid, düğme oluşturulurken)", /chip\.setAttribute\("aria-label", `\$\{info\.nameTurkish\} Suresi, \$\{a\}\. ayet`\);/.test(CODE.toggleAyahGrid));
 check("js/ayet-gezgini.js: ayet düğmelerinin adı aynı biçimde (`<Sure> Suresi, <N>. ayet`): iki ayet düğmesi ailesi aynı okunuyor", /makeButton\(AYAH_CLASS, `\$\{hooks\.surahName\(surah\)\} Suresi, \$\{ayah\}\. ayet`/.test(gezginCode));
+check('app.js: populateSurahList: her .ayah-grid role="group" ve aria-label=`${info.nameTurkish} Suresi ayetleri` ile oluşturuluyor (adlı grup: rolsüz <div>\'de aria-label geçersiz olurdu)', /ayahGrid\.setAttribute\("role", "group"\);/.test(CODE.populateSurahList) && /ayahGrid\.setAttribute\("aria-label", `\$\{info\.nameTurkish\} Suresi ayetleri`\);/.test(CODE.populateSurahList));
+check('app.js: ızgara tek yerde oluşturuluyor (className = "ayah-grid" bir kez) ve role="group" uygulamada tek yerde yazılıyor: grup özniteliklerini atlayan ikinci bir yol yok', (appCode.match(/className = "ayah-grid"/g) || []).length === 1 && (appCode.match(/setAttribute\("role", "group"\)/g) || []).length === 1);
 
 // -- (2) index.html + CSS --------------------------------------------------------------------------------------
 {
@@ -146,6 +159,7 @@ check("js/ayet-gezgini.js: ayet düğmelerinin adı aynı biçimde (`<Sure> Sure
   check('index.html: iki Ezber seçicisi role="group", başlığına aria-labelledby ile bağlı ("Sure Seç, grup": odak açılışta buraya geliyor)', groups.every((g) => g && g.getAttribute("role") === "group" && !!D.getElementById(g.getAttribute("aria-labelledby") || "none")));
 }
 check("css: .modal-item.active ve .ayah-chip.active kuralları duruyor (aria-current görünümün yerine değil, yanına geldi)", /\.modal-item\.active\s*\{/.test(css) && /\.ayah-chip\.active\s*\{/.test(css));
+check("css: .ayah-grid[hidden] { display: none; } kuralı duruyor: kapalı ızgara erişilebilirlik ağacında olmamalı (114 ızgaranın hepsi artık adlı grup; kural bozulursa 114 boş \"<Sure> Suresi ayetleri, grup\" duyulurdu)", /\.ayah-grid\[hidden\]\s*\{\s*display:\s*none;?\s*\}/.test(css));
 
 // -- (3) Davranış (jsdom) -------------------------------------------------------------------------------------
 const TABS = ["dinle", "oku", "yaz"];
@@ -393,6 +407,82 @@ for (const spec of LISTS) {
   check("setActiveAyahChip(ızgara, olmayan ayet): önceki vurgu siliniyor, hiçbir düğme işaretli kalmıyor", chipFlags(g3).length === 0);
 }
 
+// (3e) Izgara grubu: 114 ızgaranın hepsi adlı bir grup (kapalıyken ve kurulmamışken de: ad ızgara açılırken yazılmıyor, baştan orada); açma,
+// kapama ve kurma bunu bozmuyor; ad, içindeki düğmelerle aynı sureyi söylüyor
+{
+  const env = makeEnv();
+  const groupName = (s) => `${surahs[String(s)].nameTurkish} Suresi ayetleri`;
+  const intact = (s) => env.grid(s).getAttribute("role") === "group" && env.grid(s).getAttribute("aria-label") === groupName(s);
+  const all = Array.from({ length: 114 }, (_, i) => i + 1);
+
+  const badGroup = all.filter((s) => !intact(s));
+  check(`ızgara grubu: 114 ızgaranın hepsi (kapalı, kurulmamış) role="group" ve aria-label="<Sure> Suresi ayetleri" taşıyor (bozuk: ${badGroup.slice(0, 5).join(",")})`, env.grids.length === 114 && badGroup.length === 0);
+  // Sure listesinde role taşıyan tek öğe türü ızgara ve "... Suresi ayetleri" adını taşıyan tek öğe türü ızgara: sarmalayıcı, satır ve düğmeler
+  // ayrıca grup olmuyor (iç içe ya da çift duyuru yok)
+  const roled = [...env.els.surahList.querySelectorAll("[role]")];
+  const groupNamed = [...env.els.surahList.querySelectorAll("[aria-label]")].filter((e) => /Suresi ayetleri$/.test(e.getAttribute("aria-label")));
+  check(`ızgara grubu: Sure listesinde role taşıyan öğe tam 114 ve hepsi ızgara; "... Suresi ayetleri" adı taşıyan öğe tam 114 ve hepsi ızgara (iç içe ya da çift grup yok; bulunan: ${roled.length} rol, ${groupNamed.length} ad)`, roled.length === 114 && roled.every((e) => e.classList.contains("ayah-grid")) && groupNamed.length === 114 && groupNamed.every((e) => e.classList.contains("ayah-grid")));
+  const names = new Set(env.grids.map((g) => g.getAttribute("aria-label")));
+  check(`ızgara grubu: 114 adın hepsi eşsiz (${names.size} farklı ad): iki ızgara aynı adı taşımıyor`, names.size === 114);
+  check('ızgara grubu: örnekler: Fâtiha = "Fâtiha Suresi ayetleri"; Bakara = "Bakara Suresi ayetleri"; Âl-i İmrân = "Âl-i İmrân Suresi ayetleri"', env.grid(1).getAttribute("aria-label") === "Fâtiha Suresi ayetleri" && env.grid(2).getAttribute("aria-label") === "Bakara Suresi ayetleri" && env.grid(3).getAttribute("aria-label") === "Âl-i İmrân Suresi ayetleri");
+  const badShape = all.filter((s) => {
+    const g = env.grid(s);
+    return g.tagName !== "DIV" || g.className !== "ayah-grid" || g.dataset.surah !== String(s) || !g.hidden || g.children.length !== 0 || g.getAttributeNames().sort().join() !== "aria-label,class,data-surah,hidden,role";
+  });
+  check(`ızgara grubu: ızgara yapısı eskisi gibi: gerçek <div>, başlangıçta gizli ve boş; öznitelikleri tam olarak class, data-surah, hidden, role, aria-label (tabindex yok: ızgara Tab durağı değil; aria-hidden, aria-labelledby, aria-live yok: grup gizlenmiyor, ad aria-label'dan) (bozuk: ${badShape.slice(0, 5).join(",")})`, badShape.length === 0);
+
+  const badCycle = [];
+  for (const s of [1, 2, 3, 36, 114]) {
+    const other = s === 1 ? 2 : 1;
+    env.toggle(s); // kurulur ve açılır
+    if (!intact(s) || env.grid(s).hidden) badCycle.push(`${s} açılış`);
+    env.toggle(other); // akordeon: s kapanır, other açılır (kurulur)
+    if (!intact(s) || !env.grid(s).hidden || !intact(other) || env.grid(other).hidden) badCycle.push(`${s} akordeon`);
+    env.toggle(other); // other kapanır
+    env.toggle(s); // s yeniden açılır (kurulu: yeniden kurulmaz)
+    if (!intact(s) || env.grid(s).hidden) badCycle.push(`${s} yeniden açılış`);
+    env.toggle(s); // s kapanır
+    if (!intact(s) || !env.grid(s).hidden) badCycle.push(`${s} kapanış`);
+  }
+  check(`ızgara grubu: açma, kapama, akordeon ve yeniden açma sonrası (1, 2, 3, 36, 114) grup rolü ve adı yerinde (bozuk: ${badCycle.slice(0, 5).join(", ")})`, badCycle.length === 0 && all.every(intact));
+
+  // Ad ve içindeki düğmeler aynı sureyi söylüyor: grup "<Sure> Suresi ayetleri", içindeki her düğme "<Sure> Suresi, <N>. ayet"
+  const badRel = [];
+  const badAttr = [];
+  for (const s of all) {
+    env.toggle(s);
+    const g = env.grid(s);
+    if (g.getAttributeNames().sort().join() !== "aria-label,class,data-built,data-surah,role") badAttr.push(s);
+    const prefix = (g.getAttribute("aria-label") || "").replace(/ ayetleri$/, ""); // "<Sure> Suresi"
+    const chips = [...g.querySelectorAll(".ayah-chip")];
+    if (chips.length !== versesOf(s) || chips.some((c, i) => c.getAttribute("aria-label") !== `${prefix}, ${i + 1}. ayet` || c.dataset.surah !== g.dataset.surah)) badRel.push(s);
+  }
+  check(`ızgara grubu: 114 ızgaranın hepsi kurulup gezildikten sonra da grup yerinde ve adı içindeki düğmelerle aynı sureyi söylüyor ("<Sure> Suresi ayetleri" / "<Sure> Suresi, <N>. ayet"; 6236 düğme) (bozuk: ${badRel.slice(0, 5).join(",")})`, badRel.length === 0 && all.every(intact));
+  check(`ızgara grubu: kurulup açıldıktan sonra da yalnızca beklenen öznitelikler (class, data-surah, data-built, role, aria-label; hidden yok): kurma yolu ızgaraya başka bir şey eklemiyor (bozuk: ${badAttr.slice(0, 5).join(",")})`, badAttr.length === 0);
+
+  // axe-core'un rol ve ad hesabı (elle okunan öznitelik değil): rol "group", ad aria-label; kurulmuş (3) ve kurulmamış (1, 114) ızgarada aynı
+  {
+    const env2 = makeEnv();
+    env2.toggle(3);
+    env2.reveal("surah-modal");
+    const modal = env2.$("surah-modal");
+    const picks = [1, 3, 114];
+    const got = withAxeGlobals(env2, () => {
+      axeCore.setup(modal);
+      try {
+        return picks.map((s) => ({ role: axeCore.commons.aria.getRole(env2.grid(s)), name: axeCore.commons.text.accessibleText(env2.grid(s)) }));
+      } finally {
+        try {
+          axeCore.teardown();
+        } catch (e) {
+          /* kurulum yapılamadıysa kapatacak bir şey yok */
+        }
+      }
+    });
+    check(`ızgara grubu: axe-core'un hesapladığı rol "group", ad aria-label (${JSON.stringify(got.map((x) => x.name))}); kurulmuş (3) ve kurulmamış (1, 114) ızgarada aynı`, got.every((x, i) => x.role === "group" && x.name === groupName(picks[i])));
+  }
+}
+
 // (4) Rastgele işlem dizileri x bağımsız model
 {
   const SEEDS = 6;
@@ -413,6 +503,7 @@ for (const spec of LISTS) {
     }
     for (let s = 1; s <= 114; s++) {
       const grid = env.grid(s);
+      if (grid.getAttribute("role") !== "group" || grid.getAttribute("aria-label") !== `${surahs[String(s)].nameTurkish} Suresi ayetleri`) return `ızgara ${s}: grup rolü/adı bozuldu`;
       if (grid.hidden !== (model.open !== s)) return `ızgara ${s}: gizli=${grid.hidden}, açık olan ${model.open}`;
       if (!(s in model.grids)) {
         if (grid.hasAttribute("data-built") || grid.children.length) return `ızgara ${s} kurulmamalıydı`;
@@ -552,6 +643,9 @@ for (const spec of LISTS) {
   check(`axe-core: taramanın düğmeleri gerçekten kapsadığı doğrulandı (Sure ve Ezber modallarında button-name geçen düğme: ${btn} >= 300; Sure satırları, açma düğmeleri, ayet düğmeleri, Ezber seçici satırları, ...)`, btn >= 300);
   const withCurrent = passNodes("aria-valid-attr-value").filter((n) => /aria-current="true"/.test(n.html));
   check(`axe-core: aria-valid-attr-value taramasına aria-current="true" taşıyan 5 öğe dahil ve geçti (Sure satırı, ayet düğmesi, Cüz satırı, Ezber Sure ve Kârî seçici satırları; bulunan ${withCurrent.length})`, withCurrent.length === 5);
+  const groupNodes = (id) => passNodes(id).filter((n) => /class="ayah-grid"/.test(n.html) && /role="group"/.test(n.html) && /aria-label="[^"]+ Suresi ayetleri"/.test(n.html));
+  const groupCounts = ["aria-roles", "aria-allowed-attr", "aria-valid-attr-value"].map((id) => groupNodes(id).length);
+  check(`axe-core: 114 ızgara grubunun (role="group" + aria-label) hepsi taramaya girdi ve aria-roles, aria-allowed-attr, aria-valid-attr-value kurallarından geçti (bulunan: ${groupCounts.join(", ")})`, groupCounts.every((n) => n === 114));
 }
 
 check(`jsdom'da olay dinleyicilerinde yakalanmamış hata yok (${jsdomErrors.length}${jsdomErrors.length ? ": " + jsdomErrors.slice(0, 2).join(" | ") : ""})`, jsdomErrors.length === 0);
@@ -560,4 +654,4 @@ if (failures) {
   console.error(`${failures} check(s) failed.`);
   process.exit(1);
 }
-console.log("All checks passed (modal listeleri: etkin satır/ayet düğmesi aria-current=\"true\" ile bildiriliyor (Sure, Cüz, Hizb, Rub, Menzil, Ezber Sure/Kârî seçicileri; .active ile hep birlikte), 6236 ayet düğmesi \"<Sure> Suresi, <N>. ayet\" adını taşıyor, Ezber seçici düğmelerinde yanlış aria-haspopup=listbox yok, dört modal açıcıda dialog; rastgele dizi x model; axe-core).");
+console.log("All checks passed (modal listeleri: etkin satır/ayet düğmesi aria-current=\"true\" ile bildiriliyor (Sure, Cüz, Hizb, Rub, Menzil, Ezber Sure/Kârî seçicileri; .active ile hep birlikte), 6236 ayet düğmesi \"<Sure> Suresi, <N>. ayet\" adını taşıyor, Ezber seçici düğmelerinde yanlış aria-haspopup=listbox yok, dört modal açıcıda dialog, 114 ayet ızgarası adlı grup (role=\"group\", \"<Sure> Suresi ayetleri\"); rastgele dizi x model; axe-core).");

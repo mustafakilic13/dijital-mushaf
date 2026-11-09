@@ -526,6 +526,11 @@ function populateSurahList() {
     const ayahGrid = document.createElement("div");
     ayahGrid.className = "ayah-grid";
     ayahGrid.dataset.surah = i;
+    // Adlı grup: odak ızgaraya girince ekran okuyucu hangi surenin ayetleri olduğunu söyler ("Bakara Suresi ayetleri, grup").
+    // Izgara rolsüz ve adsız bir <div> idi (erişilebilirlik ağacında yok sayılıyordu); rolsüz <div>'de aria-label geçersiz, o
+    // yüzden role="group" ile birlikte. 114 ızgaranın hepsine baştan yazılıyor: açılış/kapanışta ayrıca bir iş gerekmiyor.
+    ayahGrid.setAttribute("role", "group");
+    ayahGrid.setAttribute("aria-label", `${info.nameTurkish} Suresi ayetleri`);
     ayahGrid.hidden = true;
 
     wrapper.appendChild(row);
