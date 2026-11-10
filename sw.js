@@ -4,6 +4,10 @@
 //  1. SES (AUDIO_CACHE, audio-cdn.tarteel.ai) -- bkz. js/app.js'teki
 //     recitationAudioUrl/RECITERS. Önbellek-önce, DİNLENDİKÇE, SINIRSIZ:
 //     kullanıcının açık tercihi, boyut/LRU tahliyesi UYGULANMIYOR.
+//     Yalnızca TÜM dosyayı isteyen istekler (Range yok ya da "bytes=0-")
+//     önbelleğe girer/oradan döner (isWholeFileRequest); yanıt, önbelleğe
+//     yazılması BEKLENMEDEN tarayıcıya akıtılır (aşağıda cacheFirstForever).
+//     Yerel euzu klipleri (audio/euzu*.mp3) PRECACHE_URLS'te.
 //  2. UYGULAMA KABUĞU (SHELL_CACHE, aynı-kökenli HTML/CSS/JS/vendor/font) --
 //     PRECACHE_URLS'in data/ dışındaki kısmı (+ "./", yani scope kökü: manifest
 //     start_url'ü) install'da önceden indirilir; fetch'te AĞ-ÖNCE: çevrimiçiyken
@@ -71,6 +75,14 @@ const PRECACHE_URLS = [
   "vendor/woff2-decompress/decompress.js",
   "vendor/woff2-decompress/decompress.wasm",
   "fonts/DigitalKhattV2.woff2",
+  // Yerel euzu klipleri (js/app.js RECITERS.*.introLocal: Fâtiha'nın ilk ayetinden önce çalan
+  // isti'âze). Chromium'da bir <audio> yüklemesi "Range: bytes=0-" ile gider (ölçüldü); sunucu buna
+  // 206 dönerse (Range destekleyen sunucular; GitHub Pages'in böyle yaptığı DOĞRULANMADI) Cache.put
+  // "Partial response (status code 206) is unsupported" diye reddeder -- yani çalarken ağ-önce yolu
+  // bu dosyaları önbelleğe alamaz. Kurulumda Range'siz (tam, 200) indirilirler; çevrimdışıyken
+  // buradan, Range isteniyorsa 206 dilimiyle dönerler (bkz. respondToRange).
+  "audio/euzuhusari.mp3",
+  "audio/euzuabdulsamad.mp3",
   "data/mushaf.json",
   "data/surahs.json",
   "data/ayahs.json",
@@ -180,13 +192,16 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (url.hostname === AUDIO_HOST) {
-    event.respondWith(cacheFirstForever(request, AUDIO_CACHE));
+    // Tam dosya istemeyen Range istekleri ağa aynen gider (respondWith çağrılmıyor): ne önbellekten
+    // cevaplanır ne önbelleğe yazılır -- bkz. isWholeFileRequest.
+    if (!isWholeFileRequest(request)) return;
+    event.respondWith(cacheFirstForever(request, AUDIO_CACHE, event));
     return;
   }
   if (url.origin !== self.location.origin) return; // başka bir çapraz-köken isteğe dokunma
 
   if (url.pathname.includes("/data/")) {
-    event.respondWith(cacheFirstForever(request, DATA_CACHE));
+    event.respondWith(cacheFirstForever(request, DATA_CACHE, event));
     return;
   }
   // Uygulama kabuğu (HTML/CSS/JS/vendor/font): çevrimiçiyken her zaman en
@@ -195,28 +210,54 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(networkFirstShell(request));
 });
 
+// <audio src> yüklemeleri "Range" başlığıyla gider. Chromium ilk istekte "bytes=0-" (dosyanın TAMAMI)
+// ister (ölçüldü); sonra gerekirse "bytes=N-" ile devam eder ya da dosyanın bir yerini ister (atlama,
+// dosya sonundaki etiket okuması). Safari'nin önce "bytes=0-1" ile yoklaması ve Firefox'un da
+// "bytes=0-" istemesi bilinen davranışlardır, burada DENENMEDİ. Önbellek
+// anahtarı yalnızca URL (Range yok sayılır) ve opak bir yanıtın durumu, Content-Range'i ya da
+// gövdesi okunamıyor: dilimlenemez. Bu yüzden önbellekteki kayıt YALNIZCA "dosyanın başından
+// sonuna" isteğine doğru cevaptır. Başka bir Range isteğine onu vermek tarayıcıyı bozuyor (ölçüm:
+// Chromium'da Content-Range'i uyuşmayan 206 alınca çalmayı "data source error" ile bırakıyor) ve
+// ağdan gelen kısmi bir yanıtı aynı anahtara yazmak, tam kaydın üstüne eksik bir kayıt koyardı.
+function isWholeFileRequest(request) {
+  const range = request.headers.get("range");
+  return range === null || /^bytes=0-$/.test(range.trim());
+}
+
 // Önbellekte varsa ağa HİÇ gitmeden onu döndürür (SES ve VERİ için ortak --
 // ikisi de yayımlandıktan sonra değişmiyor, ikisi de SINIRSIZ: bkz. dosya
-// başlığı); yoksa ağdan çekip -- yanıtı bloklamadan -- bir kopyasını
-// önbelleğe ekler.
-async function cacheFirstForever(request, cacheName) {
+// başlığı); yoksa ağdan çekip bir kopyasını önbelleğe ekler.
+//
+// Yanıt, kopyanın önbelleğe yazılması BEKLENMEDEN döndürülür: yazma event.waitUntil'de arka planda
+// sürer (worker erken kapatılmasın diye). Eskiden burada `await cache.put(...)` vardı; bu, yanıtı
+// gövdesi TAMAMEN inene kadar sayfaya vermiyordu -- ölçüm (Chromium, ~1 MB klip, 400 KB/sn ağ):
+// ilk ses 2,7 sn'de başlıyor, yani her yeni ayet, indirme süresi kadar sessizlikle başlıyordu.
+// Sayfa yanıtı akarak okur; kopya önbelleğe giderken iptal edilse (çalma durdurulsa) bile ağ
+// isteği kopya için sürer, yalnızca ağ KOPARSA yazma reddedilir ve eksik kayıt bırakılmaz.
+async function cacheFirstForever(request, cacheName, event) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(request);
   if (cached) return cached;
 
   const response = await fetch(request);
-  // response.ok: aynı-kökenli/CORS'lu bir GET başarıyla döndü. type ===
-  // "opaque": no-cors çapraz-köken isteği -- durumu okuyamıyoruz ama bu
-  // (yukarıdaki dosya başlığında açıklandığı gibi) normal ve beklenen durum.
-  if (response.ok || response.type === "opaque") {
-    try {
-      await cache.put(request, response.clone());
-    } catch (err) {
-      // Depolama kotası dolmuş vb. -- önbellekleme başarısız olsa bile asıl
-      // yanıt (çalma/okuma) bundan etkilenmesin, yalnızca bu seferlik
-      // önbelleğe alınamaz.
-      console.warn("[sw] önbelleğe alınamadı", request.url, err);
-    }
+  // response.ok && status !== 206: aynı-kökenli/CORS'lu bir GET başarıyla döndü (206 kısmi yanıtı
+  // Cache.put reddeder, denemenin anlamı yok). type === "opaque": no-cors çapraz-köken isteği --
+  // durumu okuyamıyoruz ama bu (yukarıdaki dosya başlığında açıklandığı gibi) normal ve beklenen
+  // durum.
+  if ((response.ok && response.status !== 206) || response.type === "opaque") {
+    const copy = response.clone(); // gövde okunmaya başlamadan, döndürmeden ÖNCE
+    event.waitUntil(
+      (async () => {
+        try {
+          await cache.put(request, copy);
+        } catch (err) {
+          // Depolama kotası dolmuş vb. -- önbellekleme başarısız olsa bile asıl
+          // yanıt (çalma/okuma) bundan etkilenmesin, yalnızca bu seferlik
+          // önbelleğe alınamaz.
+          console.warn("[sw] önbelleğe alınamadı", request.url, err);
+        }
+      })()
+    );
   }
   return response;
 }
@@ -233,7 +274,10 @@ async function networkFirstShell(request) {
   const cache = await caches.open(SHELL_CACHE);
   try {
     const response = await fetch(request);
-    if (response.ok) {
+    // 206: sunucunun bir Range isteğine (<audio>) kısmi yanıtı. Cache.put onu reddeder; tam kopya
+    // zaten kurulumda (PRECACHE_URLS) alındı, bu yüzden yazmayı denemiyoruz (her çalmada konsola
+    // "kabuk güncellenemedi" uyarısı düşüyordu).
+    if (response.ok && response.status !== 206) {
       try {
         await cache.put(request, response.clone());
       } catch (err) {
@@ -243,11 +287,49 @@ async function networkFirstShell(request) {
     return response;
   } catch (err) {
     const cached = await cache.match(request);
-    if (cached) return cached;
+    if (cached) return respondToRange(request, cached);
     if (request.mode === "navigate") {
       const shell = await cache.match("index.html");
       if (shell) return shell;
     }
     throw err;
   }
+}
+
+// Önbellekteki TAM (200) yanıtı, istek bir Range içeriyorsa (<audio>) o aralığın 206 yanıtına çevirir.
+// Çevrimdışı euzu klibi böyle çalıyor: tam bir 200'ü Range'li isteğe vermek Chromium'da çalıyor
+// (ölçüldü); WebKit gibi sıkı oynatıcıların 206 + Content-Range beklediği bilinir (denenmedi). Tek
+// bir "bytes=a-b", "bytes=a-" ya da "bytes=-n" dışındaki her şey (çoklu aralık, tanınmayan biçim)
+// yok sayılır ve tam yanıt döner -- sunucunun Range'i yok sayması geçerli bir cevaptır. Opak
+// yanıtlar dilimlenemez; bu yalnızca aynı-kökenli, kendi indirdiğimiz dosyalar için.
+async function respondToRange(request, cached) {
+  const header = request.headers.get("range");
+  if (!header || cached.status !== 200) return cached;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!m || (m[1] === "" && m[2] === "")) return cached;
+
+  const body = await cached.clone().arrayBuffer();
+  const size = body.byteLength;
+  let start;
+  let end;
+  if (m[1] === "") {
+    // "bytes=-n": dosyanın son n baytı ("bytes=-0" start = size verir, aşağıda 416 olur).
+    start = Math.max(0, size - Number(m[2]));
+    end = size - 1;
+  } else {
+    start = Number(m[1]);
+    end = m[2] === "" ? size - 1 : Math.min(Number(m[2]), size - 1);
+  }
+  if (start >= size || start > end) {
+    return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${size}` } });
+  }
+  return new Response(body.slice(start, end + 1), {
+    status: 206,
+    headers: {
+      "Content-Type": cached.headers.get("Content-Type") || "application/octet-stream",
+      "Content-Range": `bytes ${start}-${end}/${size}`,
+      "Content-Length": String(end - start + 1),
+      "Accept-Ranges": "bytes",
+    },
+  });
 }

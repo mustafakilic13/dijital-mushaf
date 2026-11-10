@@ -525,11 +525,12 @@ için bkz. "Erişilebilirlik"). Okuma 114:6'da bitiyor, başa sarmıyor.
   mushaftaki kelime sayısından bir fazla; karşılığı olmayan o son bölüt,
   yanlış kelimeyi vurgulamasın diye sessizce yok sayılıyor.
 - **İstiâze ve besmele.** Fâtiha'nın 1. ayetinden önce eûzü klibi
-  (`audio/euzuhusari.mp3`, `audio/euzuabdulsamad.mp3` -- depoda duran iki
-  küçük dosya), Tevbe dışındaki her surenin 1. ayetinden önce de besmele
-  çalıyor; besmele ayrı bir klip değil, okuyucunun kendi 1:1 kaydı
-  (`introAudioFor`). Bunlar sayfadaki metne ait olmadığından o sırada hiçbir
-  kelime vurgulanmıyor.
+  (`audio/euzuhusari.mp3`, `audio/euzuabdulsamad.mp3` -- depoda duran iki küçük
+  dosya; servis worker kurulumda önceden indirdiği için çevrimdışı da çalıyor),
+  Tevbe dışındaki her surenin 1. ayetinden önce de besmele çalıyor; besmele ayrı
+  bir klip değil, okuyucunun kendi 1:1 kaydı (`introAudioFor`; ayet sesleri gibi
+  uzaktan geliyor ve dinlendikçe önbelleğe giriyor). Bunlar sayfadaki metne ait
+  olmadığından o sırada hiçbir kelime vurgulanmıyor.
 - **Tek ses motoru.** Oynat, Ezber > Dinle ve Oku/Yaz'ın "ayet tamamlanınca
   oku" adımı aynı `<audio>` öğesini paylaşıyor; biri başlayınca diğeri
   duruyor. `state.playback.requestId` bir "bu oturum hâlâ geçerli mi"
@@ -3168,13 +3169,17 @@ dosyanın kendi başlık yorumu):
 
 - **Ses** (`dijital-mushaf-audio-v1`) -- her ayet sesi isteğini
   (`audio-cdn.tarteel.ai`, bkz. `js/app.js`'teki
-  `recitationAudioUrl`/`RECITERS`) **önbellek-önce** sunuyor: önbellekte
-  varsa ağa hiç gidilmeden oradan, yoksa ağdan çekilip bir kopyası
-  önbelleğe eklenerek. **Boyut/LRU sınırı YOK** -- açık bir tercih;
-  önbellek yalnızca tarayıcının kendi (uygulama seviyesinden bağımsız)
-  depolama kotası dolduğunda büyür durur.
+  `recitationAudioUrl`/`RECITERS`) **önbellek-önce** sunuyor: önbellekte varsa
+  ağa hiç gidilmeden oradan, yoksa ağdan çekilip bir kopyası -- yanıt tarayıcıya
+  beklemeden verilirken, arka planda -- önbelleğe eklenerek. Bu yoldan yalnızca
+  TÜM dosyayı isteyen istekler geçiyor (`Range` yok ya da `bytes=0-`); dosyanın
+  bir yerini isteyen `Range` istekleri (`bytes=N-`) servis worker'a hiç
+  uğramadan ağa gidiyor (bkz. aşağıda "Ses önbelleği ve `Range`"). **Boyut/LRU
+  sınırı YOK** -- açık bir tercih; önbellek yalnızca tarayıcının kendi (uygulama
+  seviyesinden bağımsız) depolama kotası dolduğunda büyür durur.
 - **Uygulama kabuğu** (`dijital-mushaf-shell-v1`: `index.html`, `css/`,
-  `js/*.js`, `vendor/*`, `fonts/DigitalKhattV2.woff2`) -- **ağ-önce**:
+  `js/*.js`, `vendor/*`, `fonts/DigitalKhattV2.woff2`, `audio/euzu*.mp3`)
+  -- **ağ-önce**:
   çevrimiçiyken her istek en güncel sürümü ağdan çeker (ve önbelleği
   günceller), yalnızca ağ başarısız olursa (gerçekten çevrimdışı)
   önbellekten döner. Bu, güncellemelerin kullanıcı hiçbir şey yapmadan
@@ -3215,6 +3220,104 @@ handler zaten yeniden dener). Sonuç: ilk ziyareti hafif tutmaya devam
 ederken, kurulumdan birkaç dakika içinde TÜM sure başlıkları da
 çevrimdışı kullanılabilir hâle geliyor.
 
+**Ses önbelleği ve `Range`.** Chromium'da bir `<audio src>` yüklemesinin ilk
+isteği `Range` başlıklıdır: `bytes=0-` (dosyanın başından sonuna); Range
+destekleyen bir sunucu buna 206 (kısmi içerik) döner. `Cache.put` 206 yanıtı
+reddeder (Chromium: "Partial response (status code 206) is unsupported"); ama
+`no-cors` çapraz-köken bir istekte (CDN sesi) dönen yanıt opaktır ve durumu
+okunamadığından aynı 206 opak hâliyle sorunsuz yazılır. Eski `sw.js` bunların
+hiçbirini hesaba katmıyordu; üç sorun, `audio-cdn.tarteel.ai` adına
+yönlendirilmiş yerel bir sahte CDN'e karşı başsız Chromium 153'te ölçüldü (neden
+sahte: aşağıda "Bilinen sınırlar"):
+
+- **Eûzü klipleri (yerel, `audio/euzu*.mp3`) çevrimdışı çalmıyordu.** Çalarken
+  ağ-önce yol sunucunun 206'sını `cache.put`'a veriyordu, reddediliyordu ve her
+  çalmada konsola "kabuk güncellenemedi" uyarısı düşüyordu (Partial response
+  (status code 206) is unsupported); kurulumda da önceden indirilmedikleri için
+  kabuk önbelleğine hiç girmiyorlardı: çevrimdışı eûzü `Format error` ile
+  yüklenemiyordu.
+- **İlk çalma, indirme süresi kadar gecikiyordu.** `cacheFirstForever` yanıtı
+  `await cache.put(...)` bitene, yani gövde TAMAMEN inene kadar sayfaya
+  vermiyordu. ≈ 980 KB'lık (61 sn) klip, 400 KB/sn sahte ağ: `loadedmetadata`
+  2467 ms, `playing` 2472 ms (gecikme ≈ klip boyu / ağ hızı).
+- **Parça parça yanıt veren bir CDN klibi bozuyordu.** Sunucu açık uçlu
+  `bytes=0-`'a dosyanın TAMAMINI değil bir parçasını (206, kısa `Content-Range`)
+  dönerse tarayıcı kalanı `bytes=40000-` gibi yeni isteklerle ister. Önbellek
+  anahtarı yalnızca URL olduğundan eski kod bu isteklere de önbellekteki ilk
+  parçayı veriyordu (uyuşmayan `Content-Range`) ve Chromium çalmayı
+  `PIPELINE_ERROR_READ: FFmpegDemuxer: data source error` ile bırakıyordu: 40000
+  baytlık parçalarla 6,11 sn'lik klip 1,27. saniyede kesildi; aynı klip tekrar
+  çalınınca da, çevrimdışı da kesildi.
+
+Düzeltme (`sw.js`):
+
+- Eûzü klipleri `PRECACHE_URLS`'te (iki dosya ≈ 196 KB): kurulumda Range'siz,
+  tam (200) indirilip kabuk önbelleğine giriyor. Çevrimdışıyken `<audio>`'nun
+  `Range` isteğine önbellekteki tam kopyadan 206 dilimi dönüyor
+  (`respondToRange`: `bytes=a-b`, `a-`, `-n`; bitiş dosya sonuna kırpılıyor,
+  aralık dosyanın dışındaysa 416 `bytes */<boyut>`, çoklu ya da tanınmayan
+  aralık yok sayılıp tam 200 dönüyor -- sunucunun `Range`'i yok sayması geçerli
+  bir cevaptır). Tam bir 200 Chromium'da Range'li isteğe de çalıyor (ölçüldü);
+  dilimleme, Safari/WebKit'in 206 + `Content-Range` beklediği bilgisine
+  dayanıyor (denenmedi). Çevrimiçiyken yol değişmedi (ağ-önce); sunucunun 206'sı
+  artık kabuk önbelleğine yazılmaya çalışılmıyor (konsol uyarısı kalktı).
+- CDN sesi yalnızca TÜM dosyayı isteyen isteklerde (`Range` yok ya da tam
+  `bytes=0-`: `isWholeFileRequest`) önbelleğe giriyor ve oradan dönüyor. Başka
+  her `Range` isteği (`bytes=N-`) servis worker'a hiç uğramadan ağa gidiyor:
+  önbellekteki kayıt opak, yani dilimlenemez; başka bir aralığa doğru cevap
+  değil.
+- Yanıt, önbelleğe yazma BİTMEDEN tarayıcıya veriliyor; yazma
+  `event.waitUntil`'de arka planda sürüyor (worker erken kapanmasın diye), kopya
+  gövde okunmaya başlamadan alınıyor. `Cache.put`'un reddedeceği (opak olmayan)
+  206 yanıtlar hiç yazılmaya çalışılmıyor.
+
+Ölçüm (aynı sahte CDN, önce -> sonra): ilk çalma `playing` 2472 ms -> 60 ms
+(aynı klip, aynı ağ); yerel eûzü: her çalmada konsol uyarısı -> sıfır servis
+worker iletisi, çevrimdışı eûzü `Format error` -> baştan sona (6,11/6,11 sn);
+parçalı CDN: ilk çalma 1,27. saniyede kopuyordu -> baştan sona çalıyor, ikinci
+çalma da (takip istekleri `bytes=40000-` ve `bytes=80000-` ağa gidiyor).
+Çevrimdışı dilimleme (gerçek Chromium, `fetch` ile, 98314 baytlık klip; eski
+kodda önbellekte kayıt olmadığından hepsi `Failed to fetch`): `bytes=0-` -> 206
+`bytes 0-98313/98314`; `10-19` -> 206, 10 bayt; `-5` -> son 5 bayt; `98313-` ->
+1 bayt; `98300-99999` -> 206, sona kırpılmış (14 bayt); `98314-`, `5-2`, `-0` ->
+416 `bytes */98314`; `0-1,5-6`, `abc` ve Range'siz -> tam 200. Çalma 700. ms'de
+bırakılsa bile kayıt eksiksiz yazılıyor (kopya iptalden bağımsız ilerliyor):
+aynı klip sonra CDN'e hiç istek atmadan baştan sona çalıyor (61,13 sn). Range'i
+yok sayıp hep 200 dönen bir sunucuda da (hem CDN hem yerel) aynı sonuç alındı:
+ses ikinci çalmada ağa gitmiyor, çevrimdışı eûzü çalıyor.
+
+**Bilinen sınırlar** (bu yamada ÇÖZÜLMEDİ):
+
+- **Opak hata yanıtı kalıcı.** CDN geçici bir hata (ör. 503) döner ve yanıt opak
+  gelirse, durumu okunamadığı için başarılı sayılıp önbelleğe giriyor; o klip,
+  CDN düzeldikten sonra da ağa hiç gidilmeden hata veriyor (ölçüldü: aynı klip
+  503'ten sonra çalmıyor, başka klipler sorunsuz; yama öncesinde de böyleydi).
+  Olası çözüm: sayfa `<audio>`'nun `error`'unda servis worker'a ileti gönderip o
+  kaydı sildirir; bu, `sw_test`'in "tek öğe tahliyesi yok" korumasını
+  (`cache.delete(istek)`) gevşetmeyi gerektirdiğinden ayrı bir yamaya kaldı.
+- **Kota payı.** Chromium, opak yanıtlara gerçek boylarından çok daha fazla kota
+  sayıyor: 98 KB'lık klip başına ortalama ≈ 6,8 MB (24 ölçüm, 0,8-14,6 MB;
+  sandbox kotası ≈ 2,2 GB). "Sınırsız" tercihiyle birleşince kota, gerçek ses
+  boyundan çok daha çabuk dolabilir. Dolunca `cache.put` reddedilir; `sw.js` bu
+  durumda uyarı yazıp çalmayı sürdürüyor (`sw_test`te sahte bir reddedilmeyle
+  sınanıyor, gerçek kota dolması denenmedi), yeni ayetler önbelleğe girmiyor,
+  eskiler silinmiyor. Kota dolunca ne yapılacağı (en eskiyi silmek mi, yeni
+  ayetleri önbelleğe almamak mı) karara bağlanmadı.
+- **Parçalı CDN, çevrimdışı.** Yalnızca ilk parça önbelleğe girdiğinden o klip
+  çevrimdışı 1,27. saniyede takılıyor (`stalled` 3,6 sn'de, `error` ≈ 31 sn'de);
+  çevrimiçi çalma sorunsuz.
+- **`<audio>`'ya `crossOrigin` verilmemeli** (uygulama vermiyor). CDN CORS
+  başlığı göndermezse çalma tümüyle bozuluyor; gönderirse yanıt opak olmuyor,
+  206 olduğu için önbelleğe yazılamıyor ve çevrimdışı çalmıyor (ikisi de
+  ölçüldü).
+- **Gerçek CDN ve yayın adresi sınanamadı.** `audio-cdn.tarteel.ai` ve
+  `mustafakilic13.github.io` bu ortamdan erişilemiyor (proxy 403 veriyor); bu
+  yüzden gerçek CDN'in `Range`/206/CORS davranışı ve GitHub Pages'in `bytes=0-`
+  aralığına 206 döndüğü varsayımı doğrulanmadı (200 dönerse kabuk önbelleği tam
+  yanıtı zaten yazıyor; zarar yok). Firefox ve Safari'de denenmedi. Ölçüm
+  betikleri depoda değil (tek seferlik). Gerçek tarayıcıda doğrulanacaklar için
+  bkz. "PWA: gerçek tarayıcıda ses önbelleği testi".
+
 `activate` olayında yalnızca BU UYGULAMAYA ait **eski sürüm** kabuk/veri
 önbellekleri siliniyor (`caches.keys()` + ad ön eki eşleşmesi) -- güncel
 sürümler, AUDIO_CACHE dahil, hiç dokunulmuyor; ses önbelleğinin sürüm
@@ -3250,6 +3353,28 @@ olduğunu (yeni bir modül listeye eklenmezse "ilk ziyaretten sonra çevrimdış
 yine kırılırdı) ve listedeki her dosyanın diskte bulunduğunu (biri 404
 verirse `cache.addAll` tümüyle reddedilir, `install` başarısız olur)
 doğruluyor.
+
+Ses `Range` yamasıyla `sw_test` 69'dan 134 kontrole çıktı. Sahte `caches`
+gerçeğe yaklaştırıldı: `match` her çağrıda YENİ bir `Response` döndürüyor, `put`
+206'yı gerçek Cache API gibi `TypeError` ile reddediyor (aksi hâlde "206'yı
+yazmaya çalışıyor" hatası testte görünmezdi), sahte olayda `waitUntil` var. Yeni
+kontroller: ses önbelleğine yalnızca `Range`'siz ya da tam `bytes=0-`
+isteklerinin girdiği ve oradan döndüğü, başka her `Range`'in (`bytes=1-`, `0-1`,
+`0-99`, `-128`, çoklu aralık, `bytes=00-`, `items=0-`, `xbytes=0-`) ağa aynen
+gittiği (`respondWith` çağrılmıyor, önbelleğe yazılmıyor); yanıtın, `put` bir
+kapıyla tutulurken de dönüp yazmanın `waitUntil`'e verildiği, yazma hatasının
+(kota) yanıtı etkilemediği; 206'nın (kabuk ve CDN, opak olmayan) yazılmaya
+çalışılmadığı ve uyarı düşürmediği, 200'ün yazılmaya devam ettiği; çevrimdışı
+eûzü dilimleme tablosu (yukarıdaki ölçümle aynı satırlar), 200 olmayan (203) ve
+`Content-Type`'sız kayıtlar; `js/app.js`'teki her `RECITERS.*.introLocal`
+dosyasının `PRECACHE_URLS`'te olduğu ve kurulumdan sonra çevrimdışı `Range` ile
+206 döndüğü. Yeni kontrollerin 35'i eski `sw.js`'te kırılıyor (yani boş
+geçmiyorlar). `sw.js`'e uygulanan 54 tek noktalı bozulmanın (mutant) 50'i
+yakalandı (2'si testi çökerterek: `event`'in `cacheFirstForever`'a verilmemesi),
+4'ü davranışı değiştirmeyen denk mutant (`trim()` çağrılarının kalkması,
+`cached.clone()` yerine `cached`, 416 koşulunda `>=` yerine `>`), kaçan yok.
+Sınır: sahte `caches` Chromium'un 206/opak davranışını taklit edemez; o
+davranışlar yukarıda anlatılan ölçümlerle, gerçek Chromium'da ayrıca sınandı.
 
 ## Proje yapısı
 
@@ -3291,7 +3416,7 @@ data/surah-info-tr.json        Sure Bilgisi (Türkçe, QUL surah-info exportunda
 data/topics-tr.json            Konu Fihristi (Türkçe, QUL ayah-topics exportundan çevrildi, 2512 konu, ~950KB)
 data/surah-headers/         Her sure için hazır SVG path verisi (114 dosya)
 fonts/                    DigitalKhattV2.woff2 (tarayıcıda gerçekten yüklenen tek font)
-audio/                    euzuhusari.mp3, euzuabdulsamad.mp3: Fâtiha'dan önce çalınan eûzü klipleri (ayet sesleri uzaktan geliyor, bkz. "Sesli okuma")
+audio/                    euzuhusari.mp3, euzuabdulsamad.mp3: Fâtiha'dan önce çalınan eûzü klipleri (ayet sesleri uzaktan geliyor, bkz. "Sesli okuma"); servis worker kurulumda önceden indirir, çevrimdışı da çalar (bkz. "PWA ve çevrimdışı önbellekleme")
 icons/                    PWA simgeleri (192, 512, maskable; geçici)
 vendor/                   hb.wasm, hb.js, hbjs.js (resmi harfbuzzjs, MIT) +
                           woff2-decompress/ (wawoff2, MIT — bkz. THIRD_PARTY_NOTICES.md)
@@ -3318,7 +3443,7 @@ test/modal_odak_test.mjs        Modal odak yönetimi: işaretleme, Tab döngüs�
 test/topic_links_test.mjs       Konu açıklamalarındaki <topic> bağlantıları: role/tabindex, Enter, odak, Geri düğmesi/odak, 461 bağlantının taraması, axe-core (jsdom)
 test/tafsir_dil_test.mjs        Sa'dî tefsiri dil işaretleri: birim, veri varsayımları, 1739 girdilik tam tarama, panel ve arama özeti yolu (jsdom)
 test/ayet_gezgini_test.mjs         Ayet gezgini: işaretleme, CSS, saf yardımcılar, denetleyici, app.js bağlantısı ve sırası, axe-core (jsdom)
-test/sw_test.mjs              Servis worker: sahte self/caches ile (Node)
+test/sw_test.mjs              Servis worker: sahte self/caches ile (Node); ses Range kuralı, yazmayı beklemeden yanıt, 206 yazılmaması, çevrimdışı eûzü dilimleme
 test/topics_test.mjs            Konu Fihristi: ayrıştırma yardımcıları + tüm verinin referans bütünlüğü taraması (Node)
 test/juz_subdivisions_test.mjs    Cüz/hizb/rub/manzil veri tutarlılığı ve gezinme mantığı (Node)
 test/recitation_playback_test.mjs  Sesli okuma motoru: sıradaki ayet, kelime zamanı, ses adresi (Node)
@@ -3859,6 +3984,37 @@ okuyucu anlamı (`aria-current`, ayet düğmesi adı, `aria-haspopup`), modal
 listelerinin ok tuşu gezintisi (tek Tab durağı), ayet düğmeleri ızgarasının ok
 tuşu gezintisi ve ayet düğmeleri ızgarasının adlı grubu ayrı ayrı tek
 commit'tir, geri alınabilir.
+
+### PWA: gerçek tarayıcıda ses önbelleği testi
+
+Yukarıdaki "Ses önbelleği ve `Range`" ölçümleri başsız Chromium 153'te, yerel
+bir sahte CDN'e karşı yapıldı; gerçek ses CDN'i ve yayın adresi bu ortamdan
+erişilemediği için hiç denenmedi, Firefox ve Safari da denenmedi. Gerçek
+tarayıcıda ve cihazda doğrulanması gerekenler:
+
+1. Gerçek CDN'in `Range` davranışı: DevTools > Network'te `audio-cdn.tarteel.ai`
+   isteği 206 mı 200 mü dönüyor, yanıtta `Content-Range` ve
+   `Access-Control-Allow-Origin` var mı? Bir ayet ilk kez çalarken ses hemen
+   başlıyor mu (eskiden indirme süresi kadar gecikiyordu)? Application > Cache
+   Storage > `dijital-mushaf-audio-v1`'de kayıt oluşuyor mu, o ayet uçak modunda
+   baştan sona çalıyor mu?
+2. Yayındaki (github.io) eûzü klibi: ilk ziyaretten sonra uçak modunda
+   Fâtiha'dan Oynat (ya da Ezber > Dinle, Fâtiha) -> eûzü çalıyor mu? Konsolda
+   "Partial response (status code 206) is unsupported" uyarısı çıkmıyor mu?
+   Cache Storage > `dijital-mushaf-shell-v1`'de `audio/euzuhusari.mp3` ve
+   `audio/euzuabdulsamad.mp3` var mı; Abdülbâsıt seçiliyken (Ezber > Dinle) de
+   çalıyor mu?
+3. Safari/iOS ve Firefox: ayet sesi çalıyor mu, uçak modunda eûzü çalıyor mu?
+   (Safari/WebKit'in medya isteklerinde 206 + `Content-Range` beklediği
+   biliniyor; çevrimdışı eûzü dilimlemesi bunun içindi, denenmedi.)
+4. Kota: birkaç yüz ayet dinledikten sonra DevTools > Application > Storage'daki
+   kullanım ve kota ne durumda? (Chromium'da opak yanıtlar gerçek boylarından
+   çok daha fazla kota sayıyor: sahte CDN'de 98 KB'lık klip başına ≈ 6,8 MB.)
+   Kota dolunca `[sw] önbelleğe alınamadı` uyarıları başlıyor mu, çalma sürüyor
+   mu?
+
+Beklenenden farklı çıkarsa düzeltme `sw.js`'te; ses `Range` kuralı, yazmayı
+beklememe ve eûzü önbelleği tek commit'tir, geri alınabilir.
 
 ### Kelime tahlili
 

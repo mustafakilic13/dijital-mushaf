@@ -80,8 +80,13 @@ function makeMockCaches(fetchRef) {
       if (!stores.has(name)) stores.set(name, new Map());
       const bucket = stores.get(name);
       return {
-        match: async (req) => bucket.get(absUrl(req)),
+        // Gerçek Cache.match her çağrıda YENİ bir Response döndürür (gövdesi diğer çağrılardan bağımsız okunur).
+        match: async (req) => bucket.get(absUrl(req))?.clone(),
+        // Gerçek Cache.put kısmi (206) bir yanıtı TypeError ile reddeder (Chromium: "Partial response (status
+        // code 206) is unsupported"); opak yanıtın durumu 0 göründüğünden o geçer. Sahte de aynısını yapmalı --
+        // aksi hâlde "206'yı yazmayı deniyor" hatası testte görünmez kalırdı.
         put: async (req, res) => {
+          if (res.status === 206) throw new TypeError("Partial response (status code 206) is unsupported");
           bucket.set(absUrl(req), res);
         },
         // Gerçek Cache.addAll gibi: her url'i (test'in kontrollü fetch'iyle)
@@ -103,7 +108,7 @@ function makeMockCaches(fetchRef) {
 
 // self: addEventListener çağrılarını yakalayıp test'in elle tetikleyebileceği
 // bir kayda ({ install, activate, fetch }) yazan minik bir sahte hedef.
-function loadWorker({ fetchImpl, clientsClaim } = {}) {
+function loadWorker({ fetchImpl, clientsClaim, consoleImpl } = {}) {
   const listeners = {};
   const calls = { fetch: [] };
   const fetch = async (req) => {
@@ -121,7 +126,7 @@ function loadWorker({ fetchImpl, clientsClaim } = {}) {
     clients: { claim: clientsClaim || (async () => {}) },
     location: { origin: "https://mustafakilic13.github.io" },
   };
-  new Function("self", "caches", "fetch", "console", swSource)(self, caches, fetch, console);
+  new Function("self", "caches", "fetch", "console", swSource)(self, caches, fetch, consoleImpl || console);
   return { self, caches, listeners, calls };
 }
 
@@ -135,14 +140,21 @@ function collectWaitUntil() {
 
 function fetchEvent(request) {
   let responded = null;
+  const waited = [];
   return {
     event: {
       request,
       respondWith(promise) {
         responded = promise;
       },
+      // Gerçek FetchEvent'te de var: sw.js yanıtı döndürürken önbelleğe yazmayı arka planda sürdürür.
+      waitUntil(promise) {
+        waited.push(promise);
+      },
     },
     result: () => responded, // respondWith'e verilen Promise (çağrılmadıysa null)
+    settled: () => Promise.all(waited), // event.waitUntil'e verilen arka plan işlerinin bitişi
+    waitedCount: () => waited.length,
   };
 }
 
@@ -192,6 +204,7 @@ function fetchEvent(request) {
   listeners.fetch(e.event);
   check("eşleşen istek respondWith ile ele alınıyor", e.result() !== null);
   const res = await e.result();
+  await e.settled();
   check("önbellekte yokken ağdan çekiliyor (1 kez)", calls.fetch.length === 1 && calls.fetch[0] === url);
   check("dönen yanıtın gövdesi doğru", (await res.clone().text()) === "ilk-ayet-ses-bayt");
   const cache = await caches.open("dijital-mushaf-audio-v1");
@@ -206,6 +219,7 @@ function fetchEvent(request) {
   const first = fetchEvent(new Request(url));
   listeners.fetch(first.event);
   await first.result();
+  await first.settled();
   check("ilk çağrıda ağa gidildi", calls.fetch.length === 1);
   const second = fetchEvent(new Request(url));
   listeners.fetch(second.event);
@@ -224,6 +238,7 @@ function fetchEvent(request) {
   const e = fetchEvent(new Request(url));
   listeners.fetch(e.event);
   await e.result();
+  await e.settled();
   const cache = await caches.open("dijital-mushaf-audio-v1");
   check("type==='opaque' yanıt da (ok:false olsa dahi) önbelleğe alınıyor", !!(await cache.match(url)));
 }
@@ -265,6 +280,7 @@ try {
     const e = fetchEvent(new Request(url));
     listeners.fetch(e.event);
     await e.result();
+    await e.settled();
   }
   const cache = await caches.open("dijital-mushaf-audio-v1");
   const c1 = await cache.match(a1);
@@ -295,10 +311,242 @@ try {
   check("sw.js fetch()'e event.request'i AYNEN veriyor -- mode korunuyor ('no-cors' 'cors'a dönüşmüyor)", seenMode === "no-cors");
 }
 
+// -- ses: önbelleğe yalnızca TÜM dosyayı isteyen istekler girer / önbellekten döner ----------------------------
+// Gerçek Chromium ölçümü: <audio src> ilk istekte "Range: bytes=0-" gönderir (dosyanın TAMAMI), sonra gerekirse
+// "bytes=N-" ile devam eder. Önbellek anahtarı yalnızca URL (Range yok sayılır) ve opak yanıt dilimlenemez:
+// kayıt ancak "başından sonuna" isteğine doğru cevaptır. Başka bir Range isteğine onu vermek tarayıcıyı bozuyor
+// (Content-Range'i uyuşmayan 206 -> çalma "data source error" ile duruyor) ve ağdan gelen kısmi bir yanıtı aynı
+// anahtara yazmak tam kaydın üstüne eksik bir kayıt koyardı: o istekler ağa AYNEN gitmeli (respondWith yok).
+{
+  const url = "https://audio-cdn.tarteel.ai/quran/husaryMujawwad/055001.mp3";
+  const mkOpaque = (body) => {
+    const r = new Response(body);
+    Object.defineProperty(r, "type", { value: "opaque" });
+    Object.defineProperty(r, "ok", { value: false });
+    return r;
+  };
+  {
+    const { listeners, caches, calls } = loadWorker({ fetchImpl: async () => mkOpaque("tam-dosya") });
+    const e = fetchEvent(new Request(url, { headers: { Range: "bytes=0-" } }));
+    listeners.fetch(e.event);
+    check('"Range: bytes=0-" (tarayıcının ilk <audio> isteği: dosyanın TAMAMI) ele alınıyor', e.result() !== null);
+    await e.result();
+    await e.settled();
+    check('..."bytes=0-" yanıtı ses önbelleğine giriyor', !!(await (await caches.open(AUDIO_CACHE_NAME)).match(url)));
+    const e2 = fetchEvent(new Request(url, { headers: { Range: "bytes=40000-" } }));
+    listeners.fetch(e2.event);
+    check('önbellekte kayıt VARKEN bile "bytes=40000-" (dosyanın bir yeri) ele alınmıyor: kayıt tam dosyadır, başka bir aralığa doğru cevap değildir', e2.result() === null);
+    check("...ve SW ağa gitmiyor (tarayıcı isteği kendisi yapar)", calls.fetch.length === 1);
+    const e3 = fetchEvent(new Request(url));
+    listeners.fetch(e3.event);
+    check("Range'siz istek (ör. fetch() ile) hâlâ ele alınıyor ve önbellekten dönüyor", e3.result() !== null && (await (await e3.result()).text()) === "tam-dosya" && calls.fetch.length === 1);
+  }
+  for (const range of ["bytes=1-", "bytes=40000-", "bytes=0-1", "bytes=0-99", "bytes=-128", "bytes=0-1,5-6", "bytes=00-", "items=0-", "xbytes=0-"]) {
+    const { listeners, caches, calls } = loadWorker({ fetchImpl: async () => mkOpaque("x") });
+    const e = fetchEvent(new Request(url, { headers: { Range: range } }));
+    listeners.fetch(e.event);
+    check(`"Range: ${range}" ele alınmıyor (respondWith çağrılmıyor)`, e.result() === null);
+    await e.settled();
+    check(`"Range: ${range}": SW ne ağa gidiyor ne ses önbelleğine yazıyor`, calls.fetch.length === 0 && (await (await caches.open(AUDIO_CACHE_NAME)).match(url)) === undefined);
+  }
+}
+
+// -- ses: yanıt, önbelleğe yazma BİTMEDEN döndürülüyor (akış hemen başlasın) -------------------------------------
+// Eskiden `await cache.put(...)` yanıtı gövdesi TAMAMEN inene kadar sayfaya vermiyordu: gerçek Chromium'da
+// ~1 MB'lık klip 400 KB/sn'de 2,7 sn sonra çalmaya başlıyordu (yani her yeni ayet, indirme süresi kadar sessizlikle).
+// Burada put bir kapıyla tutuluyor: yanıt kapı AÇILMADAN dönmeli, yazma event.waitUntil'e verilmeli.
+{
+  const url = "https://audio-cdn.tarteel.ai/quran/husaryMujawwad/056001.mp3";
+  let releasePut;
+  const gate = new Promise((r) => (releasePut = r));
+  let putStarted = false;
+  let stored = null;
+  const listeners = {};
+  const selfX = { addEventListener: (t, f) => (listeners[t] = f), skipWaiting() {}, clients: { claim: async () => {} } };
+  const cachesX = {
+    open: async () => ({
+      match: async () => undefined,
+      put: async (req, res) => {
+        putStarted = true;
+        await gate;
+        stored = await res.text();
+      },
+    }),
+  };
+  new Function("self", "caches", "fetch", "console", swSource)(selfX, cachesX, async () => new Response("ses-govdesi"), console);
+  const e = fetchEvent(new Request(url));
+  listeners.fetch(e.event);
+  const BLOCKED = Symbol("blocked");
+  const res = await Promise.race([e.result(), new Promise((r) => setTimeout(() => r(BLOCKED), 300))]);
+  check("yanıt, önbelleğe yazma BİTMEDEN (put hâlâ bekliyorken) döndürülüyor", res !== BLOCKED);
+  check("...yazma o sırada başlamış ve hâlâ sürüyor", putStarted === true && stored === null);
+  check("yazma event.waitUntil'e verildi (worker, yazma bitmeden kapatılmasın)", e.waitedCount() === 1);
+  releasePut();
+  await e.settled();
+  check("yazma bitince önbelleğe TAM gövde yazıldı", stored === "ses-govdesi");
+  let pageBody = null;
+  try {
+    pageBody = res !== BLOCKED ? await res.text() : null;
+  } catch (err) {
+    pageBody = `HATA: ${err.message}`; // gövde iki yere (sayfa + önbellek) paylaşılırsa ikincisi "body used" ile düşer
+  }
+  check("...ve sayfaya dönen yanıt da (kopya önbelleğe giderken) tam okunabiliyor", pageBody === "ses-govdesi");
+}
+{
+  // Yazma REDDEDİLİRSE (kota dolu) waitUntil'e verilen iş reddedilmiyor: uyarı yazılıyor, çalma etkilenmiyor.
+  const warnings = [];
+  const url = "https://audio-cdn.tarteel.ai/quran/husaryMujawwad/056002.mp3";
+  const listeners = {};
+  const selfX = { addEventListener: (t, f) => (listeners[t] = f), skipWaiting() {}, clients: { claim: async () => {} } };
+  const cachesX = { open: async () => ({ match: async () => undefined, put: () => { throw new Error("QuotaExceededError (eşzamanlı)"); } }) };
+  new Function("self", "caches", "fetch", "console", swSource)(selfX, cachesX, async () => new Response("ses"), { warn: (...a) => warnings.push(a.join(" ")), log() {} });
+  const e = fetchEvent(new Request(url));
+  listeners.fetch(e.event);
+  const res = await e.result();
+  let settledOk = true;
+  await e.settled().catch(() => (settledOk = false));
+  check("cache.put EŞZAMANLI hata fırlatsa da (reddedilen söz değil, doğrudan throw) yanıt dönüyor ve waitUntil işi reddedilmiyor", (await res.text()) === "ses" && settledOk);
+  check("...ve konsola 'önbelleğe alınamadı' uyarısı yazılıyor", warnings.length === 1 && /önbelleğe alınamadı/.test(warnings[0]));
+}
+
+// -- 206 (kısmi) yanıt önbelleğe yazılmaya ÇALIŞILMIYOR (Cache.put onu reddeder; her çalmada uyarı düşüyordu) --------
+{
+  const origin = "https://mustafakilic13.github.io/dijital-mushaf/";
+  {
+    // Aynı-kökenli <audio> (euzu klibi): sunucu Range'e 206 döner (GitHub Pages gibi).
+    const warnings = [];
+    const url = origin + "audio/euzuhusari.mp3";
+    const { listeners, caches } = loadWorker({
+      fetchImpl: async () => new Response("kismi-govde", { status: 206, headers: { "Content-Range": "bytes 0-10/11" } }),
+      consoleImpl: { warn: (...a) => warnings.push(a.join(" ")), log() {}, error() {} },
+    });
+    const e = fetchEvent(new Request(url, { headers: { Range: "bytes=0-" } }));
+    listeners.fetch(e.event);
+    const res = await e.result();
+    check("aynı-kökenli 206 yanıt sayfaya AYNEN dönüyor (durum, Content-Range, gövde)", res.status === 206 && res.headers.get("content-range") === "bytes 0-10/11" && (await res.text()) === "kismi-govde");
+    check("...kabuk önbelleğine yazılmıyor", (await (await caches.open(SHELL_CACHE_NAME)).match(url)) === undefined);
+    check("...ve konsola uyarı düşmüyor ('kabuk güncellenemedi' her çalmada tekrarlanıyordu)", warnings.length === 0);
+  }
+  {
+    // CDN, CORS'lu (opak olmayan) 206: ses önbelleğine yazılmıyor, uyarı yok.
+    const warnings = [];
+    const url = "https://audio-cdn.tarteel.ai/quran/husaryMujawwad/057001.mp3";
+    const { listeners, caches } = loadWorker({
+      fetchImpl: async () => new Response("kismi", { status: 206 }),
+      consoleImpl: { warn: (...a) => warnings.push(a.join(" ")), log() {}, error() {} },
+    });
+    const e = fetchEvent(new Request(url));
+    listeners.fetch(e.event);
+    const res = await e.result();
+    await e.settled();
+    check("CDN'den opak olmayan 206 yanıt sayfaya dönüyor", res.status === 206 && (await res.text()) === "kismi");
+    check("...ses önbelleğine yazılmıyor ve uyarı düşmüyor", (await (await caches.open(AUDIO_CACHE_NAME)).match(url)) === undefined && warnings.length === 0 && e.waitedCount() === 0);
+  }
+  {
+    // 200 hâlâ yazılıyor (yukarıdaki 206 koşulu 200'ü engellememeli).
+    const url = origin + "audio/euzuabdulsamad.mp3";
+    const { listeners, caches } = loadWorker({ fetchImpl: async () => new Response("tam-govde") });
+    const e = fetchEvent(new Request(url));
+    listeners.fetch(e.event);
+    await e.result();
+    check("aynı-kökenli 200 yanıt kabuk önbelleğine yazılmaya devam ediyor", (await (await caches.open(SHELL_CACHE_NAME)).match(url)) !== undefined);
+  }
+}
+
+// -- yerel ses (euzu) çevrimdışı: önbellekteki TAM (200) kopya, Range istenirse 206 dilimiyle dönüyor ------------
+// Gerçek Chromium'da ölçüldü: tam bir 200'ü Range'li isteğe vermek orada çalıyor, ama WebKit gibi sıkı oynatıcılar
+// 206 + Content-Range bekler. Kopya kurulumda (PRECACHE_URLS) Range'siz indirildiği için tam ve 200'dür.
+{
+  const url = "https://mustafakilic13.github.io/dijital-mushaf/audio/euzuhusari.mp3";
+  const FULL = "0123456789ABCDEFGHIJ"; // 20 bayt
+  let online = false;
+  const { listeners, caches } = loadWorker({
+    fetchImpl: async () => {
+      if (!online) throw new TypeError("Failed to fetch");
+      return new Response("ag-yaniti", { status: 206, headers: { "Content-Range": "bytes 0-8/9" } });
+    },
+  });
+  await (await caches.open(SHELL_CACHE_NAME)).put(url, new Response(FULL, { headers: { "Content-Type": "audio/mpeg" } }));
+  const ask = async (range) => {
+    try {
+      const e = fetchEvent(new Request(url, range ? { headers: { Range: range } } : {}));
+      listeners.fetch(e.event);
+      const r = await e.result();
+      return { status: r.status, cr: r.headers.get("content-range"), cl: r.headers.get("content-length"), ct: r.headers.get("content-type"), ar: r.headers.get("accept-ranges"), body: await r.text() };
+    } catch (err) {
+      return { status: `HATA: ${err.message}`, cr: null, cl: null, ct: null, ar: null, body: null }; // sw.js isteği REDDETTİ: ilgili kontrol FAIL olsun, dosya çökmesin
+    }
+  };
+  const cases = [
+    ["bytes=0-", 206, "bytes 0-19/20", FULL],
+    ["bytes=5-9", 206, "bytes 5-9/20", "56789"],
+    ["bytes=0-0", 206, "bytes 0-0/20", "0"],
+    ["bytes=-4", 206, "bytes 16-19/20", "GHIJ"],
+    ["bytes=-99", 206, "bytes 0-19/20", FULL],
+    ["bytes=15-", 206, "bytes 15-19/20", "FGHIJ"],
+    ["bytes=18-99", 206, "bytes 18-19/20", "IJ"],
+    ["bytes=19-19", 206, "bytes 19-19/20", "J"],
+  ];
+  for (const [range, status, cr, body] of cases) {
+    const r = await ask(range);
+    check(`çevrimdışı euzu, Range: ${range} -> ${status} ${cr} gövde "${body}"`, r.status === status && r.cr === cr && r.body === body && r.cl === String(body.length));
+  }
+  const r206 = await ask("bytes=5-9");
+  check("206 yanıt Content-Type'ı koruyor (audio/mpeg) ve Accept-Ranges: bytes bildiriyor", r206.ct === "audio/mpeg" && r206.ar === "bytes");
+  for (const range of ["bytes=20-", "bytes=99-", "bytes=5-2", "bytes=-0"]) {
+    const r = await ask(range);
+    check(`çevrimdışı euzu, Range: ${range} -> 416 "bytes */20", gövde yok`, r.status === 416 && r.cr === "bytes */20" && r.body === "");
+  }
+  for (const range of ["bytes=0-1,5-6", "bytes=abc", "items=0-5", "bytes=-", "bytes=1-2-3"]) {
+    const r = await ask(range);
+    check(`çevrimdışı euzu, anlaşılmayan/çoklu Range (${range}) yok sayılıyor: tam 200 dönüyor (sunucunun Range'i yok sayması geçerli bir cevaptır)`, r.status === 200 && r.body === FULL && r.cr === null);
+  }
+  const plain = await ask(null);
+  check("çevrimdışı euzu, Range'siz istek -> tam 200, aynen", plain.status === 200 && plain.body === FULL && plain.cr === null && plain.ct === "audio/mpeg");
+  const again = await ask("bytes=0-4");
+  check("aynı önbellek kaydı art arda dilimlenebiliyor (gövde bir kez okunup tükenmiyor)", again.status === 206 && again.body === "01234");
+  // Yalnızca TAM bir 200 kopya dilimlenir: kayıt başka bir durumdaysa (ör. 203) Range ile bile olduğu gibi dönmeli.
+  const shellCache = await caches.open(SHELL_CACHE_NAME);
+  const oddUrl = url.replace("euzuhusari", "garip-durum");
+  await shellCache.put(oddUrl, new Response("abc", { status: 203 }));
+  const oddEvent = fetchEvent(new Request(oddUrl, { headers: { Range: "bytes=0-1" } }));
+  listeners.fetch(oddEvent.event);
+  const oddRes = await oddEvent.result();
+  check("önbellekteki kayıt 200 değilse (203) Range ile bile dilimlenmiyor: olduğu gibi dönüyor", oddRes.status === 203 && (await oddRes.text()) === "abc");
+  // Kayıtta Content-Type yoksa (ArrayBuffer/Uint8Array gövdeye tarayıcı başlık eklemez) 206 genel bir tür bildiriyor.
+  const binUrl = url.replace("euzuhusari", "ikili");
+  await shellCache.put(binUrl, new Response(new Uint8Array([1, 2, 3, 4])));
+  const binEvent = fetchEvent(new Request(binUrl, { headers: { Range: "bytes=1-2" } }));
+  listeners.fetch(binEvent.event);
+  const binRes = await binEvent.result();
+  check("kayıtta Content-Type yoksa 206 'application/octet-stream' bildiriyor ve doğru baytları döndürüyor", binRes.status === 206 && binRes.headers.get("content-type") === "application/octet-stream" && [...new Uint8Array(await binRes.arrayBuffer())].join() === "2,3");
+  online = true;
+  const onlineRes = await ask("bytes=0-");
+  check("ÇEVRİMİÇİYKEN (ağ-önce): ağ yanıtı (206) olduğu gibi dönüyor; önbellek dilimlemesi devreye girmiyor", onlineRes.status === 206 && onlineRes.cr === "bytes 0-8/9" && onlineRes.body === "ag-yaniti");
+  online = false;
+  const noEntry = fetchEvent(new Request(url.replace("euzuhusari", "yok-boyle-bir-klip"), { headers: { Range: "bytes=0-" } }));
+  listeners.fetch(noEntry.event);
+  let threw = false;
+  try {
+    await noEntry.result();
+  } catch {
+    threw = true;
+  }
+  check("çevrimdışı + önbellekte yok + Range -> gerçek hata ileri sürülüyor (boş 206/416 uydurulmuyor)", threw);
+}
+
 // -- PRECACHE_URLS: kritik dosyalar listede mi -----------------------------------------------------------
 // ("./" = scope kökü, yani manifest start_url'ü: dizin URL'si "index.html"den FARKLI bir önbellek anahtarı.)
-for (const f of ["./", "index.html", "js/app.js", "css/style.css", "data/mushaf.json", "data/meal.json", "vendor/hb.wasm", "fonts/DigitalKhattV2.woff2"]) {
+for (const f of ["./", "index.html", "js/app.js", "css/style.css", "data/mushaf.json", "data/meal.json", "vendor/hb.wasm", "fonts/DigitalKhattV2.woff2", "audio/euzuhusari.mp3", "audio/euzuabdulsamad.mp3"]) {
   check(`PRECACHE_URLS kritik dosyayı içeriyor: ${f}`, PRECACHE_URLS.includes(f));
+}
+// Uygulamanın çaldığı HER yerel ses dosyası (RECITERS.*.introLocal) önceden indirilmeli. Çalarken ağ-önce yolu onları
+// önbelleğe alamıyor (<audio> Range ister, sunucu 206 döner, Cache.put reddeder): kurulumdaki Range'siz indirme tek yol.
+{
+  const intros = [...appSource.matchAll(/introLocal:\s*"([^"]+)"/g)].map((m) => m[1]);
+  check(`app.js'te RECITERS.*.introLocal bulundu (en az 2; aşağıdaki kontrol boş kümede sessizce geçmesin): ${intros.join(", ")}`, intros.length >= 2);
+  const missingIntro = intros.filter((f) => !PRECACHE_URLS.includes(f));
+  check(`app.js'teki her introLocal ses dosyası PRECACHE_URLS'te${missingIntro.length ? ` -- EKSİK: ${missingIntro.join(", ")}` : ""}`, missingIntro.length === 0);
 }
 // Uygulamanın yüklediği HER yerel kabuk dosyası listede mi? Yeni bir JS modülü eklenip buraya yazılmazsa,
 // kurulumdan hemen sonra çevrimdışı açılışta `import` başarısız olur ve uygulama hiç açılmaz (ilk ziyarette
@@ -448,6 +696,7 @@ try {
   listeners.fetch(e1.event);
   check("aynı-kökenli /data/ isteği ele alınıyor", e1.result() !== null);
   await e1.result();
+  await e1.settled();
   const e2 = fetchEvent(new Request(url));
   listeners.fetch(e2.event);
   const res2 = await e2.result();
@@ -539,6 +788,13 @@ try {
   }
   check(`install'dan sonra, hiç çevrimiçi açılış olmadan: PRECACHE_URLS'in HER BİRİ çevrimdışı servis ediliyor${unavailable.length ? ` -- ERİŞİLEMEYEN: ${unavailable.join(", ")}` : ""}`, unavailable.length === 0);
 
+  // Gerçek yol: kurulumda indirilen euzu klibine çevrimdışıyken tarayıcının <audio> isteği ("Range: bytes=0-9") gelir.
+  const euzuAbs = absUrl("audio/euzuhusari.mp3");
+  const euzuRange = fetchEvent(new Request(euzuAbs, { headers: { Range: "bytes=0-9" } }));
+  listeners.fetch(euzuRange.event);
+  const euzuRes = await euzuRange.result().catch(() => null);
+  check("install'dan sonra çevrimdışı: euzu klibine Range istenince 206 + doğru Content-Range ile dönüyor", !!euzuRes && euzuRes.status === 206 && euzuRes.headers.get("content-range") === `bytes 0-9/${("govde:" + euzuAbs).length}` && (await euzuRes.text()) === ("govde:" + euzuAbs).slice(0, 10));
+
   // Yukarıdaki döngü PRECACHE_URLS'teki "./"u da kapsıyor; ama adıyla da dursun: manifest start_url'ü bu.
   const start = fetchEvent(new Request(SCOPE_URL));
   listeners.fetch(start.event);
@@ -588,6 +844,6 @@ if (failures) {
   process.exit(1);
 } else {
   console.log(
-    "All checks passed (sw.js: install precache (kabuk -> SHELL_CACHE, çekirdek veri -> DATA_CACHE, './' scope kökü) + skipWaiting, install'dan hemen sonra çevrimdışı açılış (PRECACHE_URLS'in her biri + dizin URL'si + gezinti fallback'i), activate temizliği (AUDIO_CACHE dahil GÜNCEL önbellekler dokunulmaz), ses-CDN+GET filtresi, ses/veri cache-first-forever, kabuk network-first+offline-fallback, opak yanıt, hata dayanıklılığı, hafız ayrımı, sınır/LRU yokluğu, CDN host senkronu)."
+    "All checks passed (sw.js: install precache (kabuk -> SHELL_CACHE, çekirdek veri -> DATA_CACHE, './' scope kökü) + skipWaiting, install'dan hemen sonra çevrimdışı açılış (PRECACHE_URLS'in her biri + dizin URL'si + gezinti fallback'i), activate temizliği (AUDIO_CACHE dahil GÜNCEL önbellekler dokunulmaz), ses-CDN+GET filtresi, ses/veri cache-first-forever, kabuk network-first+offline-fallback, opak yanıt, hata dayanıklılığı, hafız ayrımı, sınır/LRU yokluğu, CDN host senkronu, ses Range kuralı (yalnızca 'bytes=0-'/Range'siz), yazmayı beklemeden yanıt, 206 yazılmaması, çevrimdışı euzu Range dilimleme, introLocal precache senkronu)."
   );
 }
