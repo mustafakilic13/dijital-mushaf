@@ -1,5 +1,6 @@
-// sw.js (servis worker: ayet seslerini dinlendikçe, sınırsız önbelleğe
-// alma) için regresyon kontrolü. Bir servis worker gerçek bir tarayıcı
+// sw.js (servis worker: ayet seslerini dinlendikçe önbelleğe alma; kota
+// dolarken ses önbelleğinin EN ESKİ kayıtlarını silme) için regresyon
+// kontrolü. Bir servis worker gerçek bir tarayıcı
 // dışında (self/caches globalleri, install/activate/fetch olayları)
 // çalışmadığından, sw.js'in kaynağı sahte self/caches ile bir Function
 // içinde çalıştırılıp addEventListener çağrılarıyla kaydedilen
@@ -64,17 +65,32 @@ const REAL_HOST = /https:\/\/([a-z0-9.-]+)\/quran\//.exec(appSource)?.[1];
 check("app.js'te recitationAudioUrl'in gerçek CDN host'u bulundu (regresyon: aşağıdaki kontrol boşa geçmesin)", !!REAL_HOST);
 check(`sw.js: AUDIO_HOST, app.js'teki gerçek CDN host'uyla (${REAL_HOST}) birebir aynı`, new RegExp(`AUDIO_HOST = "${REAL_HOST}"`).test(swSource));
 
-// -- sınır/LRU YOK -- kaynakta hiç tahliye mantığı bulunmamalı (kullanıcının açık isteği) -----------------
-// (satır başındaki "//" yorumları çıkarılıyor: dosyanın kendi açıklayıcı
-// yorumu "LRU tahliyesi UYGULANMIYOR" gibi bu kelimeleri zaten içeriyor --
-// asıl sorulması gereken KODUN içinde geçiyor mu.)
+// -- tahliye YALNIZCA ses önbelleğinde ve YALNIZCA kota kuralıyla (kullanıcının kararı) -----------------------
+// (satır başındaki "//" yorumları çıkarılıyor: dosyanın kendi açıklayıcı yorumu bu kelimeleri zaten
+// içeriyor -- asıl sorulması gereken KODUN içinde geçiyor mu.)
 const swCodeOnly = swSource.replace(/\/\/.*$/gm, "");
-check("sw.js KODUNDA (yorumlar hariç) TEK TEK ÖĞE tahliyesi YOK: cache.delete(istek) hiç geçmiyor (caches.delete(adı) -- TÜM bir önbelleği silmek, eski SÜRÜM temizliği için -- ayrı ve meşru, aşağıda ayrıca test ediliyor)", !/\bcache\.delete\(/.test(swCodeOnly));
-check("sw.js KODUNDA boyut/LRU sınırı YOK (max_items vb. hiçbiri geçmiyor)", !/max[_-]?items|max[_-]?age|\bLRU\b|\bevict/i.test(swCodeOnly));
+const outsideAudioEviction = swCodeOnly.replace(/^async function (?:trimAudioCache|relieveAudioCache)\([^)]*\) \{\n[\s\S]*?^\}$/gm, "");
+check("sw.js KODUNDA tek tek kayıt silme (cache.delete(istek)) VAR ama YALNIZCA ses önbelleği tahliye işlevlerinde (trimAudioCache, relieveAudioCache); başka hiçbir yerde yok (caches.delete(adı) -- TÜM bir önbelleği silmek, eski SÜRÜM temizliği için -- ayrı ve meşru, aşağıda ayrıca test ediliyor)", /\bcache\.delete\(/.test(swCodeOnly) && !/\bcache\.delete\(/.test(outsideAudioEviction));
+check("sw.js KODUNDA kayıt SAYISI / yaş / LRU sınırı YOK (max_items vb. hiçbiri geçmiyor): tahliye yalnızca kota tabanlı", !/max[_-]?items|max[_-]?age|\bLRU\b/i.test(swCodeOnly));
+// Eşik değerleri bilerek BURADA sabitleniyor (aşağıdaki kota testlerinin sayıları ve README bunlara göre yazıldı): sw.js'te
+// biri değişirse bu kontrol kırılır ve değişiklik testlerle README'ye de bilinçli olarak yansıtılır.
+const constNum = (name) => Number(new RegExp(`const ${name} = ([0-9.]+);`).exec(swSource)?.[1]);
+const quotaConsts = ["AUDIO_HIGH_WATER", "AUDIO_LOW_WATER", "AUDIO_RELIEF_FRACTION", "AUDIO_TRIM_MAX_FRACTION"].map(constNum);
+check(`kota sabitleri testlerdeki ve README'deki değerlerle aynı (AUDIO_HIGH_WATER 0.8, AUDIO_LOW_WATER 0.7, AUDIO_RELIEF_FRACTION 0.1, AUDIO_TRIM_MAX_FRACTION 0.2; bulunan: ${quotaConsts.join(", ")})`, quotaConsts.join(",") === "0.8,0.7,0.1,0.2");
 
 // -- sahte ServiceWorkerGlobalScope kurulumu ------------------------------------------------------------
-function makeMockCaches(fetchRef) {
+// quota/sizeOf: kota tahliyesi testleri için basit bir depolama modeli. sizeOf(url, yanıt) kaydın kullandığı "kota
+// birimi"dir (Chromium opak yanıtlara gerçek boylarından çok fazlasını sayar); verilmezse hiçbir kayıt kota yemez ve
+// put asla kota hatası vermez (kota ile ilgisiz testler için eski davranış). Kullanım, TÜM önbelleklerdeki kayıtların
+// toplamıdır; put kullanımı kotanın ÜSTÜNE çıkaracaksa gerçek Cache.put gibi QuotaExceededError (DOMException, code
+// 22) ile reddedilir; delete kullanımı anında düşürür (Chromium'da ölçüldü: estimate() silmeden hemen sonra düşük).
+function makeMockCaches(fetchRef, { quota = Infinity, sizeOf = () => 0 } = {}) {
   const stores = new Map(); // cacheName -> Map(url -> Response)
+  const usage = () => {
+    let total = 0;
+    for (const bucket of stores.values()) for (const [u, r] of bucket) total += sizeOf(u, r);
+    return total;
+  };
   return {
     open: async (name) => {
       if (!stores.has(name)) stores.set(name, new Map());
@@ -87,8 +103,16 @@ function makeMockCaches(fetchRef) {
         // aksi hâlde "206'yı yazmayı deniyor" hatası testte görünmez kalırdı.
         put: async (req, res) => {
           if (res.status === 206) throw new TypeError("Partial response (status code 206) is unsupported");
-          bucket.set(absUrl(req), res);
+          const key = absUrl(req);
+          const growth = sizeOf(key, res) - (bucket.has(key) ? sizeOf(key, bucket.get(key)) : 0);
+          if (usage() + growth > quota) throw new DOMException("Quota exceeded.", "QuotaExceededError");
+          bucket.delete(key); // gerçek Cache: aynı anahtarı yeniden put etmek kaydı SONA taşır (Chromium'da ölçüldü)
+          bucket.set(key, res);
         },
+        // Gerçek Cache.keys(): kayıtların Request'leri, EKLEME sırasıyla. Bir match() isabeti sırayı değiştirmez
+        // (Chromium'da ölçüldü) -- yani "en eski" = ilk eklenen.
+        keys: async () => [...bucket.keys()].map((u) => new Request(u)),
+        delete: async (req) => bucket.delete(absUrl(req)),
         // Gerçek Cache.addAll gibi: her url'i (test'in kontrollü fetch'iyle)
         // çeker ve saklar; biri başarısız olursa TÜMÜ reddedilir (gerçek
         // davranışla aynı -- eksik bir dosya "install" başarısız sayılmalı).
@@ -98,6 +122,7 @@ function makeMockCaches(fetchRef) {
         },
       };
     },
+    _usage: usage,
     _bucketSizes: () => Object.fromEntries([...stores].map(([k, v]) => [k, v.size])),
     _hasBucket: (name) => stores.has(name),
     _setBucket: (name, map) => stores.set(name, map), // testte eski-sürüm önbelleği simüle etmek için
@@ -108,14 +133,16 @@ function makeMockCaches(fetchRef) {
 
 // self: addEventListener çağrılarını yakalayıp test'in elle tetikleyebileceği
 // bir kayda ({ install, activate, fetch }) yazan minik bir sahte hedef.
-function loadWorker({ fetchImpl, clientsClaim, consoleImpl } = {}) {
+// estimate: verilirse self.navigator.storage.estimate olur (kota tahliyesinin "önceden" yolu); verilmezse
+// self.navigator hiç yok (storage.estimate desteklemeyen bir tarayıcı gibi). cachesOpts: makeMockCaches'e.
+function loadWorker({ fetchImpl, clientsClaim, consoleImpl, estimate, cachesOpts } = {}) {
   const listeners = {};
   const calls = { fetch: [] };
   const fetch = async (req) => {
     calls.fetch.push(typeof req === "string" ? req : req.url);
     return fetchImpl(req);
   };
-  const caches = makeMockCaches(fetch);
+  const caches = makeMockCaches(fetch, cachesOpts);
   const self = {
     addEventListener: (type, fn) => {
       listeners[type] = fn;
@@ -126,6 +153,7 @@ function loadWorker({ fetchImpl, clientsClaim, consoleImpl } = {}) {
     clients: { claim: clientsClaim || (async () => {}) },
     location: { origin: "https://mustafakilic13.github.io" },
   };
+  if (estimate) self.navigator = { storage: { estimate } };
   new Function("self", "caches", "fetch", "console", swSource)(self, caches, fetch, consoleImpl || console);
   return { self, caches, listeners, calls };
 }
@@ -453,6 +481,332 @@ try {
   }
 }
 
+// -- ses: kota dolarken / dolmaya yakınken EN ESKİ kayıtlar silinir (kullanıcının kararı) ------------------------
+// Depolama modeli (makeMockCaches): kota 1000 birim, her ses klibi 10 birim (gerçekte Chromium opak yanıtlara klip
+// başına ortalama ~6,8 MB sayıyor), uygulamanın kendi kabuk+veri kayıtları 2 x 50 birim; üst eşik %80 = 800, alt
+// eşik %70 = 700. estimate() kullanımı aynı modelden okur; silme kullanımı anında düşürür.
+{
+  const clipUrl = (n) => `https://audio-cdn.tarteel.ai/quran/husaryMujawwad/${String(n).padStart(6, "0")}.mp3`;
+  const clipNo = (u) => Number(/\/(\d{6})\.mp3$/.exec(u)[1]);
+  const opaque = (body) => {
+    const r = new Response(body);
+    Object.defineProperty(r, "type", { value: "opaque" });
+    Object.defineProperty(r, "ok", { value: false });
+    return r;
+  };
+  const sizeOf = (u) => (u.startsWith("https://audio-cdn.tarteel.ai/") ? 10 : 50);
+  const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  // Bir senaryo çökerse (ör. sw.js'te bir korumanın kalkmasıyla waitUntil işi reddedilirse) tek bir hata olarak
+  // işaretlensin; geri kalan senaryoların kontrolleri gizlenmesin.
+  async function scenario(name, fn) {
+    try {
+      await fn();
+    } catch (err) {
+      check(`ses kota tahliyesi, ${name}: senaryo ÇÖKTÜ -- ${err && err.message}`, false);
+    }
+  }
+
+  // estimate: "model" (modelin gerçek kullanımı), "yok" (self.navigator hiç yok) ya da (dünya) => ({ usage, quota }).
+  async function quotaWorld({ quota = 1000, estimate = "model", fetchImpl } = {}) {
+    const warnings = [];
+    let estimateCalls = 0;
+    let w;
+    const estimateFn =
+      estimate === "yok"
+        ? undefined
+        : async () => {
+            estimateCalls++;
+            return estimate === "model" ? { usage: w.caches._usage(), quota } : estimate(w);
+          };
+    w = loadWorker({
+      fetchImpl: fetchImpl || (async (req) => opaque(`ses-${clipNo(req.url)}`)),
+      consoleImpl: { warn: (...a) => warnings.push(a.map(String).join(" ")), log() {}, error() {} },
+      estimate: estimateFn,
+      cachesOpts: { quota, sizeOf },
+    });
+    // Uygulamanın kendi kayıtları (kabuk + veri): ses kayıtlarından DAHA ESKİ eklendi -- tahliye yalnızca sıraya
+    // bakıyor olsaydı ilk onlar silinirdi.
+    const shell = await w.caches.open(SHELL_CACHE_NAME);
+    const data = await w.caches.open(DATA_CACHE_NAME);
+    await shell.put(SCOPE_URL + "js/app.js", new Response("kabuk"));
+    await data.put(SCOPE_URL + "data/mushaf.json", new Response("veri"));
+    const audio = await w.caches.open(AUDIO_CACHE_NAME);
+    return {
+      ...w,
+      warnings,
+      estimateCalls: () => estimateCalls,
+      shell,
+      data,
+      // "Önceden dinlenmiş" klipler: tahliye mantığına uğramadan doğrudan önbelleğe yazılır.
+      preload: async (a, b) => {
+        for (const n of range(a, b)) await audio.put(clipUrl(n), opaque(`ses-${n}`));
+      },
+      // Bir klibi servis worker üzerinden çalar; sayfaya dönen gövdeyi verir. Dönerken arka plan işleri (yazma +
+      // tahliye) de bitmiş olur.
+      play: async (n) => {
+        const e = fetchEvent(new Request(clipUrl(n)));
+        w.listeners.fetch(e.event);
+        const res = await e.result();
+        const body = await res.clone().text();
+        await e.settled();
+        return body;
+      },
+      ids: async () => (await audio.keys()).map((r) => clipNo(r.url)),
+      usage: () => w.caches._usage(),
+      appIntact: async () => !!(await shell.match(SCOPE_URL + "js/app.js")) && !!(await data.match(SCOPE_URL + "data/mushaf.json")),
+    };
+  }
+
+  // ÖNCEDEN yolu: kullanım kotanın %80'ini aşınca en eskiden başlayarak %70'e inene kadar silinir.
+  await scenario("önceden (estimate eşiği)", async () => {
+    const w = await quotaWorld();
+    for (const n of range(1, 70)) await w.play(n);
+    check("kullanım kotanın TAM %80'inde (800/1000) tahliye YOK: 70 klibin hepsi önbellekte", w.usage() === 800 && same(await w.ids(), range(1, 70)));
+    check("eşiğin altında hiçbir uyarı yazılmadı", w.warnings.length === 0);
+    check("eşiği aşan klibin (71.) yanıtı sayfaya sağlam dönüyor", (await w.play(71)) === "ses-71");
+    check("%80 aşılınca (810) en eski klipler silindi: kullanım %70'e (700) inene kadar, yani 1..11; 12..71 duruyor", w.usage() === 700 && same(await w.ids(), range(12, 71)));
+    check("...en yeni klip (71) duruyor, en eski (1) gitti: sıra EKLEME sırası (ilk giren ilk çıkar)", (await w.ids()).includes(71) && !(await w.ids()).includes(1));
+    check("kabuk ve veri önbelleği DOKUNULMADI (uygulamanın kayıtları ses kayıtlarından eski olsa da: silinen YALNIZCA ses)", await w.appIntact());
+    for (const n of range(72, 81)) await w.play(n);
+    check("histerezis: tahliyeden sonra kullanım %70'ten %80'e çıkarken yeni yazımlar tahliye TETİKLEMİYOR (12..81 duruyor)", w.usage() === 800 && same(await w.ids(), range(12, 81)));
+    await w.play(82);
+    check("%80 yeniden aşılınca yine en eskiler silindi: 12..22 gitti, 23..82 duruyor", w.usage() === 700 && same(await w.ids(), range(23, 82)));
+    const before = w.estimateCalls();
+    check("önbellek İSABETİ (ağa ve yazmaya gidilmeyen) bir klip sayfaya dönüyor...", (await w.play(82)) === "ses-82");
+    check("...ve o sırada kullanım tahmini OKUNMUYOR (tahmin yalnızca ses YAZIMINDAN sonra okunur)", w.estimateCalls() === before);
+    // FIFO, LRU değil: bir isabet kaydın yerini değiştirmiyor, en eski klip ne kadar dinlenirse dinlensin ilk o silinir.
+    for (let i = 0; i < 3; i++) await w.play(23);
+    for (const n of range(83, 93)) await w.play(n);
+    check("FIFO (LRU değil): en eski klip (23) art arda dinlenip isabet aldı, yine de ilk o silindi (23..33 gitti, 34..93 duruyor)", same(await w.ids(), range(34, 93)));
+  });
+
+  // Uzun bir dinleme: kota hiç dolmuyor, hiçbir yazımın sonunda kullanım eşiğin üstünde KALMIYOR.
+  await scenario("uzun dinleme", async () => {
+    const w = await quotaWorld();
+    let maxUsage = 0;
+    for (const n of range(1, 300)) {
+      await w.play(n);
+      maxUsage = Math.max(maxUsage, w.usage());
+    }
+    const ids = await w.ids();
+    check(`300 klip art arda: kota hiç dolmadı (QuotaExceededError uyarısı yok) ve her yazımdan sonra kullanım <= 800 (en yüksek: ${maxUsage})`, w.warnings.length === 0 && maxUsage <= 800);
+    check(`...kalan klipler ardışık ve EN YENİLER (…, 300), 60-70 tane (bulunan: ${ids.length}), kabuk/veri sağlam`, ids[ids.length - 1] === 300 && same(ids, range(ids[0], 300)) && ids.length >= 60 && ids.length <= 70 && (await w.appIntact()));
+  });
+
+  // SONRADAN yolu: estimate yok ya da yanlış, put kota hatası veriyor -> en eski kayıtların %10'u (yukarı yuvarlanır).
+  for (const [label, estimate] of [["storage.estimate YOK (self.navigator tanımsız)", "yok"], ["estimate var ama kullanımı hep düşük bildiriyor", () => ({ usage: 0, quota: 1000 })]]) {
+    await scenario(`sonradan (${label})`, async () => {
+      const w = await quotaWorld({ quota: 950, estimate }); // 100 + 85 x 10 = 950: 85 klip sığar
+      await w.preload(1, 85);
+      check(`[${label}] başlangıç: kota tam dolu (950/950), 85 klip`, w.usage() === 950 && (await w.ids()).length === 85);
+      check(`[${label}] kota dolu iken gelen klibin (86.) yanıtı yine de sayfaya sağlam dönüyor (çalma etkilenmiyor)`, (await w.play(86)) === "ses-86");
+      check(`[${label}] o klip bu sefer önbelleğe GİRMEDİ (put QuotaExceededError verdi) ve konsola tek bir 'önbelleğe alınamadı' uyarısı yazıldı`, !(await w.ids()).includes(86) && w.warnings.filter((m) => /önbelleğe alınamadı/.test(m)).length === 1);
+      check(`[${label}] yer açıldı: en eski kayıtların %10'u (ceil(85 x 0,1) = 9) silindi, 1..9 gitti, 10..85 duruyor`, same(await w.ids(), range(10, 85)) && w.usage() === 860);
+      check(`[${label}] kabuk ve veri önbelleği DOKUNULMADI`, await w.appIntact());
+      check(`[${label}] aynı klip sonraki çalışta önbelleğe giriyor (artık yer var) ve en yeni sırada duruyor`, (await w.play(86)) === "ses-86" && same(await w.ids(), [...range(10, 85), 86]));
+      check(`[${label}] ikinci çalışta yeni uyarı yok (toplam 1)`, w.warnings.length === 1);
+    });
+  }
+  await scenario("sonradan, yalnızca sonradan yolu", async () => {
+    // Kota hatası yazımı: önce yalnızca yer açılır (%10); tahmin yüksek olsa da ardından "önceden" turu BAŞLAMAZ
+    // (o yalnızca BAŞARILI bir yazımdan sonra çalışır).
+    const w = await quotaWorld({ quota: 950, estimate: (world) => ({ usage: world.caches._usage(), quota: 1000 }) });
+    await w.preload(1, 85); // 950: gerçek kota dolu, ama tahmin (kota 1000) %95 gösteriyor
+    check("kota hatası veren yazımdan sonra yalnızca %10 silindi (9 kayıt); kullanım %86'da kalsa da ek bir 'önceden' turu çalışmadı", (await w.play(86)) === "ses-86" && same(await w.ids(), range(10, 85)) && w.usage() === 860 && w.estimateCalls() === 0);
+  });
+  await scenario("sonradan, küçük önbellek", async () => {
+    const w = await quotaWorld({ quota: 130, estimate: "yok" }); // 100 + 3 x 10
+    await w.preload(1, 3);
+    await w.play(4);
+    check("3 kayıtlık dolu önbellekte kota hatası: en az 1 kayıt (en eski) siliniyor (ceil(3 x 0,1) = 1): 2, 3 kalır", same(await w.ids(), [2, 3]));
+  });
+
+  // Üst sınır: bir tur, kayıtların %20'sinden fazlasını silmiyor (alt eşiğe inemese bile).
+  await scenario("tur başına üst sınır", async () => {
+    const w = await quotaWorld();
+    for (let i = 0; i < 8; i++) await w.shell.put(SCOPE_URL + `js/ek-${i}.js`, new Response("x")); // kabuk 500 birime çıktı
+    await w.preload(1, 30); // 500 + 300 = 800
+    await w.play(31); // 810 > 800: alt eşiğe (700) inmek için 11 silme gerekir
+    check("alt eşiğe inmek için %20'den fazla silmek gerekse de tur floor(31 x 0,2) = 6 kayıtta duruyor (1..6 gitti, 7..31 duruyor, kullanım 750)", same(await w.ids(), range(7, 31)) && w.usage() === 750);
+  });
+  await scenario("az kayıtta tur en az 1 siler", async () => {
+    const w = await quotaWorld({ quota: 150 }); // %80 = 120
+    await w.preload(1, 2); // 100 + 20 = 120: tam eşikte
+    await w.play(3); // 130 > 120
+    check("3 kayıtta tur başına sınır floor(3 x 0,2) = 0 olurdu: en az 1 kayıt (en eski) siliniyor, 2 ve 3 kalıyor", same(await w.ids(), [2, 3]));
+  });
+
+  // Tahmin güvenilir değilse silme durur / hiç başlamaz.
+  await scenario("tahmin silmeyi yansıtmıyor", async () => {
+    const w = await quotaWorld({ quota: 1e9, estimate: () => ({ usage: 900, quota: 1000 }) });
+    await w.preload(1, 50);
+    await w.play(51);
+    check("tahmin hep %90 gösteriyor (silmeye yanıt vermiyor): tur 1 kayıttan sonra duruyor (10'luk üst sınıra kadar sürmüyor)", same(await w.ids(), range(2, 51)));
+  });
+  await scenario("tahmin yavaş düşüyor", async () => {
+    const w = await quotaWorld({
+      quota: 1e9,
+      estimate: (world) => ({ usage: 900 - (51 - world.caches._bucketSizes()[AUDIO_CACHE_NAME]), quota: 1000 }), // her silmede 1 birim düşer
+    });
+    await w.preload(1, 50);
+    await w.play(51);
+    check("tahmin her silmede biraz düşüyor ama alt eşiğe hiç inmiyor: tur floor(51 x 0,2) = 10 kayıtta duruyor (önbelleği boşaltmıyor)", same(await w.ids(), range(11, 51)));
+  });
+  await scenario("tahmin ilk okumadan sonra bozuluyor", async () => {
+    let reads = 0;
+    const w = await quotaWorld({
+      quota: 1e9,
+      estimate: () => {
+        if (reads++ === 0) return { usage: 900, quota: 1000 };
+        throw new Error("sonraki okuma başarısız");
+      },
+    });
+    await w.preload(1, 50);
+    await w.play(51);
+    check("tahmin silmeler SIRASINDA okunamaz olursa tur durur (1 kayıt silindi), uyarı yazılmaz", same(await w.ids(), range(2, 51)) && w.warnings.length === 0);
+  });
+  for (const [label, estimate] of [
+    ["estimate() hata fırlatıyor", () => { throw new Error("estimate patladı"); }],
+    ["kota 0", () => ({ usage: 900, quota: 0 })],
+    ["kullanım tanımsız", () => ({ usage: undefined, quota: 1000 })],
+    ["kullanım negatif", () => ({ usage: -5, quota: 1000 })],
+    ["NaN", () => ({ usage: NaN, quota: NaN })],
+    ["undefined döndürüyor", () => undefined],
+  ]) {
+    await scenario(`geçersiz tahmin (${label})`, async () => {
+      const w = await quotaWorld({ quota: 1e9, estimate });
+      await w.preload(1, 50);
+      await w.play(51);
+      check(`geçersiz tahmin (${label}) = tahmin yok sayılır: hiçbir kayıt silinmiyor ve uyarı yazılmıyor`, same(await w.ids(), range(1, 51)) && w.warnings.length === 0);
+    });
+  }
+
+  // Eşzamanlı yazımlar: temizlikler birbiri ardına (üst üste binmeden) çalışır.
+  await scenario("eşzamanlı yazımlar", async () => {
+    let active = 0;
+    let maxActive = 0;
+    const w = await quotaWorld({
+      estimate: async (world) => {
+        active++;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((r) => setTimeout(r, 1));
+        const usage = world.caches._usage();
+        active--;
+        return { usage, quota: 1000 };
+      },
+    });
+    await w.preload(1, 68); // 780
+    const bodies = await Promise.all(range(69, 73).map((n) => w.play(n)));
+    const ids = await w.ids();
+    check("5 klip AYNI ANDA yazılırken yanıtların hepsi sağlam dönüyor", same(bodies, range(69, 73).map((n) => `ses-${n}`)));
+    check(`temizlikler üst üste binmiyor: kullanım tahminini hiçbir an iki tur birden okumadı (en yüksek eşzamanlı okuma: ${maxActive})`, maxActive === 1);
+    check(`sonuç tutarlı: kalanlar en yeni klipler (…, 73), ardışık (eskiden yeniye sıra korunmuş), kullanım <= 800 (bulunan: ${w.usage()})`, ids[ids.length - 1] === 73 && same(ids, range(ids[0], 73)) && ids[0] >= 12 && w.usage() <= 800);
+  });
+
+  // Temizlik, waitUntil'e verilen işin İÇİNDE: worker, silmeler bitmeden kapatılmasın. (Silme yavaşlatılıyor: iş
+  // beklenmezse play() döndüğünde kayıtlar henüz silinmemiş olur.)
+  for (const [label, opts, expected] of [
+    ["sonradan (kota hatası)", { quota: 950, estimate: "yok" }, range(10, 85)],
+    ["önceden (kullanım eşiği)", { quota: 1000, estimate: "model" }, range(12, 71)],
+  ]) {
+    await scenario(`waitUntil, temizlik bitene kadar sürer (${label})`, async () => {
+      const w = await quotaWorld(opts);
+      await w.preload(1, opts.quota === 950 ? 85 : 70);
+      const realOpen = w.caches.open;
+      w.caches.open = async (name) => {
+        const c = await realOpen(name);
+        return name === AUDIO_CACHE_NAME ? { ...c, delete: async (req) => { await new Promise((r) => setTimeout(r, 2)); return c.delete(req); } } : c;
+      };
+      await w.play(opts.quota === 950 ? 86 : 71); // play, event.waitUntil işleri bitince döner
+      check(`yavaş silmede bile waitUntil işi temizlik BİTENE kadar sürüyor (${label}): play döndüğünde en eski kayıtlar silinmiş`, same(await w.ids(), expected));
+    });
+  }
+
+  // Hata yalıtımı: temizlik başarısız olursa yanıt ve sonraki temizlikler etkilenmez.
+  await scenario("temizlik hatası (silme)", async () => {
+    const w = await quotaWorld({ quota: 950, estimate: "yok" });
+    await w.preload(1, 85);
+    const realOpen = w.caches.open;
+    w.caches.open = async (name) => {
+      const c = await realOpen(name);
+      return name === AUDIO_CACHE_NAME ? { ...c, delete: async () => { throw new Error("silinemedi"); } } : c;
+    };
+    check("kota hatası + temizlik (cache.delete) de başarısız: yanıt yine de sağlam dönüyor ve waitUntil işi reddedilmiyor", (await w.play(86)) === "ses-86");
+    check("...iki uyarı yazıldı: 'önbelleğe alınamadı' (put) ve 'ses önbelleği temizlenemedi' (silme)", w.warnings.some((m) => /önbelleğe alınamadı/.test(m)) && w.warnings.some((m) => /ses önbelleği temizlenemedi/.test(m)));
+    w.caches.open = realOpen; // silme düzeldi
+    await w.play(87);
+    check("temizlik zinciri hatadan SONRA da çalışıyor: bir sonraki kota hatasında en eski 9 kayıt silindi (1..9 gitti)", same(await w.ids(), range(10, 85)));
+  });
+  await scenario("temizlik hatası (keys)", async () => {
+    const w = await quotaWorld({ estimate: () => ({ usage: 900, quota: 1000 }), quota: 1e9 });
+    await w.preload(1, 20);
+    const realOpen = w.caches.open;
+    w.caches.open = async (name) => {
+      const c = await realOpen(name);
+      return name === AUDIO_CACHE_NAME ? { ...c, keys: async () => { throw new Error("keys başarısız"); } } : c;
+    };
+    check("eşik aşıldı ama cache.keys() başarısız: yanıt sağlam dönüyor, waitUntil işi reddedilmiyor", (await w.play(21)) === "ses-21");
+    check("...uyarı yazıldı ve hiçbir kayıt silinmedi", w.warnings.some((m) => /ses önbelleği temizlenemedi/.test(m)) && same(await w.ids(), range(1, 21)));
+  });
+
+  // Hangi put hatası kota hatasıdır, ve kabuk/veri yazımının kota hatası ses önbelleğini silmez.
+  await scenario("put hatası türleri", async () => {
+    const w = await quotaWorld({ quota: 1e9, estimate: "yok" });
+    await w.preload(1, 20);
+    const realOpen = w.caches.open;
+    let failure = new TypeError("boom");
+    w.caches.open = async (name) => {
+      const c = await realOpen(name);
+      return name === AUDIO_CACHE_NAME ? { ...c, put: async () => { throw failure; } } : c;
+    };
+    await w.play(21);
+    check("kota-dışı bir put hatası (TypeError) HİÇBİR kaydı silmiyor", same(await w.ids(), range(1, 20)));
+    failure = undefined; // tuhaf ama geçerli: `throw undefined`
+    check("put'un reddedilme nedeni tanımsız olsa bile yanıt dönüyor ve hiçbir kayıt silinmiyor", (await w.play(21)) === "ses-21" && same(await w.ids(), range(1, 20)));
+    failure = Object.assign(new Error("adı QuotaExceededError olan ama code'u olmayan hata"), { name: "QuotaExceededError" });
+    await w.play(22);
+    check("adı 'QuotaExceededError' olan hata kota hatası sayılıyor: ceil(20 x 0,1) = 2 kayıt silindi (1, 2 gitti)", same(await w.ids(), range(3, 20)));
+    failure = Object.assign(new Error("eski tarayıcı"), { code: 22 });
+    await w.play(23);
+    check("adı farklı olsa da code 22 (eski DOMException kodu) kota hatası sayılıyor: ceil(18 x 0,1) = 2 kayıt silindi (3, 4 gitti)", same(await w.ids(), range(5, 20)));
+  });
+  await scenario("kabuk/veri yazımı", async () => {
+    const w = await quotaWorld({ quota: 1e9, estimate: () => ({ usage: 900, quota: 1000 }), fetchImpl: async () => new Response("icerik") });
+    await w.preload(1, 20);
+    const quotaError = () => new DOMException("Quota exceeded.", "QuotaExceededError");
+    const realOpen = w.caches.open;
+    w.caches.open = async (name) => {
+      const c = await realOpen(name);
+      return name === AUDIO_CACHE_NAME ? c : { ...c, put: async () => { throw quotaError(); } };
+    };
+    const dataEvent = fetchEvent(new Request(SCOPE_URL + "data/word-meal.json"));
+    w.listeners.fetch(dataEvent.event);
+    const dataRes = await dataEvent.result();
+    await dataEvent.settled();
+    const shellEvent = fetchEvent(new Request(SCOPE_URL + "js/yeni.js"));
+    w.listeners.fetch(shellEvent.event);
+    const shellRes = await shellEvent.result();
+    check("veri ve kabuk yazımı kota hatası verse de yanıtlar sağlam dönüyor", (await dataRes.text()) === "icerik" && (await shellRes.text()) === "icerik");
+    check("...ses önbelleği DOKUNULMADI (kabuk/veri kota hatası ses kayıtlarını silmez: kalıcı hatada her sayfa açılışı onu eritirdi)", same(await w.ids(), range(1, 20)));
+    check("...kabuk ve veri önbelleğinin kendi kayıtları da DOKUNULMADI (tahliye işlevi yanlışlıkla o önbelleğe uygulanmıyor)", await w.appIntact());
+    check("...ve kullanım tahmini YALNIZCA ses yazımından sonra okunur: veri/kabuk yazımı tahmini okumadı", w.estimateCalls() === 0);
+  });
+  await scenario("kabuk/veri yazımı (başarılı)", async () => {
+    // Kullanım tahmini YÜKSEK (%90) olsa bile başarılı bir veri/kabuk yazımı ses önbelleğini temizletmez.
+    const w = await quotaWorld({ quota: 1e9, estimate: () => ({ usage: 900, quota: 1000 }), fetchImpl: async () => new Response("icerik") });
+    await w.preload(1, 20);
+    for (const u of ["data/word-meal.json", "js/yeni.js"]) {
+      const e = fetchEvent(new Request(SCOPE_URL + u));
+      w.listeners.fetch(e.event);
+      await (await e.result()).text();
+      await e.settled();
+    }
+    check("başarılı veri ve kabuk yazımları da kullanım tahminini OKUMUYOR ve ses önbelleğini temizletmiyor", w.estimateCalls() === 0 && same(await w.ids(), range(1, 20)));
+    check("...yeni veri/kabuk kayıtları yazıldı, eskileri de yerinde", !!(await w.data.match(SCOPE_URL + "data/word-meal.json")) && !!(await w.shell.match(SCOPE_URL + "js/yeni.js")) && (await w.appIntact()));
+  });
+}
+
 // -- yerel ses (euzu) çevrimdışı: önbellekteki TAM (200) kopya, Range istenirse 206 dilimiyle dönüyor ------------
 // Gerçek Chromium'da ölçüldü: tam bir 200'ü Range'li isteğe vermek orada çalıyor, ama WebKit gibi sıkı oynatıcılar
 // 206 + Content-Range bekler. Kopya kurulumda (PRECACHE_URLS) Range'siz indirildiği için tam ve 200'dür.
@@ -603,7 +957,7 @@ check("PRECACHE_URLS ikincil/büyük verileri İÇERMİYOR (word-meal/konular/su
   await act.all();
   check("activate: clients.claim() çağrıldı", claimed === true);
   check("activate: ESKİ sürüm kabuk/veri önbellekleri silindi", !caches._hasBucket("dijital-mushaf-shell-v0") && !caches._hasBucket("dijital-mushaf-data-v0"));
-  check("activate: GÜNCEL ses önbelleği DOKUNULMADI -- kullanıcının indirdiği ses hâlâ orada (sınırsız/kalıcı garantisi SW güncellemelerinde de geçerli)", (await (await caches.open(AUDIO_CACHE_NAME)).match("https://audio-cdn.tarteel.ai/quran/husaryMujawwad/001001.mp3")) !== undefined);
+  check("activate: GÜNCEL ses önbelleği DOKUNULMADI -- kullanıcının indirdiği ses hâlâ orada (dinlenmiş sesler SW güncellemelerinde silinmez; kota tahliyesi ayrı bir kural)", (await (await caches.open(AUDIO_CACHE_NAME)).match("https://audio-cdn.tarteel.ai/quran/husaryMujawwad/001001.mp3")) !== undefined);
   check("activate: bu UYGULAMAYA AİT OLMAYAN başka bir önbelleğe dokunulmadı", caches._hasBucket("baska-bir-uygulamanin-onbellegi"));
 }
 
@@ -844,6 +1198,6 @@ if (failures) {
   process.exit(1);
 } else {
   console.log(
-    "All checks passed (sw.js: install precache (kabuk -> SHELL_CACHE, çekirdek veri -> DATA_CACHE, './' scope kökü) + skipWaiting, install'dan hemen sonra çevrimdışı açılış (PRECACHE_URLS'in her biri + dizin URL'si + gezinti fallback'i), activate temizliği (AUDIO_CACHE dahil GÜNCEL önbellekler dokunulmaz), ses-CDN+GET filtresi, ses/veri cache-first-forever, kabuk network-first+offline-fallback, opak yanıt, hata dayanıklılığı, hafız ayrımı, sınır/LRU yokluğu, CDN host senkronu, ses Range kuralı (yalnızca 'bytes=0-'/Range'siz), yazmayı beklemeden yanıt, 206 yazılmaması, çevrimdışı euzu Range dilimleme, introLocal precache senkronu)."
+    "All checks passed (sw.js: install precache (kabuk -> SHELL_CACHE, çekirdek veri -> DATA_CACHE, './' scope kökü) + skipWaiting, install'dan hemen sonra çevrimdışı açılış (PRECACHE_URLS'in her biri + dizin URL'si + gezinti fallback'i), activate temizliği (AUDIO_CACHE dahil GÜNCEL önbellekler dokunulmaz), ses-CDN+GET filtresi, ses/veri cache-first-forever, kabuk network-first+offline-fallback, opak yanıt, hata dayanıklılığı, hafız ayrımı, kota tahliyesi (ses önbelleğinde en eski kayıt önce: eşik/histerezis/tur sınırı, kota hatası, geçersiz tahmin, eşzamanlılık, hata yalıtımı, kabuk/veri dokunulmazlığı) ve kayıt-sayısı/LRU sınırı yokluğu, CDN host senkronu, ses Range kuralı (yalnızca 'bytes=0-'/Range'siz), yazmayı beklemeden yanıt, 206 yazılmaması, çevrimdışı euzu Range dilimleme, introLocal precache senkronu)."
   );
 }

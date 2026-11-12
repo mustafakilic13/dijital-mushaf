@@ -3174,9 +3174,11 @@ dosyanın kendi başlık yorumu):
   beklemeden verilirken, arka planda -- önbelleğe eklenerek. Bu yoldan yalnızca
   TÜM dosyayı isteyen istekler geçiyor (`Range` yok ya da `bytes=0-`); dosyanın
   bir yerini isteyen `Range` istekleri (`bytes=N-`) servis worker'a hiç
-  uğramadan ağa gidiyor (bkz. aşağıda "Ses önbelleği ve `Range`"). **Boyut/LRU
-  sınırı YOK** -- açık bir tercih; önbellek yalnızca tarayıcının kendi (uygulama
-  seviyesinden bağımsız) depolama kotası dolduğunda büyür durur.
+  uğramadan ağa gidiyor (bkz. aşağıda "Ses önbelleği ve `Range`"). **Sabit bir
+  boyut sınırı YOK, ama tarayıcı kotası dolarken (ya da dolmak üzereyken) EN
+  ESKİ kayıtlar silinir** -- ilk giren ilk çıkar, LRU değil; kullanıcının kararı
+  (bkz. aşağıda "Ses önbelleği kotası"). Kota tahliyesi kabuğa ve veriye
+  dokunmaz.
 - **Uygulama kabuğu** (`dijital-mushaf-shell-v1`: `index.html`, `css/`,
   `js/*.js`, `vendor/*`, `fonts/DigitalKhattV2.woff2`, `audio/euzu*.mp3`)
   -- **ağ-önce**:
@@ -3192,7 +3194,7 @@ dosyanın kendi başlık yorumu):
   gezintisi için tam eşleşme yoksa (ör. URL'de sorgu dizesi) `index.html`
   kabuğu dönülür.
 - **Statik veri** (`dijital-mushaf-data-v1`: `data/*.json`) --
-  **önbellek-önce**, ses gibi sınırsız (veri yayımlandıktan sonra
+  **önbellek-önce**, hiç tahliye edilmeyen (veri yayımlandıktan sonra
   değişmiyor). "Çekirdek okuma" verisi (mushaf, meal, sure/ayet/cüz vb.
   gezinme tabloları -- tam liste `sw.js`'teki `PRECACHE_URLS`) **ilk
   ziyarette önceden** indirilir (`install` bunları doğrudan
@@ -3293,16 +3295,9 @@ ses ikinci çalmada ağa gitmiyor, çevrimdışı eûzü çalıyor.
   CDN düzeldikten sonra da ağa hiç gidilmeden hata veriyor (ölçüldü: aynı klip
   503'ten sonra çalmıyor, başka klipler sorunsuz; yama öncesinde de böyleydi).
   Olası çözüm: sayfa `<audio>`'nun `error`'unda servis worker'a ileti gönderip o
-  kaydı sildirir; bu, `sw_test`'in "tek öğe tahliyesi yok" korumasını
-  (`cache.delete(istek)`) gevşetmeyi gerektirdiğinden ayrı bir yamaya kaldı.
-- **Kota payı.** Chromium, opak yanıtlara gerçek boylarından çok daha fazla kota
-  sayıyor: 98 KB'lık klip başına ortalama ≈ 6,8 MB (24 ölçüm, 0,8-14,6 MB;
-  sandbox kotası ≈ 2,2 GB). "Sınırsız" tercihiyle birleşince kota, gerçek ses
-  boyundan çok daha çabuk dolabilir. Dolunca `cache.put` reddedilir; `sw.js` bu
-  durumda uyarı yazıp çalmayı sürdürüyor (`sw_test`te sahte bir reddedilmeyle
-  sınanıyor, gerçek kota dolması denenmedi), yeni ayetler önbelleğe girmiyor,
-  eskiler silinmiyor. Kota dolunca ne yapılacağı (en eskiyi silmek mi, yeni
-  ayetleri önbelleğe almamak mı) karara bağlanmadı.
+  kaydı sildirir; bu, `sw_test`'in `cache.delete(` korumasını (şimdilik yalnızca
+  kota tahliyesi işlevlerinde izin veriyor, aşağıda "Ses önbelleği kotası")
+  genişletmeyi gerektirdiğinden ayrı bir yamaya kaldı.
 - **Parçalı CDN, çevrimdışı.** Yalnızca ilk parça önbelleğe girdiğinden o klip
   çevrimdışı 1,27. saniyede takılıyor (`stalled` 3,6 sn'de, `error` ≈ 31 sn'de);
   çevrimiçi çalma sorunsuz.
@@ -3318,15 +3313,120 @@ ses ikinci çalmada ağa gitmiyor, çevrimdışı eûzü çalıyor.
   betikleri depoda değil (tek seferlik). Gerçek tarayıcıda doğrulanacaklar için
   bkz. "PWA: gerçek tarayıcıda ses önbelleği testi".
 
+**Ses önbelleği kotası.** Kullanıcının kararı: kota dolunca (ya da seçilecek bir
+sınıra gelince) EN ESKİ kayıt silinsin; önceki "sınırsız, tahliye yok" tercihi
+bu yamayla değişti. Gerek gerçekti: Chromium opak yanıtlara gerçek boylarından
+çok kota sayıyor (98 KB'lık klip başına ortalama ≈ 6,8 MB; 24 ölçüm, 0,8-14,6
+MB) ve eski `sw.js`, kota dolunca önbelleği donduruyordu. Aynı koşulda
+karşılaştırma (başsız Chromium 153.0.8010.12, yerel sahte CDN; kota CDP ile
+başlangıç kullanımı + 120 MB'a indirildi; 70 farklı klip, istemciden
+`fetch(no-cors)` ile art arda, klip başına bir kayıt. CDP kotayı
+`estimate().quota`'ya yansıtmadığından bu karşılaştırma yalnızca aşağıdaki
+"sonradan" yolunu sınar):
+
+- Eski kod: önbellek bellek-içi (gizli pencere benzeri) profilde 18, kalıcı
+  (diskte, gerçek Chrome gibi) profilde 13 kayıtta donup kaldı; kalan 52 / 57
+  klibin yazımı `QuotaExceededError` ile reddedildi, en eski kayıtlar hiç
+  silinmedi, yeni ayetler hiç girmedi.
+- Yeni kod, aynı koşulda: 19 / 19 yazım reddedildi, ama her reddedilişten sonra
+  en eski kayıtlar silindi ve önbellek akmayı sürdürdü (sonunda 13 / 13 kayıt;
+  en eski kalan klip 50 / 51 numaralı, en yenisi 69 / 70: baştakiler gitti). Ret
+  sayısı yüksek, çünkü kotayı yapay olarak ≈ 13-19 klibe indirdik; gerçek kotada
+  çok daha seyrek (aşağıda).
+
+**Davranış** (`sw.js`'te "SES ÖNBELLEĞİ KOTASI" bloğu). Tahliye YALNIZCA ses
+önbelleğine uygulanır; kabuk ve veri önbellekleri küçük ve sabit olduğundan kota
+tahliyesi onlara hiç dokunmaz:
+
+- **Önceden** (`trimAudioCache`): her başarılı ses yazımından sonra
+  `navigator.storage.estimate()` okunur; kullanım kotanın %80'ini aşmışsa en
+  eskiden başlayarak %70'in altına inene kadar silinir (her silmeden sonra
+  tahmin yeniden okunur). Bir tur kayıtların en çok %20'sini (en az 1) siler;
+  kullanım silmeye rağmen düşmüyorsa ya da tahmin okunamıyorsa tur durur.
+  Eşikler kotanın ORANI: klip başına kota payı rastgele olduğundan klip sayısı
+  kestirilemez.
+- **Sonradan** (`relieveAudioCache`): yazım yine de `QuotaExceededError` (ya da
+  `code` 22) ile reddedilirse -- tahmin yoksa ya da yanlışsa -- kayıtların %10'u
+  (yukarı yuvarlanır, en az 1) en eskiden başlayarak silinir. Reddedilen klip o
+  seferlik önbelleğe girmez ve yeniden indirilmez; bir sonraki çalışında girer.
+  Kabuk ya da veri yazımının kota hatası bunu TETİKLEMEZ: kalıcı bir hatada her
+  sayfa açılışında ses önbelleği boşuna erirdi.
+- **En eski** = `Cache.keys()` sırasının başı. Ölçüm (Chromium): sıra EKLEME
+  sırası; önbellek isabeti sırayı değiştirmiyor, aynı anahtarı yeniden `put`
+  etmek kaydı sona taşıyor. Yani ilk giren ilk çıkar (LRU DEĞİL): en son
+  dinlenmiş olsa bile en önce yazılan klip ilk gider.
+- Temizlikler tek sırada çalışıyor (iki tur aynı anda silmiyor ya da tahmini
+  okumuyor) ve `event.waitUntil` bitene kadar sürüyor; bir temizlik başarısız
+  olursa yalnızca konsola `[sw] ses önbelleği temizlenemedi` uyarısı düşüyor,
+  yanıtlar ve önbelleğe yazma etkilenmiyor.
+
+**Ölçümler** (aynı kurulum: başsız Chromium 153.0.8010.12, yerel sahte CDN,
+istemciden `fetch(no-cors)`):
+
+- Gerçek kota, bellek-içi profil, 420 klip art arda: bildirilen kota ≈ 2,16 GB,
+  ama ilk `QuotaExceededError` 70 numaralı klipte, kullanım bildirilen kotanın ≈
+  %19-21'indeyken geldi (en yüksek gözlenen %20,75). Yani bu profilde gerçek
+  sınır `estimate().quota`'dan çok daha aşağıda: %80 eşiğine hiç gelinmiyor,
+  koruyan "sonradan" yolu. 43 ret oldu, her tur 8 kayıt (%10) sildi; gözlenen
+  kayıt sayısı 57-71, tur sonrası kullanım %17,9-%19,5; sonunda en eski kalan
+  klip 349 numaralı (ilk giren ilk çıkar); kabuk ve veri önbellekleri 26 / 125
+  kayıtla aynı kaldı, temizlik uyarısı yok.
+- Kalıcı profil, bildirilen kota ≈ 10,75 GB: 6000 klibe kadar 25'li eşzamanlı
+  yazımla doldurmada kullanım %80'e gelince "önceden" yolu tetiklendi (ilk tur
+  5676 numaralı klipte, %80,0) ve kullanım %79,7-%80,3 bandında kaldı: 8 tur,
+  hiç kota hatası ya da uyarı yok, kabuk ve veri önbellekleri 26 / 125 sağlam,
+  `Cache.keys()` sırası ekleme sırasıyla tutarlı, "yeni silinmiş, eski duruyor"
+  ihlali yok.
+- Aynı profilde sessiz ortamda tek "önceden" turu (yazım durduruldu): kullanım
+  %80,02 -> %76,07 ve orada kaldı (10 sn izlendi); 5778 kayıttan 4621'i kaldı.
+  Tur, %20 sınırında durdu ve alt eşiğe (%70) inmedi (aşağıda "Tur sınırı").
+- Silme, kaydın yediği kotayı birebir geri veriyor: aynı klibi eklerken kullanım
+  ne kadar arttıysa silerken o kadar azaldı (10'ar klip, boş önbellekte ve 3010
+  kayıtlık büyük önbellekte; klip başına 0,27-13,9 MB, 0,01 MB hassasiyetle her
+  çiftte aynı); `estimate().usage` silmeden hemen sonra (0 ms) düşüyor (en eski
+  4 klip: 47,3 MB). Klip başına pay ise rastgele ve büyük önbellekte küçülüyor:
+  art arda yazımda ilk 200 klipte ≈ 6,8 MB, 2000. ile 2400. klipler arasında ≈
+  1,2 MB (nedeni bilinmiyor). Bu yüzden eşikler klip sayısına değil kota oranına
+  bağlı.
+- Çalan klibin kaydı silinirse (en eski kayıt tam o sırada çalan klipse): 61
+  sn'lik (≈ 980 KB) klip çalarken kaydı 0,4. ve 3. saniyede silindi (CDN açıkken
+  ve kapalıyken, bellek-içi ve kalıcı profilde): hepsinde klip sonuna kadar
+  çaldı (61,13/61,13 sn, hata yok, silmeden sonra ağa istek yok). Daha büyük
+  dosyalar denenmedi.
+
+**Bilinen sınırlar** (kota tahliyesi):
+
+- **"Önceden" yol gerçek yazım hızında sınanmadı.** Gerçek Chromium'da yalnızca
+  hızlı, eşzamanlı doldurmayla tetiklendi; gerçek kullanıma benzer art arda
+  yazımla %80'e ulaşmak saatler sürüyor (2500 klip art arda: en yüksek kullanım
+  %63,5, tahliye turu 0) ve denenmedi. Bu yol sahte tahminli birim testlerinde
+  ve yukarıdaki hızlı doldurmada sınandı.
+- **Tur sınırı.** Bir tur kayıtların en çok %20'sini siler; %80'in üstünden
+  %70'in altına inmek daha fazlasını gerektirirse (ölçümde %80,02 -> %76,07)
+  kalan iş sonraki yazımların turlarına kalır; kota o arada dolarsa "sonradan"
+  yolu devreye girer.
+- **İlk giren ilk çıkar.** "En eski", en az dinlenen değil en önce önbelleğe
+  giren demek. Örnek: her surenin başında çalan besmele klibi (okuyucunun 1:1
+  kaydı), Fâtiha'dan başlayan biri için ilk girenlerdendir; kota dolunca ilk
+  silinenlerden olur ve bir sonraki çalışında (çevrimiçiyse) yeniden indirilir,
+  çevrimdışıysa o sırada çalmaz. LRU (isabette kaydı sona taşıyarak) ayrı bir
+  yama olur; ölçüm: yeniden `put` kaydı sona taşıyor.
+- **Sınanmayanlar.** Firefox ve Safari: `QuotaExceededError` adı / `code` 22,
+  `estimate()` ve `Cache.keys()` sırası Chromium dışında denenmedi (iki hata adı
+  da kabul ediliyor; `estimate` yoksa yalnızca "sonradan" yolu kalır). Gerçek
+  CDN ve yayın adresi de denenemedi (bkz. "Ses önbelleği ve `Range`" sınırları).
+  Çalan klibin silinmesi yalnızca ≈ 980 KB'lık klipte, tek Chromium sürümünde
+  denendi.
+
 `activate` olayında yalnızca BU UYGULAMAYA ait **eski sürüm** kabuk/veri
 önbellekleri siliniyor (`caches.keys()` + ad ön eki eşleşmesi) -- güncel
-sürümler, AUDIO_CACHE dahil, hiç dokunulmuyor; ses önbelleğinin sürüm
-adı hiç değişmediği sürece bu temizlik ona asla erişmiyor, yani
-"sınırsız/kalıcı" garantisi servis worker güncellemelerinde de geçerli
-kalıyor. `js/app.js`'in sonunda `registerServiceWorker()` ile (ana
-yükleme akışını bloklamayan, "fire and forget") kaydediliyor;
-desteklenmeyen bir tarayıcıda ya da kayıt başarısız olursa uygulama
-olağan (çevrimiçi, önbelleksiz) şekilde çalışmaya devam ediyor.
+sürümler, AUDIO_CACHE dahil, hiç dokunulmuyor; ses önbelleğinin sürüm adı hiç
+değişmediği sürece bu temizlik ona asla erişmiyor, yani dinlenmiş sesler servis
+worker güncellemelerinde silinmiyor (kota tahliyesi ayrı bir kuraldır: bkz.
+yukarıda "Ses önbelleği kotası"). `js/app.js`'in sonunda
+`registerServiceWorker()` ile (ana yükleme akışını bloklamayan, "fire and
+forget") kaydediliyor; desteklenmeyen bir tarayıcıda ya da kayıt başarısız
+olursa uygulama olağan (çevrimiçi, önbelleksiz) şekilde çalışmaya devam ediyor.
 
 **`manifest.json`** ("Ana ekrana ekle" / yüklenebilirlik için): isim,
 `start_url`/`scope: "."` (GH Pages'in hangi alt yolunda yayımlanırsa
@@ -3376,11 +3476,36 @@ yakalandı (2'si testi çökerterek: `event`'in `cacheFirstForever`'a verilmemes
 Sınır: sahte `caches` Chromium'un 206/opak davranışını taklit edemez; o
 davranışlar yukarıda anlatılan ölçümlerle, gerçek Chromium'da ayrıca sınandı.
 
+Kota tahliyesi yamasıyla `sw_test` 134'ten 195 kontrole çıktı. Eski "tahliye
+yok" korumaları değişti: `cache.delete(` artık yalnızca `trimAudioCache` ve
+`relieveAudioCache`'te bulunabilir (başka hiçbir yerde), kota sabitleri (0,8 /
+0,7 / 0,1 / 0,2) sabitlendi, `max_items`/`max_age`/LRU gibi ikinci bir sınır
+mekanizması yok. Sahte `caches` bir kota modeli (kullanım toplamı, kota üstünde
+`QuotaExceededError`) ve `keys()`/`delete(istek)` kazandı; sahte
+`self.navigator.storage.estimate()` istenen değeri döndürüyor. Yeni kontroller:
+tam %80'de tahliye yok, üstünde en eskiden başlayıp %70'e iniyor (histerezis:
+aradaki yazımlar tahliye tetiklemiyor, tahmin yalnızca ses YAZIMINDAN sonra
+okunuyor); FIFO (isabet sırayı değiştirmiyor); 300 klip art arda: kota hiç
+dolmuyor, kalanlar en yeniler, kabuk/veri sağlam; kota hatası:
+`QuotaExceededError` adı ve `code` 22, %10 (en az 1) en eskiden, klip bu sefer
+girmiyor sonraki çalışta giriyor, tahmin yokken ya da hep düşük bildirirken de;
+kabuk/veri kota hatası tahliye tetiklemiyor ve ses önbelleğine dokunmuyor;
+geçersiz tahmin (kota 0, kullanım tanımsız) yok sayılıyor; tur sınırı (%20, en
+az 1), kullanım düşmezse ya da tahmin silme sırasında okunamazsa tur duruyor;
+temizlikler üst üste binmiyor, bir hatadan sonra zincir sürüyor, yavaş silmede
+bile `waitUntil` temizlik bitene kadar sürüyor. Yeni ve değişen kontrollerin
+31'i yamasız `sw.js`'le koşulunca kırılıyor. `sw.js`'e uygulanan 53 tek noktalı
+bozulmanın (mutant) 52'i yakalandı (hepsi davranış testiyle: yalnızca sabit
+denetimine takılan yok), 1'i davranışı değiştirmeyen denk mutant (`usage >= 0`
+yerine `usage > 0`: kullanım 0 iken zaten tahliye yok), kaçan yok. Sınır: sahte
+kota ve tahmin Chromium'un opak yanıt muhasebesini taklit etmez; o, yukarıdaki
+gerçek Chromium ölçümleriyle ayrıca sınandı.
+
 ## Proje yapısı
 
 ```
 index.html            Uygulama kabuğu
-sw.js                   Servis worker -- ses/kabuk/veri önbellekleme (bkz. "PWA ve çevrimdışı önbellekleme")
+sw.js                   Servis worker -- ses/kabuk/veri önbellekleme; ses önbelleğinde kota tahliyesi (bkz. "PWA ve çevrimdışı önbellekleme")
 manifest.json            PWA manifesti ("Ana ekrana ekle") + icons/ (192/512/maskable, geçici simge)
 THIRD_PARTY_NOTICES.md  Üçüncü taraf kod ve yazı tipleri: atıf ve lisans metinleri
 .nojekyll                 Boş dosya: GitHub Pages'in Jekyll işlemesini kapatır
@@ -3443,7 +3568,7 @@ test/modal_odak_test.mjs        Modal odak yönetimi: işaretleme, Tab döngüs�
 test/topic_links_test.mjs       Konu açıklamalarındaki <topic> bağlantıları: role/tabindex, Enter, odak, Geri düğmesi/odak, 461 bağlantının taraması, axe-core (jsdom)
 test/tafsir_dil_test.mjs        Sa'dî tefsiri dil işaretleri: birim, veri varsayımları, 1739 girdilik tam tarama, panel ve arama özeti yolu (jsdom)
 test/ayet_gezgini_test.mjs         Ayet gezgini: işaretleme, CSS, saf yardımcılar, denetleyici, app.js bağlantısı ve sırası, axe-core (jsdom)
-test/sw_test.mjs              Servis worker: sahte self/caches ile (Node); ses Range kuralı, yazmayı beklemeden yanıt, 206 yazılmaması, çevrimdışı eûzü dilimleme
+test/sw_test.mjs              Servis worker: sahte self/caches ile (Node); ses Range kuralı, yazmayı beklemeden yanıt, 206 yazılmaması, çevrimdışı eûzü dilimleme, kota tahliyesi
 test/topics_test.mjs            Konu Fihristi: ayrıştırma yardımcıları + tüm verinin referans bütünlüğü taraması (Node)
 test/juz_subdivisions_test.mjs    Cüz/hizb/rub/manzil veri tutarlılığı ve gezinme mantığı (Node)
 test/recitation_playback_test.mjs  Sesli okuma motoru: sıradaki ayet, kelime zamanı, ses adresi (Node)
@@ -3987,10 +4112,10 @@ commit'tir, geri alınabilir.
 
 ### PWA: gerçek tarayıcıda ses önbelleği testi
 
-Yukarıdaki "Ses önbelleği ve `Range`" ölçümleri başsız Chromium 153'te, yerel
-bir sahte CDN'e karşı yapıldı; gerçek ses CDN'i ve yayın adresi bu ortamdan
-erişilemediği için hiç denenmedi, Firefox ve Safari da denenmedi. Gerçek
-tarayıcıda ve cihazda doğrulanması gerekenler:
+Yukarıdaki "Ses önbelleği ve `Range`" ile "Ses önbelleği kotası" ölçümleri
+başsız Chromium 153'te, yerel bir sahte CDN'e karşı yapıldı; gerçek ses CDN'i ve
+yayın adresi bu ortamdan erişilemediği için hiç denenmedi, Firefox ve Safari da
+denenmedi. Gerçek tarayıcıda ve cihazda doğrulanması gerekenler:
 
 1. Gerçek CDN'in `Range` davranışı: DevTools > Network'te `audio-cdn.tarteel.ai`
    isteği 206 mı 200 mü dönüyor, yanıtta `Content-Range` ve
@@ -4010,11 +4135,17 @@ tarayıcıda ve cihazda doğrulanması gerekenler:
 4. Kota: birkaç yüz ayet dinledikten sonra DevTools > Application > Storage'daki
    kullanım ve kota ne durumda? (Chromium'da opak yanıtlar gerçek boylarından
    çok daha fazla kota sayıyor: sahte CDN'de 98 KB'lık klip başına ≈ 6,8 MB.)
-   Kota dolunca `[sw] önbelleğe alınamadı` uyarıları başlıyor mu, çalma sürüyor
-   mu?
+   Kullanım kotanın %80'ine gelince (ya da bir `[sw] önbelleğe alınamadı` ...
+   `QuotaExceededError` uyarısından sonra) Cache Storage >
+   `dijital-mushaf-audio-v1`'deki ilk (en eski) kayıtlar siliniyor mu, çalma
+   sürüyor mu, `dijital-mushaf-shell-v1` ile `dijital-mushaf-data-v1` olduğu
+   gibi duruyor mu? `navigator.storage.estimate()`'in bildirdiği kota gerçek
+   sınıra yakın mı? (Sahte ortamdaki bellek-içi profilde gerçek sınır
+   bildirilenin ≈ %19-21'iydi.)
 
 Beklenenden farklı çıkarsa düzeltme `sw.js`'te; ses `Range` kuralı, yazmayı
-beklememe ve eûzü önbelleği tek commit'tir, geri alınabilir.
+beklememe ve eûzü önbelleği tek commit'tir, kota tahliyesi ayrı bir commit'tir;
+ikisi de geri alınabilir.
 
 ### Kelime tahlili
 

@@ -2,8 +2,9 @@
 // önbellek, üç ayrı strateji:
 //
 //  1. SES (AUDIO_CACHE, audio-cdn.tarteel.ai) -- bkz. js/app.js'teki
-//     recitationAudioUrl/RECITERS. Önbellek-önce, DİNLENDİKÇE, SINIRSIZ:
-//     kullanıcının açık tercihi, boyut/LRU tahliyesi UYGULANMIYOR.
+//     recitationAudioUrl/RECITERS. Önbellek-önce, DİNLENDİKÇE. Boyut sınırı
+//     YOK, ama tarayıcı kotası dolarken (ya da dolmak üzereyken) EN ESKİ
+//     kayıtlar silinir -- kullanıcının kararı; bkz. "SES ÖNBELLEĞİ KOTASI".
 //     Yalnızca TÜM dosyayı isteyen istekler (Range yok ya da "bytes=0-")
 //     önbelleğe girer/oradan döner (isWholeFileRequest); yanıt, önbelleğe
 //     yazılması BEKLENMEDEN tarayıcıya akıtılır (aşağıda cacheFirstForever).
@@ -20,9 +21,9 @@
 //     tefsir, ses-vurgu zamanlaması, sure başlıkları) İLK KULLANILDIĞINDA;
 //     ikisi de sonra önbellek-önce (veri yayımlandıktan sonra değişmiyor).
 //
-// Sınır YOK (1) ve (3) için: tarayıcının kendi (uygulama seviyesinden
-// bağımsız) depolama kotası dışında bir tahliye yapılmıyor; bkz. README.md
-// "Çevrimdışı ses önbelleği" / "PWA: app-shell önbelleği ve manifest".
+// Tahliye YOK (2) ve (3) için (küçük, sabit kümeler: uygulamanın kendi dosyaları
+// ve verisi hiçbir zaman silinmez). Tek tahliye ses önbelleğinde (1) ve yalnızca
+// aşağıdaki kota kuralıyla; bkz. README.md "PWA ve çevrimdışı önbellekleme".
 //
 // event.request AYNEN (yeni bir Request kurmadan) fetch()'e veriliyor:
 // <audio src> gibi yüklemeler tarayıcıda zaten kendi moduyla (ör. çapraz
@@ -163,8 +164,8 @@ self.addEventListener("activate", (event) => {
       // Yalnızca BU UYGULAMANIN ESKİ SÜRÜM kabuk/veri önbellekleri silinir --
       // CURRENT_CACHES'te olan HER ŞEY (AUDIO_CACHE dahil) dokunulmadan
       // kalır. AUDIO_CACHE'in sürümü hiç değişmediği sürece (yukarıdaki
-      // yorum) bu temizlik ona asla erişmez: "sınırsız/sonsuz" garantisi
-      // servis worker güncellemelerinde de geçerli kalır.
+      // yorum) bu temizlik ona asla erişmez: dinlenmiş sesler servis worker
+      // güncellemelerinde silinmez (kota tahliyesi ayrı bir kuraldır).
       caches.keys().then((names) =>
         Promise.all(
           names
@@ -224,9 +225,92 @@ function isWholeFileRequest(request) {
   return range === null || /^bytes=0-$/.test(range.trim());
 }
 
-// Önbellekte varsa ağa HİÇ gitmeden onu döndürür (SES ve VERİ için ortak --
-// ikisi de yayımlandıktan sonra değişmiyor, ikisi de SINIRSIZ: bkz. dosya
-// başlığı); yoksa ağdan çekip bir kopyasını önbelleğe ekler.
+// SES ÖNBELLEĞİ KOTASI. Kullanıcının kararı: kota dolunca ya da belirlenecek bir sınıra gelince EN ESKİ
+// kayıt silinsin. Neden gerekli: ses önbelleği dinledikçe kendiliğinden büyür ve Chromium, opak (no-cors)
+// yanıtlara gerçek boylarından çok daha fazla kota sayar (ölçüm: ~98 KB'lık klip başına ortalama ~6,8 MB).
+// Tahliye olmazsa kota dolunca her cache.put QuotaExceededError ile reddedilir (ölçüm: önbellek ilk 18
+// kayıtta donup kaldı, yeni ayetler hiç girmedi) ve uygulamanın kendi yazımları da yer bulamaz.
+// Silinen YALNIZCA ses önbelleğidir; kabuk ve veri önbelleği küçük ve sabittir, dokunulmaz. İki tetikleyici:
+//  - ÖNCEDEN (trimAudioCache): her başarılı ses yazımından sonra navigator.storage.estimate() okunur;
+//    kullanım kotanın AUDIO_HIGH_WATER'ını aşmışsa en eskiden başlayarak AUDIO_LOW_WATER'ın altına
+//    inene kadar silinir. Böylece kota dolmadan kabuk ve veri yazımlarına da yer kalır.
+//  - SONRADAN (relieveAudioCache): put yine de QuotaExceededError verirse (estimate yok ya da yanlış)
+//    kayıtların AUDIO_RELIEF_FRACTION'ı kadarı (en az 1) en eskiden başlayarak silinir. Kabuk ya da veri
+//    yazımının kota hatası BUNU tetiklemez: kalıcı bir hatada (kota başka bir şeye gitmişse) her sayfa
+//    açılışı ses önbelleğini boşuna eritirdi.
+// "En eski" = Cache.keys() sırasının başı. Ölçüm (Chromium): sıra EKLEME sırasıdır, bir önbellek isabeti
+// sırayı DEĞİŞTİRMEZ (LRU değil, ilk giren ilk çıkar); aynı anahtarı yeniden put etmek kaydı sona taşır.
+const AUDIO_HIGH_WATER = 0.8;
+const AUDIO_LOW_WATER = 0.7;
+const AUDIO_RELIEF_FRACTION = 0.1;
+// Bir temizlik turunda silinen en fazla kayıt oranı (en az 1). estimate() silmeye yanıt vermezse (kullanım
+// düşmezse) tur zaten durur; bu sınır, tahmin yanıt verip de yanlış çıkarsa bir turun önbelleği
+// boşaltmasını önler -- kalan iş sonraki ses yazımlarının turlarına kalır.
+const AUDIO_TRIM_MAX_FRACTION = 0.2;
+
+// Tarayıcının bu kaynak için kullanım/kota tahmini ({usage, quota}); destek yoksa (navigator.storage.estimate
+// yok -> TypeError), çağrı başarısız olursa ya da sayılar anlamsızsa null (o zaman "önceden" yolu çalışmaz,
+// yalnızca "sonradan" yolu kalır).
+async function readStorageEstimate() {
+  try {
+    const { usage, quota } = await self.navigator.storage.estimate();
+    return quota > 0 && usage >= 0 ? { usage, quota } : null;
+  } catch {
+    return null;
+  }
+}
+
+// Kota dolunca cache.put'un hatası. Chromium'da ölçüldü: DOMException, adı QuotaExceededError, code 22.
+function isQuotaError(err) {
+  return !!err && (err.name === "QuotaExceededError" || err.code === 22);
+}
+
+// Temizlikler tek sırada, birbiri ardına çalışır: iki tur aynı anda aynı kayıtları silmesin ya da
+// kullanım tahminini biri silerken öteki okumasın. Zincir asla reddedilmez: temizlik başarısız olsa da
+// yanıtlar ve önbelleğe yazma etkilenmez, yalnızca uyarı yazılır.
+let audioCleanup = Promise.resolve();
+function queueAudioCleanup(job) {
+  audioCleanup = audioCleanup.then(async () => {
+    try {
+      await job();
+    } catch (err) {
+      console.warn("[sw] ses önbelleği temizlenemedi", err);
+    }
+  });
+  return audioCleanup;
+}
+
+// ÖNCEDEN: kullanım kotanın AUDIO_HIGH_WATER'ını aştıysa en eski kayıtları, kullanım AUDIO_LOW_WATER'a
+// inene kadar siler. Her silmeden sonra tahmin yeniden okunur; kullanım düşmediyse (tahmin silmeyi
+// yansıtmıyor ya da araya başka yazımlar girdi) ya da tahmin okunamadıysa tur durur.
+async function trimAudioCache(cache) {
+  let estimate = await readStorageEstimate();
+  if (!estimate || estimate.usage <= AUDIO_HIGH_WATER * estimate.quota) return;
+  const keys = await cache.keys();
+  const limit = Math.max(1, Math.floor(keys.length * AUDIO_TRIM_MAX_FRACTION));
+  let removed = 0;
+  for (const key of keys) {
+    if (removed >= limit) break;
+    await cache.delete(key);
+    removed++;
+    const before = estimate.usage;
+    estimate = await readStorageEstimate();
+    if (!estimate || estimate.usage >= before || estimate.usage <= AUDIO_LOW_WATER * estimate.quota) break;
+  }
+}
+
+// SONRADAN: put kota hatası verdi; en eski kayıtların AUDIO_RELIEF_FRACTION'ını (yukarı yuvarlanır: dolu bir
+// önbellekte en az 1) siler. Hatalı put'un kopyası yeniden kullanılamaz ve klibi bir daha indirmeyiz: o klip
+// bu sefer önbelleğe girmedi, bir sonraki çalışında (artık yer var) girer.
+async function relieveAudioCache(cache) {
+  const keys = await cache.keys();
+  const count = Math.ceil(keys.length * AUDIO_RELIEF_FRACTION);
+  for (const key of keys.slice(0, count)) await cache.delete(key);
+}
+
+// Önbellekte varsa ağa HİÇ gitmeden onu döndürür (SES ve VERİ için ortak -- ikisi de yayımlandıktan
+// sonra değişmiyor; kota tahliyesi YALNIZCA SES için, yukarıya bakın); yoksa ağdan çekip bir kopyasını
+// önbelleğe ekler.
 //
 // Yanıt, kopyanın önbelleğe yazılması BEKLENMEDEN döndürülür: yazma event.waitUntil'de arka planda
 // sürer (worker erken kapatılmasın diye). Eskiden burada `await cache.put(...)` vardı; bu, yanıtı
@@ -253,9 +337,15 @@ async function cacheFirstForever(request, cacheName, event) {
         } catch (err) {
           // Depolama kotası dolmuş vb. -- önbellekleme başarısız olsa bile asıl
           // yanıt (çalma/okuma) bundan etkilenmesin, yalnızca bu seferlik
-          // önbelleğe alınamaz.
+          // önbelleğe alınamaz. Ses için kota hatası ayrıca yer açar (SONRADAN yolu).
           console.warn("[sw] önbelleğe alınamadı", request.url, err);
+          if (cacheName === AUDIO_CACHE && isQuotaError(err)) {
+            await queueAudioCleanup(() => relieveAudioCache(cache));
+          }
+          return;
         }
+        // ÖNCEDEN yolu: yazma başarılıysa kota eşiğine bak (yalnızca ses).
+        if (cacheName === AUDIO_CACHE) await queueAudioCleanup(() => trimAudioCache(cache));
       })()
     );
   }
