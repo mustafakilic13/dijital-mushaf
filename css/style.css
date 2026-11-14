@@ -1508,13 +1508,18 @@ body {
 
 /* Sabit alt bilgi -- Ezber modalının hangi sekmesi (Dinle/Oku/Yaz) veya
    Sure seçici açık olursa olsun her zaman en altta görünür (modal-sheet
-   flex column'unun son, flex-shrink:0 çocuğu), kaynak kod deposuna link
-   verir. */
+   flex column'unun son, flex-shrink:0 çocuğu), kaynak kod deposuna ve
+   veri/lisans kaynakları belgesine (VERI_KAYNAKLARI.md) link verir. */
 .ezber-modal-footer {
   flex-shrink: 0;
   padding: 10px 18px;
   border-top: 1px solid var(--line);
   text-align: center;
+  /* İki bağlantı yan yana; dar ekranda alt alta kayar. */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 18px;
 }
 .ezber-modal-footer-link {
   display: inline-flex;

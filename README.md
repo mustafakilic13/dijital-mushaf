@@ -14,6 +14,51 @@ vurgulu sesli okuma ("Sesli okuma"); ezber -- dinle / oku / yaz ("Ezber");
 klavye ve ekran okuyucu erişimi ("Erişilebilirlik"); kurulabilir, çevrimdışı
 çalışan bir PWA ("PWA ve çevrimdışı önbellekleme").
 
+## Lisans ve telif
+
+**Proje lisansı.** Bu projede yazılan kod, testler ve belgeler GNU Genel Kamu
+Lisansı'nın 3. sürümü ya da (tercihinize göre) daha sonraki bir sürümü
+(`GPL-3.0-or-later`) altında yayımlanıyor; Telif © 2026 Mustafa Kılıç ve katkıda
+bulunanlar. Geçerli metin, İngilizce `LICENSE` dosyasındadır. Kısaca: kodu
+kullanabilir, inceleyebilir, değiştirebilir ve dağıtabilirsiniz; projeyi ya da
+türevini dağıtan kişi onu aynı lisansla ve kaynak koduyla birlikte sunmalıdır.
+Program HİÇBİR GARANTİ olmadan dağıtılır.
+
+**Kapsam dışı olanlar.** Aşağıdakiler projenin kendi lisansının kapsamında
+DEĞİL; her biri kendi sahibinin koşullarına tabidir:
+
+- **Üçüncü taraf kod, yazı tipi ve logo:** DigitalKhatt (MIT), harfbuzzjs,
+  HarfBuzz, wawoff2 ve Brotli; altbilgideki GitHub logosu ise GitHub'ın
+  markasıdır. Bildirimleri ve lisans metinleri `THIRD_PARTY_NOTICES.md`,
+  `vendor/LICENSE`, `vendor/LICENSE-Apache-2.0` ve
+  `vendor/woff2-decompress/LICENSE` dosyalarında.
+- **Veri, ses ve yazı tipi dosyaları** (`data/`, `audio/`, `fonts/`,
+  `tools/raw-data/`): Arapça metin ve sayfa düzeni, meal, kelime meali, Sa'dî
+  tefsiri, Konu Fihristi, Sure Bilgisi, ses adresleri ve zamanlamaları, eûzü
+  klipleri, sure başlığı yazı tipi. Kaynakları ve lisans durumları dosya dosya
+  `VERI_KAYNAKLARI.md`'de. Bu verilerin çoğunun indirildiği QUL, kullandığımız
+  hiçbir kaynak için lisans bilgisi vermiyor ("We don't have copyright
+  information for this resource."); bu yüzden kaynakların büyük bölümünün hak
+  sahibi ve izin durumu doğrulanamayan olarak kayıtlı. Bu bir hukuki görüş
+  değildir.
+
+**Atıf.** Konu Fihristi'ndeki ontoloji konuları Quranic Arabic Corpus'a (Kais
+Dukes, Leeds Üniversitesi; GNU GPL v3) dayanıyor: https://corpus.quran.com
+(kullanım koşulu: kaynak açıkça belirtilecek ve bu adrese bağlantı verilecek).
+Verilerin çoğu QUL'dan (https://qul.tarteel.ai), Arapça yazı tipi ve dizgi
+tekniği DigitalKhatt'tan (https://github.com/DigitalKhatt/digitalkhatt-js)
+alındı. Sa'dî tefsirinin Türkçe çevirisinin kaynağı QuranEnc.com'dur
+(https://quranenc.com/tr/home); çeviriler yayıncıya ve kaynağa atıf, sürüm
+numarası ve değişiklik yapmama şartlarıyla yeniden yayımlanabiliyor (ayrıntı
+`VERI_KAYNAKLARI.md`, bölüm 5). Uygulamada, Ezber penceresinin altındaki "Kaynak
+Kod — GitHub" bağlantısının yanında, GitHub'daki `VERI_KAYNAKLARI.md`'ye giden
+bir "Kaynaklar ve lisanslar" bağlantısı var; Konu Fihristi penceresinde
+Corpus'a, tefsir panelinde QuranEnc.com'a doğrudan atıf henüz yok (bkz. "Lisans
+ve telif: açık işler").
+
+**Hak sahibiyseniz** ve atıfın düzeltilmesini ya da bir içeriğin kaldırılmasını
+istiyorsanız, `VERI_KAYNAKLARI.md`'deki "Hak sahibiyseniz" bölümüne bakın.
+
 ## Nasıl çalışır (mimari)
 
 Bu iş göründüğünden çok daha karmaşık, çünkü **tarayıcının normal metin
@@ -55,7 +100,8 @@ renkle (`--gold-deep`) çiziliyor. Hangi ayetin hangi rükûda olduğu
 `isAltRuku`'da, boyama `js/render.js`'te yalnızca ayetin son kelimesinin
 sonundaki işaret ve numara glyph'leri üzerinde yapılıyor.
 
-Bkz. `THIRD_PARTY_NOTICES.md` — atıf ve MIT lisans metni.
+Bkz. `THIRD_PARTY_NOTICES.md` — üçüncü taraf kod ve yazı tiplerinin atıf ve
+lisans metinleri; lisans durumunun tamamı için "Lisans ve telif".
 
 Sonuç: 604 sayfanın tamamı Node.js üzerinden render edilip ölçülüyor (bkz.
 `test/full_corpus_test.mjs` ve "Testler ve CI"): hiçbir sayfa hata vermiyor;
@@ -3507,7 +3553,9 @@ gerçek Chromium ölçümleriyle ayrıca sınandı.
 index.html            Uygulama kabuğu
 sw.js                   Servis worker -- ses/kabuk/veri önbellekleme; ses önbelleğinde kota tahliyesi (bkz. "PWA ve çevrimdışı önbellekleme")
 manifest.json            PWA manifesti ("Ana ekrana ekle") + icons/ (192/512/maskable, geçici simge)
-THIRD_PARTY_NOTICES.md  Üçüncü taraf kod ve yazı tipleri: atıf ve lisans metinleri
+LICENSE                 Proje lisansı (GPL-3.0-or-later); yalnızca bu projede yazılan kodu, testleri ve belgeleri kapsar (bkz. "Lisans ve telif")
+THIRD_PARTY_NOTICES.md  Üçüncü taraf kod ve yazı tipleri: atıf ve lisans metinleri (DigitalKhatt, harfbuzzjs, HarfBuzz, wawoff2, Brotli)
+VERI_KAYNAKLARI.md      Veri, ses ve yazı tipi dosyalarının kaynakları ve lisans durumu (doğrulandı / doğrulanamadı), atıf yükümlülükleri, açık işler
 .nojekyll                 Boş dosya: GitHub Pages'in Jekyll işlemesini kapatır
 css/style.css          Görünüm (kağıt/zümrüt paleti, bkz. aşağı)
 js/justify.js          Kaşide/gerdirme algoritması (DigitalKhatt'tan uyarlandı)
@@ -3544,7 +3592,8 @@ fonts/                    DigitalKhattV2.woff2 (tarayıcıda gerçekten yüklene
 audio/                    euzuhusari.mp3, euzuabdulsamad.mp3: Fâtiha'dan önce çalınan eûzü klipleri (ayet sesleri uzaktan geliyor, bkz. "Sesli okuma"); servis worker kurulumda önceden indirir, çevrimdışı da çalar (bkz. "PWA ve çevrimdışı önbellekleme")
 icons/                    PWA simgeleri (192, 512, maskable; geçici)
 vendor/                   hb.wasm, hb.js, hbjs.js (resmi harfbuzzjs, MIT) +
-                          woff2-decompress/ (wawoff2, MIT — bkz. THIRD_PARTY_NOTICES.md)
+                          woff2-decompress/ (wawoff2, MIT) + LICENSE (harfbuzzjs) ve
+                          LICENSE-Apache-2.0 (Apache-2.0 tam metni) -- bkz. THIRD_PARTY_NOTICES.md
 tools/build_data.py       Ham QUL exportlarından data/*.json üreten script
 tools/build_hizb_rub_manzil.py   data/hizb.json, rub.json, manzil.json'u QUL'un quran-metadata-*.json exportlarından üretir
 tools/build_recitation.py        data/recitation-*.json'u QUL'un ayah-recitation-*.json exportlarından üretir
@@ -3560,6 +3609,7 @@ test/run_all.mjs             Tüm *_test.mjs dosyalarını sırayla çalıştır
 test/run_all_test.mjs         Koşucunun testi: sahte test dizinleriyle çıkış kodları, zaman aşımı, Ctrl+C, Actions çıktısı (Node)
 test/ci_test.mjs               CI yapısı: kilit dosyası/package.json uyumu, iş akışı, testlerin bağımlılıkları (Node)
 test/readme_test.mjs            Bu ağacın depoyla uyumu: listelenen her yol var, her dosya listeli; komut örnekleri var olan betikleri çağırıyor (Node)
+test/lisans_test.mjs            Lisans/telif belgelerinin depoyla uyumu: LICENSE, THIRD_PARTY_NOTICES.md (vendor/ bildirimleri), VERI_KAYNAKLARI.md (her veri/ses/yazı tipi dosyası kayıtlı; sayılar ve ID3 alıntıları tutuyor), e-posta yok (Node)
 test/full_corpus_test.mjs  604 sayfayı Node'da render edip DOĞRULAYAN test: hizalama, xScale, kashida, başlık yüksekliği, Ezber->Yaz birimleri, metin katmanı kelime span'ları (jsdom)
 test/search_test.mjs        Arama saf mantığı (Node)
 test/arama_ui_test.mjs       Arama modalı arayüzü (jsdom)
@@ -3652,7 +3702,7 @@ SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
 `npm run test:fast` (tam tarama hariç, ≈ 105-135 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 29 dosyanın hepsi ≈
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 30 dosyanın hepsi ≈
 2,5-3,5 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 53-86 sn, arama
 arayüzü 19-22 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
 testi 8-10 sn, Ezber klavye testi ≈ 8 sn, Ezber metin katmanı testi ≈ 5 sn,
@@ -3758,8 +3808,9 @@ kilit dosyası / tetikleyici).
 **README de sınanıyor.** `test/readme_test.mjs` (11 kontrol), "Proje yapısı"
 ağacının depoyla uyumunu denetliyor: listelenen her yol depoda var; `js/`,
 `css/`, `tools/`, `test/`, `data/` ve `.github/workflows/` altındaki her dosya,
-kökteki `index.html` / `sw.js` / `manifest.json` / `THIRD_PARTY_NOTICES.md` ve
-her üst düzey klasör listede; kod bloklarındaki `python3` / `node` komutları
+kökteki `index.html` / `sw.js` / `manifest.json` / `THIRD_PARTY_NOTICES.md` /
+`LICENSE` / `VERI_KAYNAKLARI.md` ve her üst düzey klasör listede; kod
+bloklarındaki `python3` / `node` komutları
 var olan betikleri çağırıyor, `npm run` örnekleri `test/package.json`'da
 tanımlı. Bu denetim gerçek sapmalardan sonra eklendi: README, depoda hiç
 olmamış bir `serve.py`'yi anlatıyordu (`python3 serve.py 8000` çalışmıyordu)
@@ -3771,6 +3822,29 @@ klasör listelenmesi, listeden çıkarılan dosya / klasör / kök dosya, virgü
 listede bozuk ad, var olmayan betik ya da `npm run` betiği, eksik başlık,
 kapanmayan kod bloğu, tek boşluklu girdi, listelenmeyen yeni dosya ya da
 klasör).
+
+**Lisans ve telif belgeleri de sınanıyor.** `test/lisans_test.mjs` (97 kontrol),
+bu belgelerin depoyla uyumunu denetliyor: `LICENSE` tanınan bir lisans metni ve
+resmi metinle birebir (GPL-3.0 ve Apache-2.0 için SHA-256; MIT için şablon) ve
+README'deki lisans adıyla aynı; `vendor/` altındaki her dosya
+`THIRD_PARTY_NOTICES.md`'de anılıyor, HarfBuzz ("Old MIT"), Brotli ve
+DigitalKhatt bildirimleri tam metniyle var, ikili dosyalar (`hb.wasm`,
+`decompress.wasm`) bildirim gerektiren kodu gerçekten içeriyor; `data/`,
+`audio/`, `fonts/`, `icons/` ve `tools/raw-data/` altındaki her dosya
+`VERI_KAYNAKLARI.md`'de kayıtlı (yeni bir veri dosyası eklenip kaynağı
+yazılmazsa test başarısız olur); belgedeki sayılar (konu sayıları, sure bilgisi
+başlık dağılımı) ve eûzü kliplerinin etiketlerinden yapılan alıntılar veriyle
+tutuyor; `data/tafsir-saadi.json`, belgede sabitlenen SHA-256 özetiyle aynı
+(QuranEnc.com'un "değişiklik yapmama" şartı); altbilgideki "Kaynaklar ve
+lisanslar" bağlantısı var ve depoda olan `VERI_KAYNAKLARI.md`'ye gidiyor;
+belgelerde e-posta adresi yok. 43 mutasyonun hepsi yakalandı (ikisi
+`readme_test.mjs` tarafından): silinen ya da bozulan `LICENSE`, değişen lisans
+adı, bozulan ya da eksilen README / bildirim paragrafları, ağaçtan çıkan
+satırlar, bildirimsiz yeni `vendor/` dosyası, kaydı olmayan yeni veri / ses /
+yazı tipi dosyası, değişen tefsir dosyası ya da yanlış özeti, yanlış konu
+sayısı, başlık dağılımı ya da ID3 alıntısı, bozuk özet tablo, sızan e-posta
+adresi, silinen / yanlış dosyaya giden / sırası değişen altbilgi bağlantısı,
+`flex-wrap`'siz CSS.
 
 ## Sayfa boyutlandırma mantığı
 
@@ -3842,6 +3916,12 @@ aynı çıkıyor.
 `data/ruku.json` için depoda üretim betiği yok; `js/app.js`'in yorumuna göre
 QUL'un `quran-metadata-ruku.json` dosyasından türetilmiş.
 
+**Yeni bir veri, ses ya da yazı tipi dosyası eklerken** `VERI_KAYNAKLARI.md`'ye
+bir satır ekle: kaynağı, lisans durumu (doğrulandı / doğrulanamadı) ve varsa
+atıf şartı. `test/lisans_test.mjs`, kaydı olmayan dosyada başarısız olur;
+kaynağı QUL ise de QUL'un o kaynağın lisans sayfasında ne dediğine (çoğunda: "We
+don't have copyright information for this resource.") bakıp yazmak gerekir.
+
 ## Yapılacaklar
 
 Orijinal hedef listesindeki üç maddenin hepsi tamamlandı: **arama** (bkz.
@@ -3850,6 +3930,32 @@ Orijinal hedef listesindeki üç maddenin hepsi tamamlandı: **arama** (bkz.
 bağlamadığımız konular aşağıda. Kuranmeali.com verisi kullanılmama kararı
 kesinleşti (bkz. proje notları) -- kelime tahlili ve El-Müfredât için artık
 yalnızca QUL/bağımsız açık kaynaklar arasından seçim yapmak kaldı.
+
+### Lisans ve telif: açık işler
+
+Proje lisansı ve üçüncü taraf bildirimleri tamam (bkz. "Lisans ve telif"); veri,
+ses ve yazı tipi kaynaklarının büyük bölümünün hak sahibi ve izin durumu ise
+doğrulanamadı. Öncelik sırası (ayrıntı `VERI_KAYNAKLARI.md`, "Açık işler"):
+
+1. Sure Bilgisi (`data/surah-info-tr.json`): kaynak metnin sahibini ve izin
+   durumunu belirlemek; izin alınamazsa içeriği değiştirmek ya da kaldırmak.
+2. Sa'dî tefsiri (`data/tafsir-saadi.json`): QuranEnc.com şartlarına uymak
+   (tefsir panelinde yayıncıya ve kaynağa açık atıf, sürüm numarası), QUL
+   kopyasını QuranEnc metniyle karşılaştırmak, çevirmenin adını bulmak.
+3. Tematik konular (Clear Quran kaynaklı): izin durumunu belirlemek.
+4. Eûzü klipleri (`audio/euzu*.mp3`, etiketlerinde VerseByVerseQuran.com):
+   kullanım koşullarını öğrenmek.
+5. `QCF_SurahHeader_COLOR` sure başlığı yazı tipinin lisansını bulmak.
+6. Tarteel kullanım şartlarını okumak (ses CDN'ine doğrudan bağlanma).
+7. Elmalılı baskısını, kelime mealinin ve Arapça metnin asıl kaynağını
+   belirlemek.
+8. QUL'a GitHub üzerinden kaynakların lisans bilgisini sormak.
+9. Konu Fihristi penceresinde Quranic Arabic Corpus'a doğrudan atıf ve bağlantı
+   göstermek (şimdi atıf, altbilgideki "Kaynaklar ve lisanslar" bağlantısı
+   üzerinden iki adımda).
+10. Altbilgideki GitHub simgesinin (`THIRD_PARTY_NOTICES.md`, bölüm 5) yolunun
+    kaynağını bulmak ve renginin GitHub logo kuralına uyup uymadığını
+    denetlemek; olmazsa simgeyi kaldırıp yalnızca metin bırakmak.
 
 ### Erişilebilirlik: gerçek cihaz/ekran okuyucu testi
 
@@ -4164,8 +4270,8 @@ kapsıyor:
   Arapça nahiv/sarf çerçevesine göre** (bkz. proje sayfası). Format:
   `(6:76:7:1) qaAla | STEM POS:V PERF LEM:qaAla ROOT:qwl 3MS`. GNU
   GPL ile `corpus.quran.com/download/`'dan indirilebiliyor (GPL
-  "paylaş-aynı-şekilde" şartı taşıyor -- projemiz zaten açık kaynak
-  olduğu için sorun değil).
+  "paylaş-aynı-şekilde" şartı taşıyor -- proje de `GPL-3.0-or-later` olduğundan
+  uyumlu; bkz. "Lisans ve telif").
 - **sina.birzeit.edu/quran** (QuranMorph, Birzeit Üniversitesi/SinaLab)
   -- daha yeni, 3 dilbilimci tarafından elle etiketlenmiş, Qabas
   sözlüğüne bağlı lemma'lar ve 40 etiketli daha zengin bir tagset

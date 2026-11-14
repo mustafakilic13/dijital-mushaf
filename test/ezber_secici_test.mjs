@@ -32,7 +32,7 @@
 // "odak <body>'de" diye yakalanıyor. Gerçek Chromium ölçümü README'de; gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) testinin YERİNİ
 // TUTMAZ; "Sure Seç, grup" anonsu cihazda sınanmadı (README kontrol listesi, madde 23). Firefox ve Safari'de denenmedi.
 // Liste satırlarının tek Tab durağı ve ok tuşları ayrı bir iş (js/liste-gezintisi.js, test/liste_gezintisi_test.mjs); burada yalnızca
-// modalın Tab durakları sınanıyor: Kapat, Geri, geçerli satır (listenin tek durağı), alt bilgi.
+// modalın Tab durakları sınanıyor: Kapat, Geri, geçerli satır (listenin tek durağı), iki alt bilgi bağlantısı.
 //
 //   node ezber_secici_test.mjs
 import fs from "fs";
@@ -391,9 +391,9 @@ function makeEnv({ saved = null } = {}) {
   const h = makeEnv();
   h.openEzber();
   const ids = h.tabIds();
-  check(`Dinle formu Tab sırası: Kapat, Dinle sekmesi, Kârî düğmesi, Sure düğmesi, başlangıç, bitiş, tekrar, tüm tekrar, Uygula, alt bilgi bağlantısı -- ${ids.join(" > ")}`, ids.join(">") === "modal-close>ezber-tab-dinle>ezber-dinle-reciter-btn>ezber-dinle-surah-btn>ezber-dinle-from>ezber-dinle-to>ezber-repeat>ezber-repeat-all>ezber-apply-btn>ezber-modal-footer-link");
+  check(`Dinle formu Tab sırası: Kapat, Dinle sekmesi, Kârî düğmesi, Sure düğmesi, başlangıç, bitiş, tekrar, tüm tekrar, Uygula, iki alt bilgi bağlantısı (Kaynak Kod, Kaynaklar ve lisanslar) -- ${ids.join(" > ")}`, ids.join(">") === "modal-close>ezber-tab-dinle>ezber-dinle-reciter-btn>ezber-dinle-surah-btn>ezber-dinle-from>ezber-dinle-to>ezber-repeat>ezber-repeat-all>ezber-apply-btn>ezber-modal-footer-link>ezber-sources-link");
   h.press(h.$("ezber-tab-oku"));
-  check("Oku formu Tab sırası: Kapat, Oku sekmesi, Sure düğmesi, başlangıç, bitiş, Uygula, alt bilgi (Kârî yok)", h.tabIds().join(">") === "modal-close>ezber-tab-oku>ezber-oku-surah-btn>ezber-oku-from>ezber-oku-to>ezber-apply-btn>ezber-modal-footer-link");
+  check("Oku formu Tab sırası: Kapat, Oku sekmesi, Sure düğmesi, başlangıç, bitiş, Uygula, iki alt bilgi bağlantısı (Kârî yok)", h.tabIds().join(">") === "modal-close>ezber-tab-oku>ezber-oku-surah-btn>ezber-oku-from>ezber-oku-to>ezber-apply-btn>ezber-modal-footer-link>ezber-sources-link");
 }
 
 // 3d) Sure seçici: üç sekmede aç, odak, Tab durakları, etkin satır, kaydırma anı, Geri
@@ -410,9 +410,9 @@ for (const t of TABS) {
   check(`Sure seçici (${t}): odak seçicinin kapsayıcısında (düğmede kalmadı, <body>'ye düşmedi)`, h.active() === picker && !h.fixupHidden() && h.modal.contains(h.active()));
   check(`Sure seçici (${t}): kapsayıcının adı 'Sure Seç', rolü grup`, accName(h.d, picker) === "Sure Seç" && picker.getAttribute("role") === "group");
   // Liste TEK Tab durağı (roving tabindex, js/liste-gezintisi.js): önce 114 sure düğmesinin her biri ayrı bir durak, modalda 117 durak vardı.
-  check(`Sure seçici (${t}): Tab durakları Kapat, Geri, geçerli sure (${cur}) satırı (listenin tek durağı), alt bilgi (formun öğeleri yok)`, (() => {
+  check(`Sure seçici (${t}): Tab durakları Kapat, Geri, geçerli sure (${cur}) satırı (listenin tek durağı), iki alt bilgi bağlantısı (formun öğeleri yok)`, (() => {
     const ids = tabbablesIn(h.modal);
-    return ids.length === 4 && ids[0].classList.contains("modal-close") && ids[1].id === "ezber-surah-picker-back" && ids[2].dataset.surah === String(cur) && ids[3].classList.contains("ezber-modal-footer-link");
+    return ids.length === 5 && ids[0].classList.contains("modal-close") && ids[1].id === "ezber-surah-picker-back" && ids[2].dataset.surah === String(cur) && ids[3].classList.contains("ezber-modal-footer-link") && ids[4].id === "ezber-sources-link";
   })());
   const rows = h.activeRows("surah");
   check(`Sure seçici (${t}): etkin satır tek ve geçerli sure (${cur}) -- ${rows.map((r) => r.dataset.surah).join()}`, rows.length === 1 && rows[0].dataset.surah === String(cur));
@@ -465,7 +465,7 @@ for (const t of TABS) {
   check("Kârî seçici: odak seçicinin kapsayıcısında (düğmede kalmadı, <body>'ye düşmedi)", h.active() === picker && !h.fixupHidden() && h.modal.contains(h.active()));
   check("Kârî seçici: kapsayıcının adı 'Kârî Seç', rolü grup", accName(h.d, picker) === "Kârî Seç" && picker.getAttribute("role") === "group");
   // Kârî satırları da listenin tek Tab durağı (önce her kârî ayrı bir durak, modalda 5 durak vardı): geçerli kârî (abdulsamad).
-  check("Kârî seçici: Tab durakları Kapat, Geri, geçerli kârî satırı (listenin tek durağı), alt bilgi", h.tabIds().join(">") === "modal-close>ezber-reciter-picker-back>modal-item>ezber-modal-footer-link" && tabbablesIn(h.modal)[2].dataset.reciter === "abdulsamad");
+  check("Kârî seçici: Tab durakları Kapat, Geri, geçerli kârî satırı (listenin tek durağı), iki alt bilgi bağlantısı", h.tabIds().join(">") === "modal-close>ezber-reciter-picker-back>modal-item>ezber-modal-footer-link>ezber-sources-link" && tabbablesIn(h.modal)[2].dataset.reciter === "abdulsamad");
   check("Kârî seçici: etkin satır tek ve geçerli kârî (abdulsamad), ortalama seçici görünürken çağrıldı", h.activeRows("reciter").length === 1 && h.activeRows("reciter")[0].dataset.reciter === "abdulsamad" && h.scrolls.some((s) => s.reciter === "abdulsamad" && s.pickerHidden === false));
   // Geri: değer aynı, odak Kârî düğmesinde
   h.press(h.$("ezber-reciter-picker-back"));
@@ -679,9 +679,9 @@ function runRandom(seed, steps) {
         const rows = h.activeRows(M.picker.kind);
         if (rows.length !== 1 || rows[0].dataset[M.picker.kind] !== cur) bad(`etkin satır ${rows.map((r) => r.dataset[M.picker.kind])} != ${cur}`);
         if (heavy) {
-          // liste tek durak (js/liste-gezintisi.js): Kapat, Geri, geçerli satır, alt bilgi
+          // liste tek durak (js/liste-gezintisi.js): Kapat, Geri, geçerli satır, iki alt bilgi bağlantısı (Kaynak Kod, Kaynaklar ve lisanslar)
           const tb = tabbablesIn(h.modal);
-          if (tb.length !== 4 || tb[1].id !== `ezber-${M.picker.kind}-picker-back` || tb[2].dataset[M.picker.kind] !== cur) bad(`seçicide Tab durakları ${tb.length} (beklenen 4: Kapat, Geri, geçerli satır, alt bilgi)`);
+          if (tb.length !== 5 || tb[1].id !== `ezber-${M.picker.kind}-picker-back` || tb[2].dataset[M.picker.kind] !== cur) bad(`seçicide Tab durakları ${tb.length} (beklenen 5: Kapat, Geri, geçerli satır, iki alt bilgi bağlantısı)`);
         }
       } else if (heavy) {
         const t = h.tabIds();

@@ -371,7 +371,7 @@ function desc(el) {
   if (cl.contains("modal-close")) return "kapat";
   if (cl.contains("tab-bar-btn")) return `sekme:${el.dataset.tab}`;
   if (cl.contains("ezber-picker-back")) return "geri";
-  if (cl.contains("ezber-modal-footer-link")) return "altbilgi";
+  if (cl.contains("ezber-modal-footer-link")) return el.id === "ezber-sources-link" ? "kaynaklar" : "altbilgi";
   return el.id || el.tagName.toLowerCase();
 }
 
@@ -590,7 +590,7 @@ const HANDLED = ["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp", "A
   check("Ezber seçici listeleri: Sure 114, Kârî satırları tek hücreli, kayıttan hemen sonra TEK Tab durağı (ilk satır)", matrixOf(surahList).length === 114 && matrixOf(reciterList).length === RECITER_KEYS.length && singleStop(surahList, matrixOf(surahList)[0][0]) && singleStop(reciterList, matrixOf(reciterList)[0][0]));
   env.open("ezber-btn");
   $("ezber-dinle-surah-btn").click();
-  check("Sure seçici açıldı: odak seçicinin kapsayıcısında, Tab durakları Kapat, Geri, şu anki sure (3), alt bilgi", d.activeElement === $("ezber-surah-picker") && env.tabStops().join() === "kapat,geri,satır:3,altbilgi");
+  check("Sure seçici açıldı: odak seçicinin kapsayıcısında, Tab durakları Kapat, Geri, şu anki sure (3), iki alt bilgi bağlantısı", d.activeElement === $("ezber-surah-picker") && env.tabStops().join() === "kapat,geri,satır:3,altbilgi,kaynaklar");
   check("Sure seçici: tek tabindex=0 şu anki sure satırında", singleStop(surahList, matrixOf(surahList)[2][0]));
   env.tab();
   env.tab();
@@ -599,7 +599,7 @@ const HANDLED = ["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp", "A
   const bad = [];
   const go = (k, want) => {
     const prevented = env.key(k);
-    if (desc(d.activeElement) !== `satır:${want}` || prevented !== true || !singleStop(surahList, m[want - 1][0]) || env.tabStops().join() !== `kapat,geri,satır:${want},altbilgi`) bad.push(`${k} -> ${desc(d.activeElement)} (beklenen ${want})`);
+    if (desc(d.activeElement) !== `satır:${want}` || prevented !== true || !singleStop(surahList, m[want - 1][0]) || env.tabStops().join() !== `kapat,geri,satır:${want},altbilgi,kaynaklar`) bad.push(`${k} -> ${desc(d.activeElement)} (beklenen ${want})`);
   };
   go("ArrowDown", 4);
   go("ArrowUp", 3);
@@ -617,7 +617,7 @@ const HANDLED = ["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp", "A
   check("Oklarla gelinen satırda tıklama (Enter) o sureyi seçiyor: Sure alanı 11, seçici kapandı, odak seçiciyi açan düğmede", $("ezber-dinle-surah").value === "11" && $("ezber-surah-picker").hidden === true && d.activeElement === $("ezber-dinle-surah-btn"));
   check("Seçimden sonra Ezber formunda Tab durakları (liste durakları formu etkilemiyor): Kapat, sekme, Kârî düğmesi, ... ve Sure düğmesi var", env.tabStops().slice(0, 3).join() === "kapat,sekme:dinle,ezber-dinle-reciter-btn" && env.tabStops().includes("ezber-dinle-surah-btn"));
   $("ezber-dinle-surah-btn").click();
-  check("Sure seçici yeniden açıldı: durak yeni sure (11), eski sure (3) değil", singleStop(surahList, m[10][0]) && env.tabStops().join() === "kapat,geri,satır:11,altbilgi");
+  check("Sure seçici yeniden açıldı: durak yeni sure (11), eski sure (3) değil", singleStop(surahList, m[10][0]) && env.tabStops().join() === "kapat,geri,satır:11,altbilgi,kaynaklar");
   // Geri'ye basınca durak yerinde kalır, odak düğmeye döner
   $("ezber-surah-picker-back").click();
   check("Geri: seçici kapandı, odak Sure düğmesinde", $("ezber-surah-picker").hidden === true && d.activeElement === $("ezber-dinle-surah-btn"));
@@ -625,7 +625,7 @@ const HANDLED = ["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp", "A
   // Kârî seçici
   $("ezber-dinle-reciter-btn").click();
   const rm = matrixOf(reciterList);
-  check(`Kârî seçici açıldı: Tab durakları Kapat, Geri, şu anki kârî (${RECITER_KEYS[0]}), alt bilgi (${RECITER_KEYS.length} satırın tek durağı)`, env.tabStops().join() === `kapat,geri,satır:${RECITER_KEYS[0]},altbilgi` && singleStop(reciterList, rm[0][0]));
+  check(`Kârî seçici açıldı: Tab durakları Kapat, Geri, şu anki kârî (${RECITER_KEYS[0]}), iki alt bilgi bağlantısı (${RECITER_KEYS.length} satırın tek durağı)`, env.tabStops().join() === `kapat,geri,satır:${RECITER_KEYS[0]},altbilgi,kaynaklar` && singleStop(reciterList, rm[0][0]));
   env.tab();
   env.tab();
   const badR = [];

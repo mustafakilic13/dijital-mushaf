@@ -92,6 +92,8 @@ const mustList = [
   "sw.js",
   "manifest.json",
   "THIRD_PARTY_NOTICES.md",
+  "LICENSE",
+  "VERI_KAYNAKLARI.md",
 ].filter((p) => fs.existsSync(path.join(ROOT, p)));
 const unlisted = mustList.filter((p) => !listed.has(p));
 check("README ağacı: depodaki her kaynak/veri/test dosyası listeli", unlisted.length === 0, `README "Proje yapısı"na eklenmesi gereken dosyalar: ${unlisted.join(", ")}`);
