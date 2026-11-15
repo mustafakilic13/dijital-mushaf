@@ -55,7 +55,11 @@ import {
   escapeHtml,
 } from "./search.js";
 import { buildWordMealCards } from "./wordmeal.js";
-import { markTafsirLanguages } from "./tafsir.js";
+import { markTafsirLanguages, tafsirCreditHTML } from "./tafsir.js";
+
+// "Tefsir (Sa'dî)" bölümünün kaynağı: app.js, loadTafsirData bağımlılığını bu kaynağa bağlıyor. Bölümün başındaki atıf
+// satırı (QuranEnc.com) bu kaynaktan geliyor.
+const TAFSIR_SOURCE_ID = "saadi";
 
 export const RECENT_KEY = "quran-reader-arama-recent-v1";
 export const DEBOUNCE_MS = 120;
@@ -329,6 +333,7 @@ export function setupArama(deps) {
         ? `<button type="button" class="arama-link" data-act="collapse" data-key="${key}">Daralt</button>`
         : "";
     let html = sectionHead(sec.title, `${total} sonuç`, collapse);
+    if (sec.credit) html += sec.credit; // hazır HTML (tafsirCreditHTML kaçışlıyor); not'tan önce
     if (sec.note) html += `<p class="arama-note">${esc(sec.note)}</p>`;
     for (let k = 0; k < shown; k++) html += sec.row(items[k]);
     if (!open && items.length > shown) {
@@ -372,6 +377,8 @@ export function setupArama(deps) {
         total: tafsirHits.total,
         items: tafsirHits.items,
         row: (it) => tafsirRowHTML(it, latin),
+        // Gösterilen özetlerin metni QuranEnc.com'dan: şartı gereği kaynağa atıf (bkz. js/tafsir.js)
+        credit: tafsirCreditHTML(TAFSIR_SOURCE_ID),
         note: tafsirHits.relaxed ? "Tüm kelimeleri içeren yorum yok; bir kısmını içerenler gösteriliyor." : "",
       });
     }

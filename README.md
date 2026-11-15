@@ -50,11 +50,15 @@ tekniği DigitalKhatt'tan (https://github.com/DigitalKhatt/digitalkhatt-js)
 alındı. Sa'dî tefsirinin Türkçe çevirisinin kaynağı QuranEnc.com'dur
 (https://quranenc.com/tr/home); çeviriler yayıncıya ve kaynağa atıf, sürüm
 numarası ve değişiklik yapmama şartlarıyla yeniden yayımlanabiliyor (ayrıntı
-`VERI_KAYNAKLARI.md`, bölüm 5). Uygulamada, Ezber penceresinin altındaki "Kaynak
-Kod — GitHub" bağlantısının yanında, GitHub'daki `VERI_KAYNAKLARI.md`'ye giden
-bir "Kaynaklar ve lisanslar" bağlantısı var; Konu Fihristi penceresinde
-Corpus'a, tefsir panelinde QuranEnc.com'a doğrudan atıf henüz yok (bkz. "Lisans
-ve telif: açık işler").
+`VERI_KAYNAKLARI.md`, bölüm 5). Uygulama bu atfı gösteriyor: ayet panelinde
+tefsir metninin altında ve arama sonuçlarında "Tefsir (Sa'dî)" bölümünün
+başında "Türkçe çeviri: QuranEnc.com (Kur'an-ı Kerim Ansiklopedisi), sürüm
+V1.0.0." satırı çıkıyor (bkz. "Ayet detay paneli"; sürüm, QuranEnc'in
+listesinde görünen sürümdür, kopyanın o sürüm olduğu doğrulanmadı). Ayrıca
+Ezber penceresinin altındaki "Kaynak Kod — GitHub" bağlantısının yanında,
+GitHub'daki `VERI_KAYNAKLARI.md`'ye giden bir "Kaynaklar ve lisanslar"
+bağlantısı var; Konu Fihristi penceresinde Corpus'a doğrudan atıf henüz yok
+(bkz. "Lisans ve telif: açık işler").
 
 **Hak sahibiyseniz** ve atıfın düzeltilmesini ya da bir içeriğin kaldırılmasını
 istiyorsanız, `VERI_KAYNAKLARI.md`'deki "Hak sahibiyseniz" bölümüne bakın.
@@ -353,6 +357,27 @@ olay-işleyici özniteliği (`onclick` vb.) yok) ve kullanıcı girdisi
 içermiyor. Çizim anında yalnızca dil işaretleri düzeltiliyor
 (`markTafsirLanguages`, `js/tafsir.js`; bkz. "Sa'dî tefsirinin dil
 işaretleri"): metin ve diğer etiketler olduğu gibi geçiyor.
+
+**Kaynağa atıf.** Sa'dî tefsirinin Türkçe metni QuranEnc.com'dan (bkz. "Lisans
+ve telif"); QuranEnc, çevirilerin yeniden yayımını yayıncıya ve kaynağa açık
+atıf, sürüm numarası ve değişiklik yapmama şartlarına bağlıyor. Bu yüzden
+tefsir metninin hemen altında, `.wm-tafsir-content`'in içinde ayrı bir
+`<p class="tafsir-kaynak">` olarak "Türkçe çeviri: QuranEnc.com (Kur'an-ı Kerim
+Ansiklopedisi), sürüm V1.0.0." satırı gösteriliyor (`js/app.js`,
+`tafsirContentHTML`); aynı satır arama sonuçlarında "Tefsir (Sa'dî)"
+bölümünün başında da var (`js/arama.js`). Satırı ve kaynağın kredi bilgisini
+(ad, adres, sürüm) tek yerden, `js/tafsir.js`'teki kaynak tanımından
+(`credit`, `tafsirCreditHTML`) alıyor; yeni bir tefsir kaynağı eklenirse atfı da
+oraya yazılır (`test/tafsir_atif_test.mjs`, atfı olmayan kaynakta başarısız
+olur). Atıf yalnızca tefsir metni varken görünüyor ("bulunamadı" ve "yakında
+eklenecek" ekranlarında yok), metinle birlikte DOM'a yazılıyor ve panel
+kapanınca metinle birlikte kaldırılıyor. Metne dokunmuyor: veri ve metin aynı
+kalıyor, atıf ayrı bir kardeş öğe. Gösterilen sürüm ("V1.0.0"), QuranEnc'in
+listesinde bu çeviri için yazan sürümdür; elimizdeki kopyanın tam olarak o
+sürüm olduğu doğrulanmadı (`VERI_KAYNAKLARI.md`, bölüm 5). Atıf, ayet panelinin
+canlı bölgesinde (`aria-live="polite"`) metinle birlikte yazıldığı için ekran
+okuyucu duyurusuna karışıyor; gerçek bir ekran okuyucuyla nasıl okunduğu
+denenmedi.
 
 ## Konu Fihristi
 
@@ -3617,6 +3642,7 @@ test/erisilebilirlik_test.mjs  Anons bölgesi, panel açıkken tek sayfa metni (
 test/modal_odak_test.mjs        Modal odak yönetimi: işaretleme, Tab döngüsü, açan öğeye dönüş, app.js bağlantısı (jsdom)
 test/topic_links_test.mjs       Konu açıklamalarındaki <topic> bağlantıları: role/tabindex, Enter, odak, Geri düğmesi/odak, 461 bağlantının taraması, axe-core (jsdom)
 test/tafsir_dil_test.mjs        Sa'dî tefsiri dil işaretleri: birim, veri varsayımları, 1739 girdilik tam tarama, panel ve arama özeti yolu (jsdom)
+test/tafsir_atif_test.mjs       Sa'dî tefsirinin QuranEnc.com atfı: kredi verisi ve satır, panelde verideki 6236 ayetin hepsi, arama sonuçlarında tek atıf, CSS (jsdom)
 test/ayet_gezgini_test.mjs         Ayet gezgini: işaretleme, CSS, saf yardımcılar, denetleyici, app.js bağlantısı ve sırası, axe-core (jsdom)
 test/sw_test.mjs              Servis worker: sahte self/caches ile (Node); ses Range kuralı, yazmayı beklemeden yanıt, 206 yazılmaması, çevrimdışı eûzü dilimleme, kota tahliyesi
 test/topics_test.mjs            Konu Fihristi: ayrıştırma yardımcıları + tüm verinin referans bütünlüğü taraması (Node)
@@ -3702,11 +3728,11 @@ SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
 `npm run test:fast` (tam tarama hariç, ≈ 105-135 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 30 dosyanın hepsi ≈
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 31 dosyanın hepsi ≈
 2,5-3,5 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 53-86 sn, arama
 arayüzü 19-22 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
 testi 8-10 sn, Ezber klavye testi ≈ 8 sn, Ezber metin katmanı testi ≈ 5 sn,
-tefsir sekme testi ≈ 6 sn, sayfa ok tuşları testi ≈ 3-5 sn,
+tefsir sekme testi ≈ 6 sn, tefsir atıf testi ≈ 7-9 sn, sayfa ok tuşları testi ≈ 3-5 sn,
 sekme gezinti testi ≈ 3-6 sn,
 Ezber seçici testi ≈ 11-15 sn,
 Ezber aralık testi ≈ 15-19 sn,
@@ -3823,7 +3849,7 @@ listede bozuk ad, var olmayan betik ya da `npm run` betiği, eksik başlık,
 kapanmayan kod bloğu, tek boşluklu girdi, listelenmeyen yeni dosya ya da
 klasör).
 
-**Lisans ve telif belgeleri de sınanıyor.** `test/lisans_test.mjs` (97 kontrol),
+**Lisans ve telif belgeleri de sınanıyor.** `test/lisans_test.mjs` (112 kontrol),
 bu belgelerin depoyla uyumunu denetliyor: `LICENSE` tanınan bir lisans metni ve
 resmi metinle birebir (GPL-3.0 ve Apache-2.0 için SHA-256; MIT için şablon) ve
 README'deki lisans adıyla aynı; `vendor/` altındaki her dosya
@@ -3837,7 +3863,9 @@ başlık dağılımı) ve eûzü kliplerinin etiketlerinden yapılan alıntılar
 tutuyor; `data/tafsir-saadi.json`, belgede sabitlenen SHA-256 özetiyle aynı
 (QuranEnc.com'un "değişiklik yapmama" şartı); altbilgideki "Kaynaklar ve
 lisanslar" bağlantısı var ve depoda olan `VERI_KAYNAKLARI.md`'ye gidiyor;
-belgelerde e-posta adresi yok. 43 mutasyonun hepsi yakalandı (ikisi
+Sa'dî tefsirinin uygulamadaki atfı (adres, sürüm, görünen cümle) belgelerdeki
+ifadeyle tutuyor ve belgeler atfın "yok" olduğunu iddia etmiyor (aşağıya
+bakın); belgelerde e-posta adresi yok. 43 mutasyonun hepsi yakalandı (ikisi
 `readme_test.mjs` tarafından): silinen ya da bozulan `LICENSE`, değişen lisans
 adı, bozulan ya da eksilen README / bildirim paragrafları, ağaçtan çıkan
 satırlar, bildirimsiz yeni `vendor/` dosyası, kaydı olmayan yeni veri / ses /
@@ -3845,6 +3873,39 @@ yazı tipi dosyası, değişen tefsir dosyası ya da yanlış özeti, yanlış k
 sayısı, başlık dağılımı ya da ID3 alıntısı, bozuk özet tablo, sızan e-posta
 adresi, silinen / yanlış dosyaya giden / sırası değişen altbilgi bağlantısı,
 `flex-wrap`'siz CSS.
+
+**Tefsir atfı da sınanıyor.** `test/tafsir_atif_test.mjs` (80 kontrol, ≈ 7-9
+sn): kredi verisi (kaynak adı `QuranEnc.com`, `https://quranenc.com` altında
+adres, sürüm numarası) ve üretilen satır (görünen cümle; bağlantının
+`target`/`rel` öznitelikleri ve başka hiçbir öznitelik taşımaması, yani
+saklanmamış ve klavyeyle erişilebilir olması; kopya dönmesi; değerlerin
+kaçışlanması); ayet panelinde verideki 6236 ayetin hepsi için içerik "metin +
+atıf" (metin yoksa "bulunamadı", atıfsız), 1739 farklı metnin hepsinde atıf
+DOM'da üst düzey son kardeş ve atıf çıkarılınca kalan DOM metnin kendi
+DOM'uyla birebir aynı; kablolama (`app.js`'te yalnızca metin dalında,
+`arama.js`'te yalnızca tefsir bölümünde ve başlığın hemen altında; iki
+dosyada aynı kaynak kimliği); gerçek `index.html` ve `arama.js` ile jsdom'da:
+tefsir yüklenmeden, yüklenirken ve yüklenemeyince atıf yok, yüklenince tefsir
+bölümünde tek, diğer bölümlerde yok, "Tümünü gör"/"Daralt" sonrası da tek,
+tefsirde sonuç yoksa yok, bağlantıya tıklamak aramada gezinme yapmıyor ve
+tıklamayı iptal etmiyor; CSS (biçim var, gizlenmemiş, sınıf adı işaretlemeyle
+aynı). Kapanan panelden atfın metinle birlikte kalkması
+`tefsir_sekme_aria_test.mjs`'te; renk kontrastı (yazı ve bağlantı, panel ve
+modal zemininde, en az 4,5:1) `erisilebilirlik_test.mjs`'te CSS'in kendisinden
+hesaplanıyor; belge ile kod arasındaki tutarlılık (adres, sürüm, görünen cümle,
+"doğrulanmadı" notu, atfın "yok" denmemesi) `lisans_test.mjs`'te. 72
+mutasyonun hepsi yakalandı (48'i bu testte, 17'si `lisans_test.mjs`'te, 3'ü
+`erisilebilirlik_test.mjs`'te, 2'si `tefsir_sekme_aria_test.mjs`'te, 1'er
+tanesi `tafsir_dil_test.mjs` ve `readme_test.mjs`'te): değişen ad, adres ya da
+sürüm; silinen `target`/`rel`; eklenen `hidden`, `aria-hidden` ya da
+`tabindex="-1"`; kopya vermeyen kredi; kaçışsız değerler; metin yokken, "yakında
+eklenecek" ekranında, tefsir yüklenirken ya da yüklenemeyince atıf; atfın
+metnin önüne konması, iki kez eklenmesi, başlığın üstüne, satırların ya da
+notun altına, başka bir bölüme ya da bir düğmenin içine konması; tıklamayı
+iptal eden işleyici; kapanınca silinmeyen atıf; altı çizgisi kalkan bağlantı,
+gizlenen, çok açık renkli ya da 10 px atıf, odak halkasının kalkması; koddaki
+sürüm ya da adresin belgelerden ayrışması, belgelerde "atıf yok" cümlelerinin
+geri gelmesi, "doğrulanmadı" notunun silinmesi.
 
 ## Sayfa boyutlandırma mantığı
 
@@ -3939,9 +4000,10 @@ doğrulanamadı. Öncelik sırası (ayrıntı `VERI_KAYNAKLARI.md`, "Açık işl
 
 1. Sure Bilgisi (`data/surah-info-tr.json`): kaynak metnin sahibini ve izin
    durumunu belirlemek; izin alınamazsa içeriği değiştirmek ya da kaldırmak.
-2. Sa'dî tefsiri (`data/tafsir-saadi.json`): QuranEnc.com şartlarına uymak
-   (tefsir panelinde yayıncıya ve kaynağa açık atıf, sürüm numarası), QUL
-   kopyasını QuranEnc metniyle karşılaştırmak, çevirmenin adını bulmak.
+2. Sa'dî tefsiri (`data/tafsir-saadi.json`): QUL kopyasını QuranEnc metniyle
+   karşılaştırıp atıfta gösterilen sürümün (V1.0.0) kopyayla aynı olduğunu
+   doğrulamak, çevirmenin ya da yayıncının adını bulmak, arama özetleri dahil
+   bu kullanımın ek izin gerektirip gerektirmediğini QuranEnc'e sormak.
 3. Tematik konular (Clear Quran kaynaklı): izin durumunu belirlemek.
 4. Eûzü klipleri (`audio/euzu*.mp3`, etiketlerinde VerseByVerseQuran.com):
    kullanım koşullarını öğrenmek.

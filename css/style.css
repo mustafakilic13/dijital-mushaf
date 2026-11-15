@@ -806,6 +806,34 @@ body {
 .wm-tafsir-content .brown { color: #86582e; font-weight: 600; }
 .wm-tafsir-content .blue { color: #2f5f8a; }
 
+/* Tefsir metninin kaynağına atıf (QuranEnc.com'un şartı: yayıncıya ve kaynağa açık atıf + sürüm numarası; bkz.
+   js/tafsir.js tafsirCreditHTML, VERI_KAYNAKLARI.md bölüm 5). Aynı satır ayet panelinde metnin altında, arama
+   sonuçlarında "Tefsir (Sa'dî)" başlığının altında. Metnin parçası değil, ayrı bir <p>: sönük ve küçük, bir çizgiyle
+   ayrık. Renkler: yazı --ink-soft (panel zemini ~#ecece4 üzerinde 6,69:1, modal zemini --shell-bg üzerinde 7,23:1),
+   bağlantı --emerald-deep (10,35:1 / 11,18:1); bağlantının altı çizili, yani renge bağlı kalmadan ayırt ediliyor
+   (WCAG 1.4.1). Odak halkası genel button:focus-visible kuralıyla aynı (2px --gold). */
+.tafsir-kaynak {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.tafsir-kaynak a {
+  color: var(--emerald-deep);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.tafsir-kaynak a:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.wm-tafsir-content .tafsir-kaynak {
+  margin: 14px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.arama-body .tafsir-kaynak { margin: 6px 10px; }
+
 /* ---------------------------------------------------------------------
    Sure Bilgisi: sayfadaki sure başlığı kutusuna dokununca açılan modal
    (bkz. js/render.js drawSurahHeader, js/app.js openSurahInfo). Kutunun

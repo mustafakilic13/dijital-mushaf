@@ -23,6 +23,7 @@ import {
   getCachedTafsirData,
   loadTafsirData,
   resolveTafsirText,
+  tafsirCreditHTML,
 } from "./tafsir.js";
 import {
   isSurahInfoDataReady,
@@ -1865,7 +1866,10 @@ function tafsirContentHTML(sourceId, ayah) {
   // class="..."> markup (colors, emphasis) is meant to reach the page as
   // real HTML, see tafsir.js's file-level comment
   const text = resolveTafsirText(getCachedTafsirData(sourceId), ayah.surah, ayah.ayah);
-  return text || `<p class="word-meal-loading">Bu ayet için tefsir bulunamadı.</p>`;
+  // Kaynağa atıf (QuranEnc.com şartı, bkz. tafsir.js) metnin ALTINA ayrı bir <p> olarak ekleniyor; metin değişmiyor.
+  // Yalnızca metin varken: "bulunamadı"/"yakında" ekranlarında gösterilecek bir tefsir yok, atıf da yok. Atıf
+  // .wm-tafsir-content'in İÇİNDE, yani panel kapanınca metinle birlikte DOM'dan kalkıyor (clearTafsirContent).
+  return text ? text + tafsirCreditHTML(sourceId) : `<p class="word-meal-loading">Bu ayet için tefsir bulunamadı.</p>`;
 }
 
 // Sekme düğmelerinin durumu tek yerden, wm.tafsirActive'den türetiliyor: görünen hâl (.active) ile

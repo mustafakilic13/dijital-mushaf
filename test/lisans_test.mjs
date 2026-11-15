@@ -3,7 +3,7 @@
 // Neden: bu belgeler en kolay sessizce eskiyen belgelerdir. Depoya yeni bir veri, ses ya da
 // yazı tipi dosyası eklenir ve kaynağı hiçbir yere yazılmaz; bir vendor dosyası değiştirilir ve
 // bildirimi eksik kalır; belgede "284 ontoloji konusu" yazar, veri değişir, sayı kalır. Test
-// sekiz şeyi sınar:
+// dokuz şeyi sınar:
 //   1. LICENSE var, tanınan bir lisans metni ve resmi metinle (GPL-3.0/Apache-2.0: SHA-256) ya da
 //      MIT şablonuyla örtüşüyor; README "Lisans ve telif" bölümü AYNI lisansı söylüyor.
 //   2. THIRD_PARTY_NOTICES.md: vendor/ altındaki her dosya anılıyor; HarfBuzz ("Old MIT"),
@@ -20,12 +20,15 @@
 //   7. Uygulama içi atıf: altbilgideki "Kaynaklar ve lisanslar" bağlantısı var ve VERI_KAYNAKLARI.md'ye gidiyor;
 //      altbilgideki GitHub logosu (marka) bildirimde anılıyor.
 //   8. Sa'dî tefsiri: kaynağı (QuranEnc.com) ve şartları belgede; dosya, belgedeki SHA-256 özetiyle aynı (değişiklik yapmama şartı).
+//   9. Sa'dî tefsirinin uygulamadaki atfı (js/tafsir.js; gösterimini test/tafsir_atif_test.mjs sınıyor) belgelerle tutuyor: belgeler
+//      koddaki adresi, sürümü ve görünen cümleyi söylüyor, sürümün doğrulanmadığını belirtiyor ve atfın "yok" olduğunu iddia etmiyor.
 // Başarısız olursa ileti, belgede neyin eklenmesi ya da düzeltilmesi gerektiğini söyler.
 
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { tafsirSourceCredit } from "../js/tafsir.js";
 
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(TEST_DIR, "..");
@@ -310,6 +313,41 @@ for (const f of ["LICENSE", "THIRD_PARTY_NOTICES.md", "VERI_KAYNAKLARI.md", "REA
   check("data/tafsir-saadi.json belgedeki SHA-256 özetiyle aynı (QuranEnc 'değişiklik yapmama' şartı; dosya bilerek güncellendiyse VERI_KAYNAKLARI.md bölüm 5'teki özeti ve sürümü de güncelleyin)", !!hashDoc && hashFile === hashDoc[1], `dosyada ${hashFile}`);
   check("VERI_KAYNAKLARI.md: bölüm 10 QuranEnc.com atıf yükümlülüğünü anıyor", section(sources, /^## 10\. Atıf yükümlülükleri\s*$/m).includes("QuranEnc.com"));
   check("README: lisans bölümü Sa'dî tefsirinin kaynağı QuranEnc.com'u anıyor ve https://quranenc.com/tr/home'a bağlanıyor", licSec.includes("QuranEnc.com") && licSec.includes("https://quranenc.com/tr/home"));
+}
+
+// ---- 9. Sa'dî tefsiri: uygulamadaki atıf belgelerle tutuyor ----------------------------------------------
+// Atıf (QuranEnc.com şartı) ayet panelinde ve arama sonuçlarında gösteriliyor; kredi bilgisi js/tafsir.js'teki kaynak tanımında.
+// Belgeler bu değerleri tekrarlıyor: biri değişirse diğeri de bilerek güncellenmeli. Belgeler ayrıca (a) gösterilen sürümün
+// QuranEnc'in listesindeki sürüm olduğunu, kopyanın aynı sürüm olduğunun DOĞRULANMADIĞINI söylemeli ve (b) atfın hâlâ "yok" olduğunu
+// iddia etmemeli (eski, artık yanlış cümleler geri gelirse yakalanır).
+{
+  const credit = tafsirSourceCredit("saadi");
+  check("js/tafsir.js: Sa'dî kaynağının atıf bilgisi (ad, açıklama, adres, sürüm) var", !!credit && !!credit.name && !!credit.description && !!credit.url && !!credit.version);
+  if (credit) {
+    const norm = (t) => t.replace(/\s+/g, " ");
+    const sentence = `Türkçe çeviri: ${credit.name} (${credit.description}), sürüm ${credit.version}.`;
+    const sec5n = norm(section(sources, /^## 5\. Sa'dî tefsiri\s*$/m));
+    const sec10n = norm(section(sources, /^## 10\. Atıf yükümlülükleri\s*$/m));
+    const sec11n = norm(section(sources, /^## 11\. Açık işler\s*$/m));
+    const sec13n = norm(section(sources, /^## 13\. Yeni veri eklerken\s*$/m));
+    const openIdx = readme.indexOf("### Lisans ve telif: açık işler");
+    const openN = norm(openIdx >= 0 ? readme.slice(openIdx).split(/\n### /)[0] : "");
+    check("VERI_KAYNAKLARI.md: bölüm 5 uygulamada görünen atıf cümlesini AYNEN veriyor (kodla aynı)", sec5n.includes(sentence), sentence);
+    check("VERI_KAYNAKLARI.md: bölüm 5 atıf bağlantısının adresini (kodla aynı) veriyor", sec5n.includes(credit.url), credit.url);
+    check("VERI_KAYNAKLARI.md: bölüm 5 atfın nerede gösterildiğini söylüyor (ayet panelinde metnin hemen altında ve arama sonuçlarında 'Tefsir (Sa'dî)' bölümünün başında)", sec5n.includes(`Ayet panelinde tefsir metninin hemen altında ve arama sonuçlarında "Tefsir (Sa'dî)" bölümünün başında`));
+    check(`VERI_KAYNAKLARI.md: bölüm 5 gösterilen sürümü ("${credit.version}") QuranEnc'in listesindeki sürüm olarak belgeliyor`, sec5n.includes(`("${credit.version}")`) && /QuranEnc'in Türkçe listesinde bu çeviri için yazan sürümdür/.test(sec5n));
+    check("VERI_KAYNAKLARI.md: bölüm 5 kopyanın o sürüm olduğunun doğrulanmadığını açıkça söylüyor (dürüst sınır)", /kopyanın tam olarak bu sürüm olduğu doğrulanmadı/.test(sec5n));
+    check("VERI_KAYNAKLARI.md: bölüm 5 atfın/sürümün 'yok' olduğunu iddia etmiyor (eski cümleler)", !/atıf YOK/.test(sec5n) && !/uygulamada yok/.test(sec5n) && !/veride ve uygulamada yok/.test(sec5n));
+    check("VERI_KAYNAKLARI.md: bölüm 5 çeviri bilgisinin (künye) elde olmadığını ve güncelleme izlenmediğini söylüyor", /Çeviri bilgisi \(künye\): elimizdeki kopyada yok/.test(sec5n) && /yeni bir sürüm çıkıp çıkmadığı izlenmiyor/.test(sec5n));
+    check("VERI_KAYNAKLARI.md: bölüm 10 QuranEnc satırı atfın gösterildiği yerleri ve sürümü söylüyor, 'yok' demiyor", sec10n.includes("ayet panelinde") && sec10n.includes("arama sonuçlarında") && sec10n.includes(credit.version) && !/tefsir panelinde yok/.test(sec10n) && !/Sürüm numarası yok/.test(sec10n));
+    check("VERI_KAYNAKLARI.md: bölüm 11 madde 2 atfı eklemeyi artık iş saymıyor ama karşılaştırma/künye/izin işlerini koruyor", !/açık atıf göstermek/.test(sec11n) && /QUL kopyasını QuranEnc metniyle karşılaştırıp/.test(sec11n) && /çevirmenin ya da yayıncının adını/.test(sec11n) && /ek izin gerektirip gerektirmediğini QuranEnc'e sormak/.test(sec11n));
+    check("VERI_KAYNAKLARI.md: bölüm 13 yeni tefsir kaynağında atfın js/tafsir.js'teki credit alanına yazılacağını söylüyor", /js\/tafsir\.js/.test(sec13n) && /`credit`/.test(sec13n));
+    check("README: lisans bölümü uygulamada görünen atıf cümlesini AYNEN veriyor (kodla aynı)", licSec.includes(sentence), sentence);
+    check("README: lisans bölümü sürümün doğrulanmadığını söylüyor ve tefsir atfının 'henüz yok' olduğunu iddia etmiyor", /kopyanın o sürüm olduğu doğrulanmadı/.test(licSec) && !/tefsir panelinde QuranEnc\.com'a doğrudan atıf henüz yok/.test(licSec));
+    check("README: 'Lisans ve telif: açık işler' bölümü var ve madde 2 atıf eklemeyi artık iş saymıyor", openN.length > 0 && !/tefsir panelinde yayıncıya ve kaynağa açık atıf/.test(openN) && /atıfta gösterilen sürümün \(/.test(openN), openN.slice(0, 200));
+    const panelSec = norm(section(readme, /^## Ayet detay paneli \(kelime meali, meal, tefsir\)\s*$/m));
+    check("README: 'Ayet detay paneli' bölümünde 'Kaynağa atıf' paragrafı var, cümleyi AYNEN veriyor ve ekran okuyucuyla denenmediğini söylüyor", panelSec.includes("**Kaynağa atıf.**") && panelSec.includes(sentence) && /gerçek bir ekran okuyucuyla nasıl okunduğu denenmedi/.test(panelSec));
+  }
 }
 
 if (failures) {

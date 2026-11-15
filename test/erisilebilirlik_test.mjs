@@ -815,6 +815,19 @@ try {
         }
       }
       need("tefsir gövde metni (--ink) / .translation bloğu", T("ink"), translation);
+
+      // QuranEnc.com atıf satırı (.tafsir-kaynak; js/tafsir.js tafsirCreditHTML): ayet panelinde panel gövdesinin, arama
+      // sonuçlarında modal zemininin (--shell-bg) üzerinde; yazı ve bağlantı rengi. Bağlantının altı çizili (WCAG 1.4.1).
+      const creditText = valueOf(".tafsir-kaynak", "color");
+      const creditLink = valueOf(".tafsir-kaynak a", "color");
+      check(".tafsir-kaynak: yazı ve bağlantı rengi CSS'te tanımlı", !!creditText && !!creditLink);
+      check(".tafsir-kaynak a: altı çizili (renge bağlı kalmadan ayırt ediliyor, WCAG 1.4.1)", valueOf(".tafsir-kaynak a", "text-decoration") === "underline");
+      if (creditText && creditLink) {
+        for (const [where, bg] of [["panel gövdesi", panel], ["modal zemini (--shell-bg)", shell]]) {
+          need(`atıf satırı yazısı / ${where}`, parseColor(creditText), bg);
+          need(`atıf satırı bağlantısı / ${where}`, parseColor(creditLink), bg);
+        }
+      }
     }
   }
 

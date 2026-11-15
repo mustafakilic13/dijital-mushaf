@@ -202,7 +202,7 @@ function scan(html) {
 }
 
 // -- 5. arama özeti (düz metin + <mark>) --------------------------------------------------------------------
-check("arama.js: işaretleyici ./tafsir.js'ten alınıyor", /import \{ markTafsirLanguages \} from "\.\/tafsir\.js";/.test(aramaSource));
+check("arama.js: işaretleyici ./tafsir.js'ten alınıyor", /import \{[^}]*\bmarkTafsirLanguages\b[^}]*\} from "\.\/tafsir\.js";/.test(aramaSource));
 check("arama.js: tafsirRowHTML özeti markTafsirLanguages'tan geçiriyor", /<span class="arama-snippet">\$\{markTafsirLanguages\(snippetHTML\(plain, terms, \{ maxLen: 260, lead: 80 \}\)\)\}<\/span>/.test(aramaSource));
 {
   // Gerçek özet işlevi (snippetHTML) + gerçek düz metin (htmlToPlainText): Arapça içeren 99 girdinin metni boyunca

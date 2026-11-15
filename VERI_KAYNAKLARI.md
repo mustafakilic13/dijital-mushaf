@@ -34,7 +34,7 @@ kaynak metinlerin hakları, o metinlerin sahiplerindedir.
 | `data/juz.json`, `data/hizb.json`, `data/rub.json`, `data/manzil.json`, `data/ruku.json` | bölüm başlangıçları | QUL "Quran metadata" exportları | Olgusal |
 | `data/meal.json` | Elmalılı meali | QUL translation id 233 "Elmalili Hamdi Yazir" | Doğrulanamadı |
 | `data/word-meal.json` | Türkçe kelime kelime meal | QUL translation id 99 "Turkish wbw translation" | Doğrulanamadı |
-| `data/tafsir-saadi.json` | Türkçe Sa'dî tefsiri | QUL tafsir id 484 "Tafsir As-Saadi - Turkish"; çevirinin asıl kaynağı QuranEnc.com (proje sahibi bildirdi) | Kısmen doğrulandı (QuranEnc.com şartları okundu: yeniden yayım şartlı serbest; QUL kopyasının QuranEnc metniyle aynılığı, çevirmen adı ve atıf/sürüm şartlarına uyum doğrulanamadı, bkz. bölüm 5) |
+| `data/tafsir-saadi.json` | Türkçe Sa'dî tefsiri | QUL tafsir id 484 "Tafsir As-Saadi - Turkish"; çevirinin asıl kaynağı QuranEnc.com (proje sahibi bildirdi) | Kısmen doğrulandı (QuranEnc.com şartları okundu: yeniden yayım şartlı serbest; atıf ve sürüm numarası uygulamada gösteriliyor; QUL kopyasının QuranEnc metniyle ve gösterilen sürümle aynılığı ile çevirmen adı doğrulanamadı, bkz. bölüm 5) |
 | `data/topics-tr.json` | 2512 konu (ontoloji, tematik, genel) | QUL ayah-topics id 45; Türkçesi bu projede üretildi | Kısmen doğrulandı (ontoloji: GPL v3 + atıf şartı); tematik ve genel: Doğrulanamadı |
 | `data/surah-info-tr.json` | 114 sure bilgisi | QUL surah-info id 3 (İngilizce); Türkçesi bu projede üretildi | Doğrulanamadı |
 | `data/recitation-abdulsamad-mujawwad.json`, `data/recitation-husary-mujawwad.json` | ayet ses adresleri ve kelime zamanlamaları | QUL "Recitations and segments data" exportları | Doğrulanamadı |
@@ -137,10 +137,26 @@ denetimde ne kadar yapılabildiğini kaydeder.
     doğruluyor). Dosyanın bugünkü özeti, değişirse bu belgenin de gözden
     geçirilmesi için burada sabitlenir ve testle denetlenir:
     SHA-256 `2d94d87b2b52db3c99b31c9b1624fbf0d7aae20c1774a1471dbaa659857571fa`.
-  - Atıf: bu belgede ve README'de QuranEnc.com anılıyor; uygulamada tefsir
-    panelinde yayıncıya ve kaynağa doğrudan atıf YOK (yalnızca altbilgideki
-    "Kaynaklar ve lisanslar" bağlantısı, bu belgeye gider). Açık iş 2.
-  - Sürüm numarası: veride ve uygulamada yok; açık iş 2.
+  - Atıf: uygulama kaynağı gösteriyor. Ayet panelinde tefsir metninin hemen
+    altında ve arama sonuçlarında "Tefsir (Sa'dî)" bölümünün başında şu satır
+    çıkıyor: "Türkçe çeviri: QuranEnc.com (Kur'an-ı Kerim Ansiklopedisi),
+    sürüm V1.0.0." ("QuranEnc.com" kısmı
+    https://quranenc.com/tr/browse/turkish_saadi adresine bağlanır ve yeni
+    sekmede açılır.) Satırı `js/tafsir.js` (`tafsirCreditHTML`) üretir,
+    `test/tafsir_atif_test.mjs` doğrular. Ayet panelinde metin tamdır ve atıf
+    yalnızca metin varken gösterilir; arama sonuçlarında metnin yalnızca bir
+    özeti (en çok ~260 karakter, aranan kelime vurgulu) görünür. Bu belgede ve
+    README'de de QuranEnc.com anılıyor; altbilgideki "Kaynaklar ve lisanslar"
+    bağlantısı bu belgeye gider.
+  - Sürüm numarası: gösterilen sürüm ("V1.0.0"), QuranEnc'in Türkçe listesinde
+    bu çeviri için yazan sürümdür (27/07/2026). Elimizdeki kopya QUL'dan geldi
+    ve depoya 2026-09-14'te yüklendi; kopyanın tam olarak bu sürüm olduğu
+    doğrulanmadı (yalnızca sure 1'in ilk bölümünün başı QuranEnc sayfasıyla
+    karşılaştırıldı ve uyuştu; metnin geri kalanı karşılaştırılmadı). Açık iş 2.
+  - Çeviri bilgisi (künye): elimizdeki kopyada yok; çevirmenin ya da
+    yayıncının adı QuranEnc'in sayfalarında da bulunamadı. Açık iş 2.
+  - Güncelleme: QuranEnc'te yeni bir sürüm çıkıp çıkmadığı izlenmiyor. Kopya
+    güncellenirse atıftaki sürüm de (`js/tafsir.js`) güncellenmeli. Açık iş 2.
   - Reklam: uygulamada reklam yok.
 - Bu, uygulamanın en büyük metin varlığıdır (~8,7 MB).
 
@@ -257,7 +273,7 @@ Lisans sayfası: "We don't have copyright information for this resource."
 | Yükümlülük | Durum |
 |---|---|
 | Quranic Arabic Corpus: kaynak açıkça belirtilecek, https://corpus.quran.com bağlantısı verilecek | `README.md` ve bu belgede var. Uygulama içinde: Ezber penceresi altbilgisindeki "Kaynaklar ve lisanslar" bağlantısı bu belgeye gidiyor (Corpus bağlantısı bölüm 6'da); Konu Fihristi penceresinde doğrudan atıf yok (açık iş 9) |
-| QuranEnc.com (Sa'dî tefsirinin Türkçesi): yayıncıya ve kaynağa açık atıf, sürüm numarası, değişiklik yapmama | Atıf: bu belgede ve `README.md`'de var; uygulamada tefsir panelinde yok (açık iş 2). Sürüm numarası yok. Dosya değişmedi (bölüm 5) |
+| QuranEnc.com (Sa'dî tefsirinin Türkçesi): yayıncıya ve kaynağa açık atıf, sürüm numarası, değişiklik yapmama | Atıf: uygulamada ayet panelinde (metnin altında) ve arama sonuçlarında "Tefsir (Sa'dî)" bölümünün başında gösteriliyor; bu belgede ve `README.md`'de de var. Sürüm: V1.0.0 gösteriliyor (QuranEnc'in listesindeki sürüm; kopyanın aynı sürüm olduğu doğrulanmadı, açık iş 2). Dosya değişmedi (bölüm 5) |
 | DigitalKhatt (MIT) bildirimi | `THIRD_PARTY_NOTICES.md` |
 | harfbuzzjs, HarfBuzz, WOFF2, Brotli bildirimleri | `THIRD_PARTY_NOTICES.md`, `vendor/LICENSE*` |
 | Tanzil (CC BY 3.0), metin ona dayanıyorsa | Dayanıp dayanmadığı doğrulanamadı; dayanıyorsa bildirim eksik |
@@ -269,12 +285,13 @@ Lisans sayfası: "We don't have copyright information for this resource."
 
 1. `data/surah-info-tr.json`: kaynak metnin sahibini ve izin durumunu
    belirlemek; izin alınamazsa içeriği değiştirmek ya da kaldırmak.
-2. `data/tafsir-saadi.json`: QuranEnc.com şartlarına uymak (tefsir panelinde
-   yayıncıya ve kaynağa açık atıf göstermek; sürüm numarasını belirleyip
-   belgelemek: QuranEnc listesinde V1.0.0, 27/07/2026); QUL kopyasını
-   QuranEnc metniyle karşılaştırmak; Türkçe çevirmenin adını bulmak ve ek
-   izin gerekip gerekmediğini QuranEnc'e sormak
-   (https://quranenc.com/tr/home/contact_us).
+2. `data/tafsir-saadi.json`: QUL kopyasını QuranEnc metniyle karşılaştırıp
+   atıfta gösterilen sürümün (V1.0.0; QuranEnc listesinde 27/07/2026)
+   kopyayla aynı olduğunu doğrulamak; Türkçe çevirmenin ya da yayıncının adını
+   (çeviri bilgisini) bulmak; arama sonuçlarındaki özetler dahil bu kullanımın
+   ek izin gerektirip gerektirmediğini QuranEnc'e sormak
+   (https://quranenc.com/tr/home/contact_us); QuranEnc'te yeni bir sürüm
+   çıktığında kopyayı ve atıftaki sürümü (`js/tafsir.js`) güncellemek.
 3. Tematik konular (Clear Quran): izin durumunu belirlemek.
 4. `audio/euzu*.mp3`: VerseByVerseQuran.com koşullarını öğrenmek; gerekirse
    klipleri değiştirmek.
@@ -302,3 +319,7 @@ https://github.com/mustafakilic13/dijital-mushaf/issues
 Depoya yeni bir veri, ses ya da yazı tipi dosyası eklemeden önce bu belgeye
 satır ekleyin: kaynağı, lisans durumunu (doğrulandı / doğrulanamadı) ve varsa
 atıf şartını yazın. `test/lisans_test.mjs`, kaydı olmayan dosyada başarısız olur.
+Yeni bir tefsir kaynağı eklenirse atfı (ad, adres, sürüm) `js/tafsir.js`'teki
+kaynak tanımının `credit` alanına yazın; uygulama o satırı tefsir metninin
+altında ve arama sonuçlarında gösterir. `test/tafsir_atif_test.mjs`, atfı olmayan
+kaynakta başarısız olur.

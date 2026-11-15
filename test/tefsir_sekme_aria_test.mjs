@@ -48,7 +48,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { JSDOM, VirtualConsole } from "jsdom";
 import axeCore from "axe-core";
-import { tafsirSourceIds, tafsirSourceLabel, isTafsirSourceAvailable, resolveTafsirText } from "../js/tafsir.js";
+import { tafsirSourceIds, tafsirSourceLabel, isTafsirSourceAvailable, resolveTafsirText, tafsirCreditHTML } from "../js/tafsir.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
@@ -134,12 +134,16 @@ const textOfHTML = (html) => {
   t.innerHTML = html;
   return t.textContent.trim();
 };
-const EXPECTED_TEXT = textOfHTML(EXPECTED_HTML);
+// Panelin içeriği = tefsir metni + metnin ALTINDA kaynağa atıf satırı (QuranEnc.com'un şartı; js/tafsir.js tafsirCreditHTML,
+// app.js tafsirContentHTML; atıfın kendisi test/tafsir_atif_test.mjs'te sınanıyor). Atıf .wm-tafsir-content'in İÇİNDE olduğu
+// için kapanınca metinle birlikte kalkıyor: aşağıdaki "kapanınca içerik boş" denetimleri atıfı da kapsıyor.
+const EXPECTED_TEXT = textOfHTML(EXPECTED_HTML + tafsirCreditHTML("saadi"));
 check("veri: beklenen düz metin dolu", EXPECTED_TEXT.length > 3000);
+check("veri: beklenen içerik atıf satırını da taşıyor (QuranEnc.com)", EXPECTED_TEXT.endsWith(textOfHTML(tafsirCreditHTML("saadi"))) && /QuranEnc\.com/.test(EXPECTED_TEXT));
 
 const DEP_NAMES = [
   "state", "console", "setTimeout", "requestAnimationFrame",
-  "tafsirSourceIds", "tafsirSourceLabel", "isTafsirSourceAvailable", "isTafsirDataReady", "getCachedTafsirData", "loadTafsirData", "resolveTafsirText",
+  "tafsirSourceIds", "tafsirSourceLabel", "isTafsirSourceAvailable", "isTafsirDataReady", "getCachedTafsirData", "loadTafsirData", "resolveTafsirText", "tafsirCreditHTML",
   "ayahRawWords", "buildWordMealCards", "getCachedWordMealData", "getMealText", "getCachedMealData", "ayahTopicsRowHTML", "renderWordMealCardsHTML", "renderMealHTML",
 ];
 const factory = new Function(...DEP_NAMES, `const WORD_MEAL_LOADING_HTML = ${loadingM[1]};\n${NAMES.map((n) => SRCS[n]).join("\n")}\nreturn { ${NAMES.join(", ")} };`);
@@ -204,6 +208,7 @@ function makeEnv({ sources = "real", dataReady = true, realTimers = false } = {}
     getCachedTafsirData: () => (ready ? DATA : null),
     loadTafsirData: () => new Promise((resolve) => fetches.push(() => { ready = true; resolve(DATA); })),
     resolveTafsirText,
+    tafsirCreditHTML,
     ayahRawWords: () => [],
     buildWordMealCards: () => [],
     getCachedWordMealData: () => null,
@@ -311,6 +316,7 @@ function settledProblems(env) {
   check("aç: metin kapalı panele hemen yazıldı (açılış yolu eskisi gibi: önce metin, bir kare sonra wm-open)", textOf(env) === EXPECTED_TEXT && !isOpen(env));
   await env.clock.advance(16);
   check("aç: bir kare sonra panel açık (wm-open)", isOpen(env) && expandedOf(env) === "true");
+  check("aç: içerikte tek bir atıf satırı (.tafsir-kaynak) var, metnin ALTINDA (içeriğin son öğesi)", env.content().querySelectorAll(".tafsir-kaynak").length === 1 && env.content().lastElementChild.classList.contains("tafsir-kaynak"));
   const attrNames = () => [...env.tab("saadi").attributes].map((a) => a.name).sort().join();
   check("aç: açıkken düğmenin öznitelikleri yine type/class/data-tafsir-id/aria-expanded (aria-pressed, role, aria-controls eklenmiyor)", attrNames() === "aria-expanded,class,data-tafsir-id,type");
   env.click();
@@ -333,6 +339,7 @@ function settledProblems(env) {
   check("kapat: 399 ms sonra (yedek zamanlayıcıdan hemen önce) metin hâlâ duruyor", textOf(env) === EXPECTED_TEXT);
   await env.clock.advance(1);
   check("kapat: yedek zamanlayıcı (400 ms) dolunca metin DOM'dan kalktı", env.content().innerHTML === "");
+  check("kapat: atıf satırı da metinle birlikte DOM'dan kalktı (kapalı bölümde atıf kalmıyor)", !env.panel().querySelector(".tafsir-kaynak"));
   check("kapat: .wm-tafsir-content öğesi duruyor (yeniden açılışta yazılacak yer)", !!env.content() && !!env.panel() && !!env.inner());
   check("kapat: değişmezler sağlanıyor ve hata yok", invariantProblems(env).length === 0 && env.errors.length === 0);
 

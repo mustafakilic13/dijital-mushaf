@@ -31,10 +31,22 @@
 // properly-licensed source back is still just one entry here plus a data
 // file, per the original design.
 
+import { escapeHtml } from "./search.js";
+
 const sources = {
   saadi: {
     label: "Tefsîr-i Sa'dî",
     file: "data/tafsir-saadi.json",
+    // Türkçe metnin kaynağı: QuranEnc.com (Kur'an-ı Kerim Ansiklopedisi). QuranEnc şartları: içeriği DEĞİŞTİRMEDEN, yayıncıya
+    // ve kaynağa AÇIKÇA atıfla ve yeniden yayımda SÜRÜM numarasını belirterek göstermek (VERI_KAYNAKLARI.md, bölüm 5).
+    // `version`: QuranEnc'in çeviri listesinde bu çeviri için yazan sürüm (V1.0.0, 27/07/2026). Elimizdeki kopya QUL'dan
+    // geldi; tam olarak bu sürüm olduğu bağımsız doğrulanmadı (aynı belge, bölüm 5). Atıf satırını tafsirCreditHTML üretiyor.
+    credit: {
+      name: "QuranEnc.com",
+      description: "Kur'an-ı Kerim Ansiklopedisi",
+      url: "https://quranenc.com/tr/browse/turkish_saadi",
+      version: "V1.0.0",
+    },
   },
 };
 
@@ -50,6 +62,27 @@ export function tafsirSourceIds() {
 
 export function tafsirSourceLabel(id) {
   return sources[id] ? sources[id].label : id;
+}
+
+// Kaynağın atıf bilgisi ({ name, description, url, version }); atıfı olmayan/bilinmeyen kaynak için null. Kopya
+// dönüyor: çağıran sabiti değiştiremez.
+export function tafsirSourceCredit(id) {
+  const credit = sources[id] && sources[id].credit;
+  return credit ? { ...credit } : null;
+}
+
+// Tefsir metninin kaynağına atıf satırı (HTML; değerler kaçışlanıyor): ayet panelinde metnin hemen altında (js/app.js
+// tafsirContentHTML) ve arama sonuçlarındaki "Tefsir" bölümünün başında (js/arama.js) AYNI satır gösteriliyor. Metnin
+// kendisine dokunmuyor: ayrı bir <p class="tafsir-kaynak">. Atıfı olmayan kaynak için "". Bağlantı yeni sekmede açılıyor
+// (rel="noopener noreferrer"): kullanıcı okuduğu ayetin başından ayrılmasın.
+export function tafsirCreditHTML(id) {
+  const credit = tafsirSourceCredit(id);
+  if (!credit) return "";
+  return (
+    `<p class="tafsir-kaynak">Türkçe çeviri: ` +
+    `<a href="${escapeHtml(credit.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(credit.name)}</a> ` +
+    `(${escapeHtml(credit.description)}), sürüm ${escapeHtml(credit.version)}.</p>`
+  );
 }
 
 // Whether `id` actually has a data file configured -- false for a source
