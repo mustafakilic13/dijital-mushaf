@@ -349,7 +349,7 @@ export class LineRenderer {
   // Tapping it opens the "Sure Bilgisi" info modal for `surahNumber` (see
   // app.js's setupSurahInfoModal/the page click handler in setupNav) -- a
   // previous version had this same tap target, removed along with its
-  // Diyanet Kur'an Yolu-sourced content, see README.md; restored here
+  // Diyanet Kur'an Yolu-sourced content, see GELISTIRICI.md; restored here
   // against a different, redistributable source (js/surahinfo.js).
   drawSurahHeader(pageG, headerData, centerY, scale, surahNumber) {
     const [xmin, ymin, xmax, ymax] = headerData.bbox;

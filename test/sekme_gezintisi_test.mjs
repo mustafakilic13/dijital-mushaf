@@ -35,8 +35,8 @@
 //       bağımsız bir model: aria-selected/tabindex/panel/odak her adımdan sonra modelle aynı.
 //
 // ÖNEMLİ SINIR: jsdom'da gerçek odak halkası, :focus-visible ve ekran okuyucu yok; odak/seçim/öznitelik durumları elle üretilen olaylarla
-// sınanıyor. Gerçek Chromium ölçümü (README) başsızdı. Gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı; "sekme, 2/4"
-// anonsu, seçimin duyurulması ve Tab'ın panele geçişi cihazda sınanmadı (README kontrol listesi, madde 22). Firefox ve Safari'de denenmedi
+// sınanıyor. Gerçek Chromium ölçümü (GELISTIRICI.md) başsızdı. Gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı; "sekme, 2/4"
+// anonsu, seçimin duyurulması ve Tab'ın panele geçişi cihazda sınanmadı (GELISTIRICI.md kontrol listesi, madde 22). Firefox ve Safari'de denenmedi
 // (Safari'de düğmeye tıklamak odak vermiyor; o durumda ok tuşu, odaktaki sekmeden başlıyor, seçili sekmeden değil: bkz. (6) "odak" işlemi).
 //
 //   node sekme_gezintisi_test.mjs

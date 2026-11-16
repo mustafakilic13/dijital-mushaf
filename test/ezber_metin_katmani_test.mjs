@@ -6,7 +6,7 @@
 // ayeti sayfadan okuyabiliyordu -- Yaz'daki "Doğru" / "Bu harf değil" geri bildirimi ve Oku'daki "kelimeyi aç" anlamsız kalıyordu.
 // Gerçek Chromium'da (CDP Accessibility.getFullAXTree; 430 px; Fâtiha sayfası, 280 Arapça harf; Oku 1:1-3 ve Yaz 1:1-2; oturum
 // başlarken, kelime/harf açılırken, ayet geçerken ve biterken 11 durum) düzeltmeden ÖNCE: kapak sayısı 12 -> 7 (Oku) ve 36 -> 32 (Yaz)
-// arasında değişirken ağaçtaki Arapça harf 11 durumun HEPSİNDE 280/280'di (ayrıntı README'de).
+// arasında değişirken ağaçtaki Arapça harf 11 durumun HEPSİNDE 280/280'di (ayrıntı GELISTIRICI.md'de).
 //
 // Düzeltme: (js/render.js, js/app.js)
 //   - addTextSelectionLayer, satırı kelime başına bir <span class="text-layer-word" data-word-id> olarak kuruyor (aralarındaki boşluk
@@ -26,7 +26,7 @@
 //       eski sayfada işaret kalmıyor; oturum sürerken metin katmanı dışında hiçbir şeye aria-hidden verilmiyor.
 //
 // ÖNEMLİ SINIR: jsdom'da erişilebilirlik ağacı yok; burada aria-hidden İŞARETİ kontrol ediliyor (ağaçtan çıkıp çıkmadığı gerçek
-// Chromium'da, README'deki ölçümle görüldü). Gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı.
+// Chromium'da, GELISTIRICI.md'deki ölçümle görüldü). Gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı.
 //
 //   node ezber_metin_katmani_test.mjs
 import fs from "fs";

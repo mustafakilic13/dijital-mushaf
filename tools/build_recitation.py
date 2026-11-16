@@ -37,7 +37,7 @@ Usage: python3 build_recitation.py [reciter] [out-dir]
 Defaults: reciter=husary, out-dir=../data
 Reciter must be a key in RECITERS below. The raw file is always read
 from raw-data/<RECITERS[reciter]["raw"]> -- see "Veriyi güncellemek" in
-README.md for how a new raw export gets there.
+GELISTIRICI.md for how a new raw export gets there.
 """
 import json
 import os

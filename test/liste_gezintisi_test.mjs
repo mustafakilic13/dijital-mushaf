@@ -35,7 +35,7 @@
 //
 // SINIR: jsdom'da düzen ve gerçek Tab yok: Tab, modal-odak.js'in dönüş mantığı (GERÇEK) + DOM sırasında bir sonraki durak (taklit) ile
 // yürütülüyor; kaydırma (odaklanan satırın görünür alana gelmesi), odak halkası ve ekran okuyucu davranışı burada DOĞRULANAMIYOR (gerçek
-// Chromium'da ölçüldü, README'de var; NVDA/JAWS/VoiceOver/TalkBack ile DENENMEDİ, kontrol listesi madde 26). Ayet düğmeleri ızgarası
+// Chromium'da ölçüldü, GELISTIRICI.md'de var; NVDA/JAWS/VoiceOver/TalkBack ile DENENMEDİ, kontrol listesi madde 26). Ayet düğmeleri ızgarası
 // (.ayah-chip) bu gezintiye girmiyor: kendi tek Tab durağı ve iki boyutlu gezintisi ayrı (js/izgara-gezintisi.js,
 // test/izgara_gezintisi_test.mjs); burada yalnızca iki gezintinin birbirine karışmadığı sınanıyor. Firefox ve Safari'de denenmedi.
 //

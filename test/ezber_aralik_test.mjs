@@ -24,7 +24,7 @@
 //   (4) 24 tohumlu rastgele işlem dizisi x bağımsız bir model.
 //
 // SINIR: jsdom'da doğrulama balonu yok (uyarı yalnızca validationMessage/validity olarak sınanıyor), gerçek tuş/odak yok; gerçek
-// Chromium ölçümü README'de. Gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) testinin YERİNİ TUTMAZ (README kontrol listesi,
+// Chromium ölçümü GELISTIRICI.md'de. Gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) testinin YERİNİ TUTMAZ (GELISTIRICI.md kontrol listesi,
 // madde 24). Firefox ve Safari'de denenmedi.
 //
 //   node ezber_aralik_test.mjs

@@ -5,7 +5,7 @@
 // bildirimi eksik kalır; belgede "284 ontoloji konusu" yazar, veri değişir, sayı kalır. Test
 // dokuz şeyi sınar:
 //   1. LICENSE var, tanınan bir lisans metni ve resmi metinle (GPL-3.0/Apache-2.0: SHA-256) ya da
-//      MIT şablonuyla örtüşüyor; README "Lisans ve telif" bölümü AYNI lisansı söylüyor.
+//      MIT şablonuyla örtüşüyor; README.md "Lisans ve telif" bölümü AYNI lisansı söylüyor.
 //   2. THIRD_PARTY_NOTICES.md: vendor/ altındaki her dosya anılıyor; HarfBuzz ("Old MIT"),
 //      Brotli ve DigitalKhatt bildirimleri tam metniyle var; Apache-2.0 metni resmi metinle
 //      birebir; ikili dosyalar (hb.wasm: HarfBuzz, decompress.wasm: Brotli) bildirimi gerektiren
@@ -16,7 +16,7 @@
 //   4. Belgedeki SAYISAL ve ALINTI iddialar depoyla tutuyor: konu sayıları (data/topics-tr.json),
 //      sure bilgisi başlık dağılımı (data/surah-info-tr.json), eûzü klipleri ID3 etiketleri.
 //   5. LICENSE, bildirim ve kaynak belgelerinde e-posta adresi yok (gizlilik koruması).
-//   6. README ağacı yeni dosyaları listeliyor (readme_test.mjs ile birlikte).
+//   6. GELISTIRICI.md "Proje yapısı" ağacı yeni dosyaları listeliyor (readme_test.mjs ile birlikte).
 //   7. Uygulama içi atıf: altbilgideki "Kaynaklar ve lisanslar" bağlantısı var ve VERI_KAYNAKLARI.md'ye gidiyor;
 //      altbilgideki GitHub logosu (marka) bildirimde anılıyor.
 //   8. Sa'dî tefsiri: kaynağı (QuranEnc.com) ve şartları belgede; dosya, belgedeki SHA-256 özetiyle aynı (değişiklik yapmama şartı).
@@ -98,7 +98,10 @@ if (kind === "MIT") {
 }
 const SPDX = { "GPL-3.0": "GPL-3.0-or-later", "Apache-2.0": "Apache-2.0", MIT: "MIT" }[kind];
 
+// README.md kullanıcı belgesidir ve "Lisans ve telif" bölümünü taşır; "Proje yapısı" ağacı, "Ayet detay paneli" ve
+// "Lisans ve telif: açık işler" bölümleri geliştirici belgesindedir (GELISTIRICI.md).
 const readme = readText("README.md");
+const dev = readText("GELISTIRICI.md");
 // README satır kaydırıyor: ifade denetimleri ("kapsamında DEĞİL") satır sonuna denk gelebilir.
 const licSec = section(readme, /^## Lisans ve telif\s*$/m).replace(/\s+/g, " ");
 check('README: "## Lisans ve telif" bölümü var', licSec.length > 0);
@@ -242,25 +245,25 @@ check("VERI_KAYNAKLARI.md: 'Hak sahibiyseniz' ve 'Yeni veri eklerken' bölümler
 }
 
 // ---- 5. E-posta adresi yok ----------------------------------------------------------------
-for (const f of ["LICENSE", "THIRD_PARTY_NOTICES.md", "VERI_KAYNAKLARI.md", "README.md"]) {
+for (const f of ["LICENSE", "THIRD_PARTY_NOTICES.md", "VERI_KAYNAKLARI.md", "README.md", "GELISTIRICI.md"]) {
   const t = exists(f) ? readText(f) : "";
   const m = EMAIL_RE.exec(t);
   check(`${f}: e-posta adresi içermiyor (telif sahibi adı yazılır, e-posta yazılmaz)`, !m, m && m[0].replace(/^(.).*(@.*)$/, "$1***$2"));
 }
 
-// ---- 6. README ağacı ------------------------------------------------------------------------
+// ---- 6. GELISTIRICI.md ağacı ------------------------------------------------------------------------
 {
-  const lines = readme.split("\n");
+  const lines = dev.split("\n");
   const start = lines.findIndex((l) => /^## Proje yapısı\s*$/.test(l));
   const open = lines.findIndex((l, i) => i > start && l.startsWith("```"));
   const close = lines.findIndex((l, i) => i > open && l.startsWith("```"));
   const tree = start >= 0 && open >= 0 && close > open ? lines.slice(open + 1, close).join("\n") : "";
   // Satır başında (kendi girdisi olarak) listelenmeli; başka bir satırın açıklamasında anılması yetmez.
   for (const f of ["LICENSE", "VERI_KAYNAKLARI.md", "THIRD_PARTY_NOTICES.md", "test/lisans_test.mjs"]) {
-    check(`README ağacı: ${f} kendi satırıyla listeli`, new RegExp(`^${f.replace(/[.]/g, "\\.")}\\s{2,}\\S`, "m").test(tree), `README "Proje yapısı"na ${f} satırı eklenmeli`);
+    check(`GELISTIRICI.md ağacı: ${f} kendi satırıyla listeli`, new RegExp(`^${f.replace(/[.]/g, "\\.")}\\s{2,}\\S`, "m").test(tree), `GELISTIRICI.md "Proje yapısı"na ${f} satırı eklenmeli`);
   }
   // vendor/'ın açıklaması içinde (devam satırı) anılıyor.
-  check("README ağacı: vendor/LICENSE-Apache-2.0 vendor/ girdisinin açıklamasında anılıyor", /^vendor\/\s[^\n]*\n(\s[^\n]*\n)*\s+[^\n]*LICENSE-Apache-2\.0/m.test(tree), 'README "Proje yapısı"nda vendor/ girdisine LICENSE-Apache-2.0 eklenmeli');
+  check("GELISTIRICI.md ağacı: vendor/LICENSE-Apache-2.0 vendor/ girdisinin açıklamasında anılıyor", /^vendor\/\s[^\n]*\n(\s[^\n]*\n)*\s+[^\n]*LICENSE-Apache-2\.0/m.test(tree), 'GELISTIRICI.md "Proje yapısı"nda vendor/ girdisine LICENSE-Apache-2.0 eklenmeli');
 }
 
 // ---- 7. Uygulama içi atıf bağlantısı ve altbilgideki GitHub logosu -------------------------------------
@@ -330,8 +333,8 @@ for (const f of ["LICENSE", "THIRD_PARTY_NOTICES.md", "VERI_KAYNAKLARI.md", "REA
     const sec10n = norm(section(sources, /^## 10\. Atıf yükümlülükleri\s*$/m));
     const sec11n = norm(section(sources, /^## 11\. Açık işler\s*$/m));
     const sec13n = norm(section(sources, /^## 13\. Yeni veri eklerken\s*$/m));
-    const openIdx = readme.indexOf("### Lisans ve telif: açık işler");
-    const openN = norm(openIdx >= 0 ? readme.slice(openIdx).split(/\n### /)[0] : "");
+    const openIdx = dev.indexOf("### Lisans ve telif: açık işler");
+    const openN = norm(openIdx >= 0 ? dev.slice(openIdx).split(/\n### /)[0] : "");
     check("VERI_KAYNAKLARI.md: bölüm 5 uygulamada görünen atıf cümlesini AYNEN veriyor (kodla aynı)", sec5n.includes(sentence), sentence);
     check("VERI_KAYNAKLARI.md: bölüm 5 atıf bağlantısının adresini (kodla aynı) veriyor", sec5n.includes(credit.url), credit.url);
     check("VERI_KAYNAKLARI.md: bölüm 5 atfın nerede gösterildiğini söylüyor (ayet panelinde metnin hemen altında ve arama sonuçlarında 'Tefsir (Sa'dî)' bölümünün başında)", sec5n.includes(`Ayet panelinde tefsir metninin hemen altında ve arama sonuçlarında "Tefsir (Sa'dî)" bölümünün başında`));
@@ -344,9 +347,9 @@ for (const f of ["LICENSE", "THIRD_PARTY_NOTICES.md", "VERI_KAYNAKLARI.md", "REA
     check("VERI_KAYNAKLARI.md: bölüm 13 yeni tefsir kaynağında atfın js/tafsir.js'teki credit alanına yazılacağını söylüyor", /js\/tafsir\.js/.test(sec13n) && /`credit`/.test(sec13n));
     check("README: lisans bölümü uygulamada görünen atıf cümlesini AYNEN veriyor (kodla aynı)", licSec.includes(sentence), sentence);
     check("README: lisans bölümü sürümün doğrulanmadığını söylüyor ve tefsir atfının 'henüz yok' olduğunu iddia etmiyor", /kopyanın o sürüm olduğu doğrulanmadı/.test(licSec) && !/tefsir panelinde QuranEnc\.com'a doğrudan atıf henüz yok/.test(licSec));
-    check("README: 'Lisans ve telif: açık işler' bölümü var ve madde 2 atıf eklemeyi artık iş saymıyor", openN.length > 0 && !/tefsir panelinde yayıncıya ve kaynağa açık atıf/.test(openN) && /atıfta gösterilen sürümün \(/.test(openN), openN.slice(0, 200));
-    const panelSec = norm(section(readme, /^## Ayet detay paneli \(kelime meali, meal, tefsir\)\s*$/m));
-    check("README: 'Ayet detay paneli' bölümünde 'Kaynağa atıf' paragrafı var, cümleyi AYNEN veriyor ve ekran okuyucuyla denenmediğini söylüyor", panelSec.includes("**Kaynağa atıf.**") && panelSec.includes(sentence) && /gerçek bir ekran okuyucuyla nasıl okunduğu denenmedi/.test(panelSec));
+    check("GELISTIRICI.md: 'Lisans ve telif: açık işler' bölümü var ve madde 2 atıf eklemeyi artık iş saymıyor", openN.length > 0 && !/tefsir panelinde yayıncıya ve kaynağa açık atıf/.test(openN) && /atıfta gösterilen sürümün \(/.test(openN), openN.slice(0, 200));
+    const panelSec = norm(section(dev, /^## Ayet detay paneli \(kelime meali, meal, tefsir\)\s*$/m));
+    check("GELISTIRICI.md: 'Ayet detay paneli' bölümünde 'Kaynağa atıf' paragrafı var, cümleyi AYNEN veriyor ve ekran okuyucuyla denenmediğini söylüyor", panelSec.includes("**Kaynağa atıf.**") && panelSec.includes(sentence) && /gerçek bir ekran okuyucuyla nasıl okunduğu denenmedi/.test(panelSec));
   }
 }
 

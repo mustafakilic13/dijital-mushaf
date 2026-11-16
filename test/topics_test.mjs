@@ -292,7 +292,7 @@ check("markTopicLinks: markArabicSpans ile hangi sırayla uygulanırsa uygulans�
     if (marked.replace(/ role="link" tabindex="0"/g, "") !== d) textChanged++;
   }
   check(`verideki her <topic> etiketi ya '<topic data-id="N">' ya da çıplak '<topic>' (${tagged} + ${bare}; başka biçim: ${otherForms})`, otherForms === 0 && tagged > 0);
-  // Sayılar README'de ve app.js/topics.js yorumlarında anılıyor; veri değişirse bu iki sayı bilerek kırılır:
+  // Sayılar GELISTIRICI.md'de ve app.js/topics.js yorumlarında anılıyor; veri değişirse bu iki sayı bilerek kırılır:
   // çıplak (hedefsiz) bağlantıların ne olacağı kararı da o zaman yeniden gözden geçirilmeli.
   check(`verideki sayılar belgelenenle aynı: 461 data-id'li bağlantı (271 konuda, en çok 6), 48 çıplak (bulunan: ${tagged} / ${bare}, ${topicsWithLink} konu, en çok ${maxInOne})`, tagged === 461 && bare === 48 && topicsWithLink === 271 && maxInOne === 6);
   check("işaretlemeden sonra işaretsiz data-id'li <topic> kalmıyor", unmarked === 0);

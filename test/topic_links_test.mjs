@@ -27,7 +27,7 @@
 //
 // ÖNEMLİ SINIR: jsdom'da düzen ve gerçek Tab gezintisi yok; tarayıcının Enter->click yerel davranışı da yok (düğmelerde
 // kendimiz click() çağırıyoruz). Gerçek Chromium'daki uçtan uca ölçüm (Tab durakları, erişilebilirlik ağacı, Enter/Space,
-// odak halkası, 461 bağlantının klavyeyle gezilmesi) README'de; gerçek ekran okuyucu testinin YERİNİ TUTMAZ.
+// odak halkası, 461 bağlantının klavyeyle gezilmesi) GELISTIRICI.md'de; gerçek ekran okuyucu testinin YERİNİ TUTMAZ.
 //
 //   node topic_links_test.mjs
 import fs from "fs";

@@ -1,7 +1,7 @@
 // Modal odak yönetimi regresyon kontrolü: js/modal-odak.js ve app.js'teki openModal/closeModal/
 // closeAllModals bağlantısı. 7 modalın hepsi role="dialog" aria-modal="true" taşıyordu ama odağa
 // hiç dokunulmuyordu: açılınca odak arkadaki sayfada kalıyor, Tab modalın dışına çıkıyor, kapanınca
-// odak <body>'ye düşüyordu (gerçek Chromium ölçümü README'de). Burada kontrol edilenler:
+// odak <body>'ye düşüyordu (gerçek Chromium ölçümü GELISTIRICI.md'de). Burada kontrol edilenler:
 //   (1) index.html'deki 7 modalın işaretlemesi (role/aria-modal/aria-labelledby/tabindex="-1"/Kapat
 //       düğmesi), kapsayıcı odak halkasını bastıran CSS kuralı, closeAllModals listesinin HTML'deki
 //       modallerle bire bir örtüşmesi (yeni bir modal listeye eklenmeden unutulmasın);
@@ -19,7 +19,7 @@
 // ÖNEMLİ SINIR: jsdom'da düzen ve gerçek Tab gezintisi yok. Tab olayları elle gönderiliyor ve yalnızca
 // BİZİM müdahale ettiğimiz durumlar (döngüyü kapatma) sınanıyor; tarayıcının doğal Tab sırası burada
 // ölçülemiyor. Gerçek Chromium'daki uçtan uca ölçüm (7 modal x açılış/Tab/Escape/kapat/perde/öğe seçimi/
-// hızlı yeniden açma) README'de; gerçek ekran okuyucu testinin YERİNİ TUTMAZ.
+// hızlı yeniden açma) GELISTIRICI.md'de; gerçek ekran okuyucu testinin YERİNİ TUTMAZ.
 //
 //   node modal_odak_test.mjs
 import fs from "fs";

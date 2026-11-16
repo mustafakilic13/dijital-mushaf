@@ -23,7 +23,7 @@
 //
 // Tahliye YOK (2) ve (3) için (küçük, sabit kümeler: uygulamanın kendi dosyaları
 // ve verisi hiçbir zaman silinmez). Tek tahliye ses önbelleğinde (1) ve yalnızca
-// aşağıdaki kota kuralıyla; bkz. README.md "PWA ve çevrimdışı önbellekleme".
+// aşağıdaki kota kuralıyla; bkz. GELISTIRICI.md "PWA ve çevrimdışı önbellekleme".
 //
 // event.request AYNEN (yeni bir Request kurmadan) fetch()'e veriliyor:
 // <audio src> gibi yüklemeler tarayıcıda zaten kendi moduyla (ör. çapraz

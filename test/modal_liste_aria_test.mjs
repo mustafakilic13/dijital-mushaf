@@ -44,10 +44,10 @@
 // SINIR: jsdom'da düzen yok; aria-current'ın ekran okuyucuda "geçerli" diye okunması burada DOĞRULANAMIYOR (yalnızca özniteliğin doğru
 // öğede ve doğru değerde olması sınanıyor; Chromium'un CDP erişilebilirlik ağacı aria-current'ı hiç listelemiyor, yani gerçek Chromium
 // ölçümü de DOM özniteliğini ve hesaplanan adı gösteriyor). Gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) testinin YERİNİ
-// TUTMAZ (README kontrol listesi, madde 25). Ok tuşuyla liste gezintisi ve tek Tab durağı bu testin konusu DEĞİL
+// TUTMAZ (GELISTIRICI.md kontrol listesi, madde 25). Ok tuşuyla liste gezintisi ve tek Tab durağı bu testin konusu DEĞİL
 // (test/liste_gezintisi_test.mjs; ayet düğmeleri ızgarasında test/izgara_gezintisi_test.mjs). Grup adının ekran okuyucuda "grup"
 // ile birlikte okunması da burada DOĞRULANAMIYOR: jsdom'da erişilebilirlik ağacı yok, burada öznitelikler ve axe-core'un rol/ad hesabı
-// sınanıyor; Chromium'un ağacı (group "Bakara Suresi ayetleri", odaktaki düğmenin atası) yalnızca ölçüldü, README'de. Firefox ve Safari'de
+// sınanıyor; Chromium'un ağacı (group "Bakara Suresi ayetleri", odaktaki düğmenin atası) yalnızca ölçüldü, GELISTIRICI.md'de. Firefox ve Safari'de
 // denenmedi.
 //
 //   node modal_liste_aria_test.mjs

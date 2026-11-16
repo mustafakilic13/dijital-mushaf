@@ -1,5 +1,5 @@
 // Ayet gezgini regresyon kontrolü: js/ayet-gezgini.js ve app.js'teki bağlantısı. Sayfa tek bir <svg> olduğundan
-// ayet detay paneli ile Sure Bilgisi'ne yalnızca fareyle/dokunarak ulaşılıyordu (gerçek Chromium ölçümü README'de:
+// ayet detay paneli ile Sure Bilgisi'ne yalnızca fareyle/dokunarak ulaşılıyordu (gerçek Chromium ölçümü GELISTIRICI.md'de:
 // 28 klavye denemesinin 28'inde ikisi de açılmadı). Burada kontrol edilenler:
 //   (1) index.html'deki #ayah-nav işaretlemesi (nav + etiketler + gizli listeler + ipucu), .reader-scroll'dan ÖNCE
 //       gelmesi (CSS'teki "~" kardeş seçicisi buna dayanıyor), canlı bölge İÇERMEMESİ, ipucunun aria-hidden olması;
@@ -20,7 +20,7 @@
 //
 // ÖNEMLİ SINIR: jsdom'da düzen, gerçek Tab gezintisi ve gerçek :focus-visible sezgisi yok; ekran okuyucu da yok.
 // Burası mantığı ve bağlantıyı sabitliyor; gerçek Chromium'daki uçtan uca ölçüm (Tab durakları, Enter/Escape, odağın
-// geri verilmesi, sayfa çevirme, kaydırma, ekran görüntüleri) README'de ve gerçek bir NVDA/JAWS/VoiceOver/TalkBack
+// geri verilmesi, sayfa çevirme, kaydırma, ekran görüntüleri) GELISTIRICI.md'de ve gerçek bir NVDA/JAWS/VoiceOver/TalkBack
 // testinin YERİNİ TUTMAZ.
 //
 //   node ayet_gezgini_test.mjs
@@ -724,6 +724,6 @@ if (failures) {
   process.exit(1);
 } else {
   console.log(
-    "All checks passed (#ayah-nav işaretlemesi + CSS halka/ipucu kuralları + sw.js önbelleği, saf yardımcılar (ayahsOnPage/surahsOfSvg/revealDelta), createAyahNav (liste, roving tabindex, aria-current/expanded, ok tuşları + uçlarda dönmeme + dokunulmayan tuşlar, Enter tekrarı, tıklama, sayfa değişince odağın korunması, restoreFocus, :focus-visible işareti, onFocusTarget), app.js bağlantısı (seçim -> showPage, başlık -> Sure Bilgisi, panel açılınca odak + kaydırma, yalnızca klavye odağında halka/kaydırma, Ezber'de gizleme), çağrı noktaları ve sıraları, axe-core). NOT: bunlar otomatik/yapısal kontroller -- gerçek bir ekran okuyucu testinin ve gerçek Tab gezintisinin yerini tutmaz (gerçek Chromium ölçümü README'de)."
+    "All checks passed (#ayah-nav işaretlemesi + CSS halka/ipucu kuralları + sw.js önbelleği, saf yardımcılar (ayahsOnPage/surahsOfSvg/revealDelta), createAyahNav (liste, roving tabindex, aria-current/expanded, ok tuşları + uçlarda dönmeme + dokunulmayan tuşlar, Enter tekrarı, tıklama, sayfa değişince odağın korunması, restoreFocus, :focus-visible işareti, onFocusTarget), app.js bağlantısı (seçim -> showPage, başlık -> Sure Bilgisi, panel açılınca odak + kaydırma, yalnızca klavye odağında halka/kaydırma, Ezber'de gizleme), çağrı noktaları ve sıraları, axe-core). NOT: bunlar otomatik/yapısal kontroller -- gerçek bir ekran okuyucu testinin ve gerçek Tab gezintisinin yerini tutmaz (gerçek Chromium ölçümü GELISTIRICI.md'de)."
   );
 }

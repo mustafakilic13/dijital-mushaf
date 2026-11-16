@@ -1691,7 +1691,7 @@ function pointToAyah(clientX, clientY, svgEl) {
 // line, stacking each translation type in its own section -- kelime meali
 // (word-by-word) first, then meal (full-ayah), tefsir joining the same
 // stack in a later step. Since the page itself is one precisely-justified
-// SVG (not flowing HTML -- see the README), "pushing the rest of the page
+// SVG (not flowing HTML -- see GELISTIRICI.md), "pushing the rest of the page
 // down" is done by visually splitting that SAME svg in two around a Y
 // coordinate that falls in the blank gap between the ayah's last line and
 // whatever comes next:
@@ -3282,7 +3282,7 @@ function drawEzberCovers(svg, coverDefs) {
 
 // Kapaklar yalnızca GÖRSEL bir örtü: kelimeyi örten dikdörtgen SVG'de, görünmez metin katmanının (render.js
 // addTextSelectionLayer) ÜSTÜNE çiziliyor; katmanın kendisi ise erişilebilirlik ağacında tam metin olarak duruyordu,
-// yani ekran okuyucu kullanıcısı açılmamış kelimeleri sayfadan okuyabiliyordu (gerçek Chromium'da ölçüldü, README).
+// yani ekran okuyucu kullanıcısı açılmamış kelimeleri sayfadan okuyabiliyordu (gerçek Chromium'da ölçüldü, GELISTIRICI.md).
 // Kapağı olan her kelimenin metin katmanındaki <span>'ı gizleniyor; açılan kelimenin işareti kalkıyor, kapaklar
 // boşalınca (oturum sonu) hepsi kalkıyor. İşaret, kapağı çizen AYNI fonksiyonda ve AYNI veriden (coverDefs)
 // türüyor: ikisi birbirinden ayrışamaz. Yaz'da bir kelimenin kapağı harf harf açılıyor; kelime son harfi açılana

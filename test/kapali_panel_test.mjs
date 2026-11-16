@@ -30,7 +30,7 @@
 //
 // KASITLI HARİÇ: aynı 0fr/1fr kalıbını kullanan .wm-tafsir-panel (tefsir) ve .word-meal-panel (ayet paneli). Tefsir paneli
 // .word-meal-body'nin aria-live bölgesinin içinde ve içerik kapalıyken yazılıp bir kare sonra açılıyor: gizli bir alt ağaca
-// yazılan metnin duyurulup duyurulmayacağı gerçek ekran okuyucu olmadan doğrulanamaz (bkz. README, "Sure Bilgisi'nde
+// yazılan metnin duyurulup duyurulmayacağı gerçek ekran okuyucu olmadan doğrulanamaz (bkz. GELISTIRICI.md, "Sure Bilgisi'nde
 // kapalı akordeon bölümleri"). Kapalı tefsir metninin ağaçta durması CSS ile değil, kapanış bitince metnin DOM'dan
 // kaldırılmasıyla çözüldü: test/tefsir_sekme_aria_test.mjs.
 // Ayet panelinin kapalı hâli kalıcı değil ve odak yönetimiyle iç içe. (1)'deki küme kontrolü, yeni bir 0fr paneli eklenirse
@@ -38,7 +38,7 @@
 //
 // ÖNEMLİ SINIR: jsdom'da düzen, geçiş ve checkVisibility() yok. Geçişler yalnızca CSS metninden (süre/gecikme) doğrulanıyor;
 // Tab tuzağı testindeki checkVisibility, Chromium'un ilgili kısmını (display:none ve visibilityProperty) taklit eden küçük bir
-// yedek. Gerçek tarayıcı ölçümü (Tab durakları, erişilebilirlik ağacı, animasyon zaman çizgisi) README'de; gerçek ekran okuyucu
+// yedek. Gerçek tarayıcı ölçümü (Tab durakları, erişilebilirlik ağacı, animasyon zaman çizgisi) GELISTIRICI.md'de; gerçek ekran okuyucu
 // (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı.
 //
 //   node kapali_panel_test.mjs

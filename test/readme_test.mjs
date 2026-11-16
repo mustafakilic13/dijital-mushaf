@@ -1,6 +1,7 @@
-// README.md'nin depoyla UYUMUNU denetler: "Proje yapısı" ağacı ve komut örnekleri.
+// Belgelerin depoyla UYUMUNU denetler: GELISTIRICI.md'deki "Proje yapısı" ağacı ve (README.md ile
+// GELISTIRICI.md'deki) komut örnekleri. README.md kullanıcı belgesidir; ağaç geliştirici belgesindedir.
 //
-// Neden: belge sessizce eskir. Bu README'de gerçekten oldu -- depoda hiç olmayan bir
+// Neden: belge sessizce eskir. Bu belgede (README.md bölünmeden önce, tek belgeyken) gerçekten oldu -- depoda hiç olmayan bir
 // `serve.py` anlatılıyordu ("python3 serve.py 8000" çalışmıyordu), ağaçta data/hizb.json,
 // data/recitation-*.json ve iki build betiği yoktu. Test üç şeyi sınar:
 //   1. Ağaçta listelenen her yol depoda var (silinen/adı değişen dosya belgede kalmasın);
@@ -8,7 +9,7 @@
 //      listeli (yeni dosya belgesiz kalmasın) + kök dosyalar ve üst düzey klasörler;
 //   3. Kod bloklarındaki `python3 x.py` / `node x.mjs` komutları var olan betikleri
 //      çağırıyor, `npm run <ad>` komutları test/package.json'da tanımlı.
-// Başarısız olursa ileti, README'ye ne eklenmesi/çıkarılması gerektiğini söyler.
+// Başarısız olursa ileti, GELISTIRICI.md'ye ne eklenmesi/çıkarılması gerektiğini söyler.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -28,20 +29,28 @@ function check(name, cond, detail) {
   }
 }
 
-const readme = fs.readFileSync(path.join(ROOT, "README.md"), "utf8");
-const lines = readme.split("\n");
+// README.md kullanıcı belgesi, GELISTIRICI.md geliştirici belgesi: "Proje yapısı" ağacı yalnız ikincisinde.
+function readDoc(name) {
+  const file = path.join(ROOT, name);
+  const ok = fs.existsSync(file);
+  check(`${name}: kökte var`, ok);
+  return ok ? fs.readFileSync(file, "utf8") : "";
+}
+const readmeText = readDoc("README.md");
+const devText = readDoc("GELISTIRICI.md");
+const lines = devText.split("\n");
 
 // ---- "Proje yapısı" ağacı ----------------------------------------------------------
 // Bölümün ilk ``` bloğu: satır başında yol alanı, ardından >= 2 boşlukla açıklama. Girintili
 // satırlar önceki girdinin açıklamasının devamı. Virgülle ayrılmış alan ("data/hizb.json,
 // rub.json") ilk yolun klasörünü devralır.
 const startIdx = lines.findIndex((l) => /^## Proje yapısı\s*$/.test(l));
-check('README: "## Proje yapısı" bölümü var', startIdx >= 0);
+check('GELISTIRICI.md: "## Proje yapısı" bölümü var', startIdx >= 0);
 let blockLines = [];
 if (startIdx >= 0) {
   const open = lines.findIndex((l, i) => i > startIdx && l.startsWith("```"));
   const close = open >= 0 ? lines.findIndex((l, i) => i > open && l.startsWith("```")) : -1;
-  check("README: Proje yapısı bölümünde kapalı bir kod bloğu var", open >= 0 && close > open);
+  check("GELISTIRICI.md: Proje yapısı bölümünde kapalı bir kod bloğu var", open >= 0 && close > open);
   if (open >= 0 && close > open) blockLines = lines.slice(open + 1, close);
 }
 
@@ -59,7 +68,7 @@ for (const line of blockLines) {
   }
 }
 // Boş/bozuk bir ağaçta "her şey tamam" demesin.
-check(`README: ağaçta yeterince girdi ayrıştırıldı (${listed.size} >= 40)`, listed.size >= 40, [...listed].join(", "));
+check(`GELISTIRICI.md: ağaçta yeterince girdi ayrıştırıldı (${listed.size} >= 40)`, listed.size >= 40, [...listed].join(", "));
 
 // 1. Listelenen her yol var (sonu "/" olanlar klasör).
 const dead = [];
@@ -68,7 +77,7 @@ for (const p of listed) {
   const ok = p.endsWith("/") ? fs.existsSync(abs) && fs.statSync(abs).isDirectory() : fs.existsSync(abs) && fs.statSync(abs).isFile();
   if (!ok) dead.push(p);
 }
-check("README ağacı: listelenen her yol depoda var", dead.length === 0, `depoda olmayan, README'den çıkarılması (ya da düzeltilmesi) gereken yollar: ${dead.join(", ")}`);
+check("GELISTIRICI.md ağacı: listelenen her yol depoda var", dead.length === 0, `depoda olmayan, GELISTIRICI.md'den çıkarılması (ya da düzeltilmesi) gereken yollar: ${dead.join(", ")}`);
 
 // 2. Depodaki her dosya listeli.
 function filesIn(dir, re) {
@@ -94,10 +103,12 @@ const mustList = [
   "THIRD_PARTY_NOTICES.md",
   "LICENSE",
   "VERI_KAYNAKLARI.md",
+  "README.md",
+  "GELISTIRICI.md",
 ].filter((p) => fs.existsSync(path.join(ROOT, p)));
 const unlisted = mustList.filter((p) => !listed.has(p));
-check("README ağacı: depodaki her kaynak/veri/test dosyası listeli", unlisted.length === 0, `README "Proje yapısı"na eklenmesi gereken dosyalar: ${unlisted.join(", ")}`);
-check(`README ağacı: kontrol vakumlu değil (${mustList.length} dosya arandı)`, mustList.length >= 40);
+check("GELISTIRICI.md ağacı: depodaki her kaynak/veri/test dosyası listeli", unlisted.length === 0, `GELISTIRICI.md "Proje yapısı"na eklenmesi gereken dosyalar: ${unlisted.join(", ")}`);
+check(`GELISTIRICI.md ağacı: kontrol vakumlu değil (${mustList.length} dosya arandı)`, mustList.length >= 40);
 
 // Üst düzey klasörler (gizliler ve node_modules hariç; .github ayrıca) listeli.
 const topDirs = fs
@@ -105,14 +116,14 @@ const topDirs = fs
   .filter((e) => e.isDirectory() && e.name !== "node_modules" && (!e.name.startsWith(".") || e.name === ".github"))
   .map((e) => e.name);
 const unlistedDirs = topDirs.filter((d) => ![...listed].some((p) => p === `${d}/` || p.startsWith(`${d}/`)));
-check("README ağacı: her üst düzey klasör listeli", unlistedDirs.length === 0, `README "Proje yapısı"nda hiç geçmeyen klasörler: ${unlistedDirs.join(", ")}`);
+check("GELISTIRICI.md ağacı: her üst düzey klasör listeli", unlistedDirs.length === 0, `GELISTIRICI.md "Proje yapısı"nda hiç geçmeyen klasörler: ${unlistedDirs.join(", ")}`);
 
 // ---- Komut örnekleri ------------------------------------------------------------------
 // Yalnız ``` kod blokları taranır (açıklama metnindeki ters tırnaklı anmalar değil).
 const codeLines = [];
-{
+for (const doc of [devText, readmeText]) {
   let inFence = false;
-  for (const l of lines) {
+  for (const l of doc.split("\n")) {
     if (l.startsWith("```")) {
       inFence = !inFence;
       continue;
@@ -125,21 +136,21 @@ const SCRIPT_RE = /\b(?:python3?|node)\s+(?:-[-\w]+\s+)*([^\s&|;<>"'`]+\.(?:py|m
 for (const l of codeLines) {
   for (const m of l.matchAll(SCRIPT_RE)) scriptRefs.push({ cmd: l.trim(), script: m[1] });
 }
-check(`README komutları: betik çağıran en az bir örnek bulundu (${scriptRefs.length})`, scriptRefs.length >= 3);
+check(`GELISTIRICI.md komutları: betik çağıran en az bir örnek bulundu (${scriptRefs.length})`, scriptRefs.length >= 3);
 // Betik kökten, test/ ya da tools/ klasöründen (örnekler "cd test" ile de verilir) çözülür.
 const missingScripts = scriptRefs.filter(({ script }) => ![ROOT, TEST_DIR, path.join(ROOT, "tools")].some((base) => fs.existsSync(path.join(base, script))));
-check("README komutları: `python3`/`node` ile çağrılan her betik depoda var", missingScripts.length === 0, missingScripts.map((r) => `${r.script}  (komut: ${r.cmd})`).join(" | "));
+check("GELISTIRICI.md komutları: `python3`/`node` ile çağrılan her betik depoda var", missingScripts.length === 0, missingScripts.map((r) => `${r.script}  (komut: ${r.cmd})`).join(" | "));
 
 const pkg = JSON.parse(fs.readFileSync(path.join(TEST_DIR, "package.json"), "utf8"));
 const npmScripts = new Set(Object.keys(pkg.scripts || {}));
-const npmRuns = [...readme.matchAll(/\bnpm run ([\w:-]+)/g)].map((m) => m[1]);
-check(`README: \`npm run\` örnekleri bulundu (${npmRuns.length})`, npmRuns.length >= 1);
+const npmRuns = [...devText.matchAll(/\bnpm run ([\w:-]+)/g), ...readmeText.matchAll(/\bnpm run ([\w:-]+)/g)].map((m) => m[1]);
+check(`GELISTIRICI.md: \`npm run\` örnekleri bulundu (${npmRuns.length})`, npmRuns.length >= 1);
 const undefinedRuns = [...new Set(npmRuns)].filter((n) => !npmScripts.has(n));
-check("README: `npm run <ad>` komutlarının hepsi test/package.json betiği", undefinedRuns.length === 0, `tanımsız: ${undefinedRuns.join(", ")}`);
+check("GELISTIRICI.md: `npm run <ad>` komutlarının hepsi test/package.json betiği", undefinedRuns.length === 0, `tanımsız: ${undefinedRuns.join(", ")}`);
 
 if (failures) {
   console.error(`\n${failures} check(s) failed.`);
   process.exit(1);
 } else {
-  console.log(`All checks passed (README: Proje yapısı ağacı ${listed.size} girdi -- hepsi depoda var, depodaki ${mustList.length} dosya ve ${topDirs.length} üst düzey klasör listeli; ${scriptRefs.length} betik komutu ve ${npmRuns.length} npm run örneği geçerli; ${checks} kontrol).`);
+  console.log(`All checks passed (GELISTIRICI.md: Proje yapısı ağacı ${listed.size} girdi -- hepsi depoda var, depodaki ${mustList.length} dosya ve ${topDirs.length} üst düzey klasör listeli; ${scriptRefs.length} betik komutu ve ${npmRuns.length} npm run örneği geçerli; ${checks} kontrol).`);
 }

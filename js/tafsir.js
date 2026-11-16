@@ -26,7 +26,7 @@
 // its data file after Diyanet's permissions office explicitly declined a
 // request to use it this way (their content is offered through their own
 // site/apps only, not for redistribution in third-party projects) -- see
-// README.md's data-sources section. `sources` below is intentionally left
+// GELISTIRICI.md's "Ayet detay paneli" section and VERI_KAYNAKLARI.md. `sources` below is intentionally left
 // as an object (not hardcoded to one entry) since adding a future,
 // properly-licensed source back is still just one entry here plus a data
 // file, per the original design.

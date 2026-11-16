@@ -767,7 +767,7 @@ body {
    (yükseklik küçülüyor, opacity sönüyor). BİLEREK visibility:hidden verilmedi (.info-section-panel-inner'daki
    gibi): bu panel .word-meal-body'nin aria-live bölgesinin içinde ve içerik kapalı panele yazılıp bir kare
    sonra açılıyor; gizli alt ağaca yazılan metnin duyurulup duyurulmayacağı gerçek ekran okuyucuyla
-   doğrulanmadan değiştirilmemeli (bkz. README, "Sure Bilgisi'nde kapalı akordeon bölümleri"). */
+   doğrulanmadan değiştirilmemeli (bkz. GELISTIRICI.md, "Sure Bilgisi'nde kapalı akordeon bölümleri"). */
 .wm-tafsir-panel-inner {
   overflow: hidden;
   min-height: 0;
@@ -988,7 +988,7 @@ body {
    durağını" yanlış bulur) ve erişilebilirlik ağacında kalır (ekran okuyucu görünmeyen
    metni okur). visibility:hidden ikisini de kaldırır; kapanırken küçülme bitene kadar
    (0.3 s) gecikmeli, açılırken anında uygulanır, animasyon eskisi gibi görünür.
-   Aynı kalıbı kullanan .wm-tafsir-panel ve .word-meal-panel'e dokunulmadı (bkz. README). */
+   Aynı kalıbı kullanan .wm-tafsir-panel ve .word-meal-panel'e dokunulmadı (bkz. GELISTIRICI.md). */
 .info-section-panel-inner {
   overflow: hidden;
   min-height: 0;

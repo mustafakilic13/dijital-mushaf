@@ -28,7 +28,7 @@
 //
 // ÖNEMLİ SINIR: jsdom'da düzen yok ve odaktaki öğe gizlenince odak <body>'ye düşmüyor (Chromium'da düşüyor): bu yüzden
 // düzeltilmemiş kod burada da yakalanıyor ama "odak <body>'ye düştü" diye değil, "odak beklenen yerde değil" diye (bağlantıya
-// Enter'dan sonra odak hâlâ gizli bağlantıda, Geri'den sonra hâlâ gizli Geri düğmesinde). Gerçek Chromium ölçümü README'de;
+// Enter'dan sonra odak hâlâ gizli bağlantıda, Geri'den sonra hâlâ gizli Geri düğmesinde). Gerçek Chromium ölçümü GELISTIRICI.md'de;
 // gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) testinin YERİNİ TUTMAZ.
 //
 //   node sure_bilgisi_odak_test.mjs

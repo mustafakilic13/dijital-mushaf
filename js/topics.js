@@ -13,7 +13,7 @@
 // field (parent_id, thematic_parent_id, ontology_parent_id,
 // related_topics, thematic, ontology) are untouched from QUL's own
 // export -- only display text (name, arabic_name, description) was
-// translated. See README.md's "Konu Fihristi" section.
+// translated. See GELISTIRICI.md's "Konu Fihristi" section.
 //
 // data/topics-tr.json is a flat array of 2512 records:
 //   topic_id                 unique id, referenced by the fields below

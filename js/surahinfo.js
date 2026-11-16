@@ -10,7 +10,7 @@
 // Turkish (İslami terimlere uygun, HTML etiketleri korunarak). This is the
 // feature's SECOND data source -- the first (Diyanet Kur'an Yolu, at the
 // now-removed data/sura-info.json) was taken down after Diyanet's
-// permissions office declined third-party redistribution; see README.md's
+// permissions office declined third-party redistribution; see GELISTIRICI.md's
 // "Sure Bilgisi" note. Nothing else about the feature depended on that
 // source's specific shape, so this one didn't need to match it.
 //

@@ -34,7 +34,7 @@
 // rakamı kâğıt zeminde >= 4,5:1; dekoratif altınlar (--gold, --gold-soft) metin
 // rengi olamaz; `outline: none` yalnızca yerine başka gösterge konmuş yerlerde.
 // (Gerçek tarayıcıda axe-core color-contrast taraması test'in dışında, elle
-// çalıştırıldı; README'de sayıları var.)
+// çalıştırıldı; GELISTIRICI.md'de sayıları var.)
 //
 // ÖNEMLİ SINIR: axe-core burada jsdom üzerinde çalışıyor -- gerçek bir
 // tarayıcının erişilebilirlik ağacını DEĞİL, yalnızca DOM/ARIA yapısını
@@ -876,7 +876,7 @@ try {
   // (WCAG 2.4.3, 4.1.2). Gerçek Chromium'da yamadan ÖNCE iki yerde bir sınıf kuralının `display: flex`i `hidden`i eziyordu:
   // konu modalının Geri düğmesi (.info-detail-back; kökte hiç gizlenmiyor, ilk Tab durağıydı) ve Ezber sure seçici açılınca
   // gizlenmesi gereken sekme çubuğu (.tab-bar; dokununca seçicinin üstüne sıkışmış bir sekme paneli biniyordu).
-  // jsdom CSS özgüllüğünü ve !important'ı hesaplamıyor: kural kaynak metninden sınanıyor; gerçek kaskad ölçümü README'de.
+  // jsdom CSS özgüllüğünü ve !important'ı hesaplamıyor: kural kaynak metninden sınanıyor; gerçek kaskad ölçümü GELISTIRICI.md'de.
   check("genel `[hidden]` kuralı var ve tam olarak `display: none !important` (sınıf kuralları `hidden` özniteliğini eziyordu)", (() => {
     const r = rules.filter((x) => x.selectors.length === 1 && x.selectors[0] === "[hidden]");
     return r.length === 1 && declMap(r[0].decls).display === "none !important";
@@ -900,7 +900,7 @@ try {
   // (g) Hedefsiz <topic> (data-id'siz; verideki 48 etiket) bağlantı gibi görünmemeli: tıklayana hiçbir şey olmuyor ve
   // klavyeyle odaklanamıyor (markTopicLinks dokunmuyor). Gerçek Chromium'da yamadan ÖNCE bunlar gerçek bağlantıyla birebir
   // aynı stildeydi (altın, altı çizili, el imleci, üstüne gelince vurgu). Bağlantı stili yalnızca topic[data-id]'ye veriliyor.
-  // Kural kaynak metninden sınanıyor (jsdom'da hesaplanan stil güvenilir değil); gerçek Chromium ölçümü README'de.
+  // Kural kaynak metninden sınanıyor (jsdom'da hesaplanan stil güvenilir değil); gerçek Chromium ölçümü GELISTIRICI.md'de.
   const topicSelectors = rules.flatMap((r) => r.selectors).filter((x) => /^\.topic-description topic\b/.test(x));
   const unscoped = topicSelectors.filter((x) => !/^\.topic-description topic\[data-id\]/.test(x));
   check(

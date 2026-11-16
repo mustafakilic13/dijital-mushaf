@@ -61,7 +61,7 @@
 //
 // ÖNEMLİ SINIR: jsdom'da düzen, odak halkası görünümü, :focus-visible eşleşmesi ve gerçek bir ekran okuyucu yok. Düğmenin / klavyenin
 // gizlenince odağı kaybetmesi taklit ediliyor (Chromium öyle yapıyor; jsdom yapmıyor). Gerçek tarayıcı ölçümü (Tab durakları,
-// :focus-visible, görünüm, duyuru zaman çizelgesi, gerçek klavye olayları) README'de; gerçek ekran okuyucu
+// :focus-visible, görünüm, duyuru zaman çizelgesi, gerçek klavye olayları) GELISTIRICI.md'de; gerçek ekran okuyucu
 // (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı. Açılan Arapça kelimenin kendisi duyuruda YOK (canlı bölge tek dilli Türkçe); o kelime,
 // kapağı kalkınca sayfanın metin katmanında erişilebilirlik ağacına giriyor, kapaktaki kelimeler ağaçtan çıkarılıyor (bu dosyanın
 // konusu değil: test/ezber_metin_katmani_test.mjs).

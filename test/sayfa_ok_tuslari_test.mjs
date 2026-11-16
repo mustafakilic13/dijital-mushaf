@@ -36,7 +36,7 @@
 //   (4) 20 tohumlu rastgele dizi (3000 olay): tuş x değiştirici x hedef x tüketilmiş x bileşim x modal, bağımsız bir kurala karşı.
 //
 // ÖNEMLİ SINIR: jsdom'da gerçek tarayıcı kısayolları (Alt+Sol = geri) ve gerçek IME yok; olaylar elle üretiliyor, isComposing sentetik. Gerçek
-// Chromium ölçümü (README) başsızdı: tarayıcının kendi geri/ileri kısayolunu işlemiyor, yalnızca sayfaya ulaşan olayları sınıyor. Gerçek ekran
+// Chromium ölçümü (GELISTIRICI.md) başsızdı: tarayıcının kendi geri/ileri kısayolunu işlemiyor, yalnızca sayfaya ulaşan olayları sınıyor. Gerçek ekran
 // okuyucu (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı; macOS VoiceOver'ın Ctrl+Option+Sol/Sağ'ı sayfaya hiç ulaşmayabilir (denenmedi).
 //
 //   node sayfa_ok_tuslari_test.mjs

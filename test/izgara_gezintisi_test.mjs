@@ -30,7 +30,7 @@
 //
 // SINIR: jsdom'da düzen ve gerçek Tab yok: Tab, modal-odak.js'in dönüş mantığı (GERÇEK) + DOM sırasında bir sonraki durak (taklit) ile
 // yürütülüyor; kaydırma (odaklanan düğmenin görünür alana gelmesi), odak halkası ve ekran okuyucu davranışı burada DOĞRULANAMIYOR
-// (gerçek Chromium'da ölçüldü, README'de var; NVDA/JAWS/VoiceOver/TalkBack ile DENENMEDİ, kontrol listesi madde 27). Firefox ve
+// (gerçek Chromium'da ölçüldü, GELISTIRICI.md'de var; NVDA/JAWS/VoiceOver/TalkBack ile DENENMEDİ, kontrol listesi madde 27). Firefox ve
 // Safari'de denenmedi.
 //
 //   node izgara_gezintisi_test.mjs

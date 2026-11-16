@@ -29,8 +29,8 @@
 //
 // ÖNEMLİ SINIR: jsdom'da düzen yok ve odaktaki öğe gizlenince odak <body>'ye düşmüyor (Chromium'da düşüyor: HTML'in "focus fixup" kuralı).
 // Bu test kuralı elle taklit ediyor (her işlemden sonra: odak [hidden] bir atanın içindeyse blur), yani düzeltilmemiş kod burada da
-// "odak <body>'de" diye yakalanıyor. Gerçek Chromium ölçümü README'de; gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) testinin YERİNİ
-// TUTMAZ; "Sure Seç, grup" anonsu cihazda sınanmadı (README kontrol listesi, madde 23). Firefox ve Safari'de denenmedi.
+// "odak <body>'de" diye yakalanıyor. Gerçek Chromium ölçümü GELISTIRICI.md'de; gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) testinin YERİNİ
+// TUTMAZ; "Sure Seç, grup" anonsu cihazda sınanmadı (GELISTIRICI.md kontrol listesi, madde 23). Firefox ve Safari'de denenmedi.
 // Liste satırlarının tek Tab durağı ve ok tuşları ayrı bir iş (js/liste-gezintisi.js, test/liste_gezintisi_test.mjs); burada yalnızca
 // modalın Tab durakları sınanıyor: Kapat, Geri, geçerli satır (listenin tek durağı), iki alt bilgi bağlantısı.
 //
@@ -207,7 +207,7 @@ const norm = (el) =>
   check("index.html: iki seçicinin gizli girişleri .ezber-field içinde ve formun içinde (Sure ve Kârî değeri aynı yerde)", D.getElementById("ezber-dinle-form").contains(D.getElementById("ezber-dinle-reciter")) && D.getElementById("ezber-dinle-form").contains(D.getElementById("ezber-dinle-surah")));
 }
 
-// -- (2b) CSS (kaynak metni; jsdom CSS özgüllüğünü hesaplamıyor, gerçek kaskad ölçümü README'de) ---------------------------
+// -- (2b) CSS (kaynak metni; jsdom CSS özgüllüğünü hesaplamıyor, gerçek kaskad ölçümü GELISTIRICI.md'de) ---------------------------
 {
   const css = readText("css", "style.css").replace(/\/\*[\s\S]*?\*\//g, "");
   const rules = [];

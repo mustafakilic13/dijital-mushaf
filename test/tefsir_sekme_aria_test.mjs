@@ -39,7 +39,7 @@
 //   (4) dolu işaretlemenin axe-core yapısal taraması (kapalı ve açık durumda).
 //
 // ÖNEMLİ SINIR: jsdom'da düzen, geçiş ve erişilebilirlik ağacı yok; burada aria-expanded İŞARETİ ve metnin DOM'da olup olmadığı kontrol ediliyor
-// (ağaçtaki durum gerçek Chromium'da ölçüldü, README'de). Gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı: durum değişikliği
+// (ağaçtaki durum gerçek Chromium'da ölçüldü, GELISTIRICI.md'de). Gerçek ekran okuyucu (NVDA/JAWS/VoiceOver/TalkBack) çalıştırılmadı: durum değişikliği
 // duyurusunun canlı bölgenin metin duyurusuyla nasıl birleştiği (ya da ayrı okunduğu) bilinmiyor.
 //
 //   node tefsir_sekme_aria_test.mjs

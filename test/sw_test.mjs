@@ -72,11 +72,11 @@ const swCodeOnly = swSource.replace(/\/\/.*$/gm, "");
 const outsideAudioEviction = swCodeOnly.replace(/^async function (?:trimAudioCache|relieveAudioCache)\([^)]*\) \{\n[\s\S]*?^\}$/gm, "");
 check("sw.js KODUNDA tek tek kayıt silme (cache.delete(istek)) VAR ama YALNIZCA ses önbelleği tahliye işlevlerinde (trimAudioCache, relieveAudioCache); başka hiçbir yerde yok (caches.delete(adı) -- TÜM bir önbelleği silmek, eski SÜRÜM temizliği için -- ayrı ve meşru, aşağıda ayrıca test ediliyor)", /\bcache\.delete\(/.test(swCodeOnly) && !/\bcache\.delete\(/.test(outsideAudioEviction));
 check("sw.js KODUNDA kayıt SAYISI / yaş / LRU sınırı YOK (max_items vb. hiçbiri geçmiyor): tahliye yalnızca kota tabanlı", !/max[_-]?items|max[_-]?age|\bLRU\b/i.test(swCodeOnly));
-// Eşik değerleri bilerek BURADA sabitleniyor (aşağıdaki kota testlerinin sayıları ve README bunlara göre yazıldı): sw.js'te
-// biri değişirse bu kontrol kırılır ve değişiklik testlerle README'ye de bilinçli olarak yansıtılır.
+// Eşik değerleri bilerek BURADA sabitleniyor (aşağıdaki kota testlerinin sayıları ve GELISTIRICI.md bunlara göre yazıldı): sw.js'te
+// biri değişirse bu kontrol kırılır ve değişiklik testlerle GELISTIRICI.md'ye de bilinçli olarak yansıtılır.
 const constNum = (name) => Number(new RegExp(`const ${name} = ([0-9.]+);`).exec(swSource)?.[1]);
 const quotaConsts = ["AUDIO_HIGH_WATER", "AUDIO_LOW_WATER", "AUDIO_RELIEF_FRACTION", "AUDIO_TRIM_MAX_FRACTION"].map(constNum);
-check(`kota sabitleri testlerdeki ve README'deki değerlerle aynı (AUDIO_HIGH_WATER 0.8, AUDIO_LOW_WATER 0.7, AUDIO_RELIEF_FRACTION 0.1, AUDIO_TRIM_MAX_FRACTION 0.2; bulunan: ${quotaConsts.join(", ")})`, quotaConsts.join(",") === "0.8,0.7,0.1,0.2");
+check(`kota sabitleri testlerdeki ve GELISTIRICI.md'deki değerlerle aynı (AUDIO_HIGH_WATER 0.8, AUDIO_LOW_WATER 0.7, AUDIO_RELIEF_FRACTION 0.1, AUDIO_TRIM_MAX_FRACTION 0.2; bulunan: ${quotaConsts.join(", ")})`, quotaConsts.join(",") === "0.8,0.7,0.1,0.2");
 
 // -- sahte ServiceWorkerGlobalScope kurulumu ------------------------------------------------------------
 // quota/sizeOf: kota tahliyesi testleri için basit bir depolama modeli. sizeOf(url, yanıt) kaydın kullandığı "kota
