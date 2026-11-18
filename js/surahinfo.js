@@ -17,13 +17,13 @@
 // .text is a handful of <h2>Başlık</h2><p>...</p>... sections (İsim, İniş
 // Dönemi, Tema ve Konu, ...) -- the heading SET isn't fixed (some surahs
 // have 3, others up to 11: a historical-background aside, a couple of
-// named side-questions, etc.), so app.js's accordion is built generically
+// named side-questions, etc.), so surahinfo-modal.js's accordion is built generically
 // from whatever <h2> boundaries a given surah actually has, rather than
 // assuming a fixed list of section names. splitInfoSections below is that
 // split, shared here so it's tested/changed in one place. A tiny few
 // entries (113, 114 -- Felak/Nas share one combined introduction) have a
 // plain-<p> preamble before their first <h2>; that comes back as `intro`
-// and app.js renders it standalone, above the accordion.
+// and surahinfo-modal.js renders it standalone, above the accordion.
 
 const DATA_FILE = "data/surah-info-tr.json";
 
@@ -70,7 +70,7 @@ export function getSurahInfoEntry(data, surahNum) {
 // splitInfoSections below) -- true for every one of the 396 headings
 // currently in the data except two, both single-surah slips fixed at the
 // source (data/surah-info-tr.json surah 22 had a stray leading "x", surah
-// 101 had a stray empty <em> wrapping a zero-width character): app.js
+// 101 had a stray empty <em> wrapping a zero-width character): surahinfo-modal.js
 // escapes this text and drops it straight into an accordion button's
 // label, so if a nested tag ever leaked through unstripped, escapeHtml
 // would turn it into literal visible "<em>" text rather than an actual
@@ -88,7 +88,7 @@ function cleanTitle(title) {
 // is an ordered [{ title, bodyHTML }, ...] array, `title` as plain text
 // (the <h2> tag's own inner text, run through cleanTitle above) ready to
 // escape, `bodyHTML` as raw HTML ready to render as-is, same "trusted,
-// pass through unescaped" treatment app.js's tafsirContentHTML already
+// pass through unescaped" treatment ayah-panel.js's tafsirContentHTML already
 // gives tafsir-saadi.json's markup.
 export function splitInfoSections(html) {
   if (!html) return { intro: "", sections: [] };
@@ -106,7 +106,7 @@ export function splitInfoSections(html) {
 // comment) -- this app has no route for any of them, so following one as
 // a normal link 404s (in a new tab when the source markup also carries
 // target="_blank", in the SAME tab -- navigating away from the app
-// entirely -- when it doesn't; both happen in the current data). app.js
+// entirely -- when it doesn't; both happen in the current data). surahinfo-modal.js
 // intercepts every click in the info body instead and routes it through
 // here.
 //
@@ -128,7 +128,7 @@ export function splitInfoSections(html) {
 //                                      line above once the query string is
 //                                      dropped.
 // Every href currently in the data matches one of these; anything that
-// doesn't (or a surah/ayah number of 0) returns null and app.js leaves
+// doesn't (or a surah/ayah number of 0) returns null and surahinfo-modal.js leaves
 // the click as a no-op rather than guessing.
 const LINK_RE = /^\/?(\d+)(?:[/:](\d+)(?:-(\d+))?)?/;
 

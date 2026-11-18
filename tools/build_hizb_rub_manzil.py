@@ -3,8 +3,8 @@
 Builds data/hizb.json, data/rub.json, data/manzil.json from QUL's raw
 quran-metadata-{hizb,rub,manzil}.json exports -- the exact same minimal
 shape data/juz.json already has ({ "n": {firstVerseKey, page}, ... }), so
-js/app.js can navigate/highlight all four (juz, hizb, rub, manzil) with
-one shared code path (see unitForAyah/goToUnitNum in app.js).
+the app (js/lookup.js, js/page.js) can navigate/highlight all four (juz, hizb, rub, manzil) with
+one shared code path (see unitForAyah in js/lookup.js, goToUnitNum in js/page.js).
 
 Unlike juz.json (built inside build_data.py, which derives page numbers
 from the raw sqlite+word-id data while it already has that loaded), this

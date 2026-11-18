@@ -2,8 +2,8 @@
 // recitationAudioUrl) against the real data files. Pure Node, no deps.
 // Run: node recitation_playback_test.mjs
 //
-// Re-implements (verbatim) the pure-logic functions from js/app.js -- see
-// juz_subdivisions_test.mjs's header comment for why (can't import app.js
+// Re-implements (verbatim) the pure-logic functions from js/playback.js -- see
+// juz_subdivisions_test.mjs's header comment for why (can't import playback.js
 // itself here: it's a browser module with DOM/Audio/fetch dependencies).
 import fs from "fs";
 import path from "path";

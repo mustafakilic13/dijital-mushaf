@@ -41,9 +41,9 @@
 // kural bazlı denetliyor (renk kontrastı, gerçek düzen/görünürlük gibi
 // GÖRSEL kurallar jsdom'da güvenilir değil, o yüzden burada çalıştırılmıyor).
 // Bu da gerçek bir NVDA/JAWS/VoiceOver/TalkBack testinin YERİNİ TUTMAZ --
-// yalnızca yapısal bir ön-kontrol. app.js Node'da import edilemediği için
+// yalnızca yapısal bir ön-kontrol. uygulama modülleri Node'da import edilemediği için
 // (HarfBuzz/WASM açılışı, bkz. juz_subdivisions_test.mjs) announce /
-// announceNavigation bloğu (app.js'te <announce> işaretleri arasında) kaynak
+// announceNavigation bloğu (announce.js'te <announce> işaretleri arasında) kaynak
 // metninden çıkarılıp sahte state/els ile çalıştırılıyor, aynı
 // arama_ui_test.mjs'teki ayahRawWordsAnywhere kontrolü gibi.
 import fs from "fs";
@@ -53,13 +53,13 @@ import { JSDOM, VirtualConsole } from "jsdom";
 import axeCore from "axe-core";
 import { LineRenderer } from "../js/render.js";
 import { renderWordMealCardsHTML } from "../js/wordmeal.js";
+import { appSource } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
 const html = readText("index.html");
 const css = readText("css", "style.css");
-const appSource = readText("js", "app.js");
 const renderSource = readText("js", "render.js");
 const surahs = JSON.parse(readText("data", "surahs.json"));
 
@@ -144,9 +144,9 @@ check(".sr-only CSS: standart 'visually hidden' kalıbı (position:absolute + cl
   check(`statik kabukta canlı bölgeler YALNIZCA #nav-announcer ve arama durumu (bulunan: ${liveIds.join(", ")})`, liveIds.length === 2 && liveIds.includes("nav-announcer") && liveIds.includes("arama-status"));
 }
 
-// -- announce()/announceNavigation() -- app.js'teki <announce> bloğu kaynak metinden çıkarılıp sahte state/els ile --
+// -- announce()/announceNavigation() -- announce.js'teki <announce> bloğu kaynak metinden çıkarılıp sahte state/els ile --
 const ANNOUNCE_BLOCK = /\/\/ <announce>([\s\S]*?)\/\/ <\/announce>/.exec(appSource);
-check("app.js: <announce> ... </announce> bloğu (announce + announceNavigation) bulundu", !!ANNOUNCE_BLOCK);
+check("announce.js: <announce> ... </announce> bloğu (announce + announceNavigation) bulundu", !!ANNOUNCE_BLOCK);
 function makeAnnounce(state) {
   const els = { navAnnouncer: { textContent: "" } };
   // Blok kendi modül-düzeyi durumunu (bekleyen anonslar + zamanlayıcı) taşıdığından her çağrıda TAZE bir örnek kuruluyor.
@@ -243,11 +243,11 @@ check("goToUnitNum da showPage'e çıkıyor (goToJuz/Hizb/Rub/Manzil'in ortak yo
 {
   const openFn = /function openWordMealStructure\([\s\S]*?\n\}\n/.exec(appSource);
   const closeFn = /function closeWordMeal\(\) \{[\s\S]*?\n\}\n/.exec(appSource);
-  check("app.js: openWordMealStructure ve closeWordMeal bulundu", !!openFn && !!closeFn);
+  check("ayah-panel.js: openWordMealStructure ve closeWordMeal bulundu", !!openFn && !!closeFn);
   check("openWordMealStructure: panel GÖVDESİ (.word-meal-body) kendi canlı bölgesi (aria-live=polite)", /state\.wordMeal\.bodyEl\.setAttribute\("aria-live", "polite"\)/.test(openFn[0]));
   check("openWordMealStructure: panel açılışı #nav-announcer üzerinden duyuruluyor ('<ref> detayı açıldı')", /announce\(`\$\{refText\} detayı açıldı`, "panel"\)/.test(openFn[0]));
   check("closeWordMeal: panel kapanışı #nav-announcer üzerinden duyuruluyor ('Ayet detayı kapatıldı')", /announce\("Ayet detayı kapatıldı", "panel"\)/.test(closeFn[0]));
-  check("app.js hiçbir yerde #page-container'a aria-live atamıyor (sayfa metni yeniden okutulmasın)", !/pageContainer\.setAttribute\(\s*["']aria-live["']/.test(appSource));
+  check("uygulama modülleri hiçbir yerde #page-container'a aria-live atamıyor (sayfa metni yeniden okutulmasın)", !/pageContainer\.setAttribute\(\s*["']aria-live["']/.test(appSource));
   check("canlı bölge panelin sayfa dilimlerine (üst/alt, metin katmanı taşıyan) VERİLMİYOR", !/(topEl|bottomOuterEl|bottomInnerEl|panelEl)\.setAttribute\(\s*["']aria-live["']/.test(appSource));
 }
 
@@ -258,12 +258,12 @@ check("goToUnitNum da showPage'e çıkıyor (goToJuz/Hizb/Rub/Manzil'in ortak yo
 // Chromium'da 1. sayfa: 7 + 7 Arapça satır, Bakara 3. sayfa: 15 + 15). Beklenen: alt kopya aria-hidden; GERÇEK olan
 // üst dilim, panel ve kapanınca geri kurulan tek SVG ağaçta KALIR (metin katmanını erişilebilirlikten çıkarmak
 // yanlış olurdu). aria-hidden yerine `inert` KULLANILAMAZ: inert fare/dokunma tıklamasını da keser, oysa alt
-// dilimdeki ayete dokunmak çalışmaya devam etmeli. Gerçek openWordMealStructure/mountClosedPage (app.js'ten
+// dilimdeki ayete dokunmak çalışmaya devam etmeli. Gerçek openWordMealStructure/mountClosedPage (ayah-panel.js ve page-layout.js'ten
 // kaynak olarak çıkarılıp) gerçek index.html'e, gerçek LineRenderer metin katmanıyla çalıştırılıyor.
 {
   const fnSrc = (re, what) => {
     const m = re.exec(appSource);
-    check(`app.js: ${what} bulundu`, !!m);
+    check(`uygulama modülleri: ${what} bulundu`, !!m);
     return m ? m[0] : "";
   };
   const openSrc = fnSrc(/function openWordMealStructure\([\s\S]*?\n\}\n/, "openWordMealStructure");
@@ -344,7 +344,7 @@ check("goToUnitNum da showPage'e çıkıyor (goToJuz/Hizb/Rub/Manzil'in ortak yo
   const cssNoComments2 = css.replace(/\/\*[\s\S]*?\*\//g, "");
   const sliceRules = [...cssNoComments2.matchAll(/([^{}]*\.page-slice[^{}]*)\{([^{}]*)\}/g)];
   check(`CSS: .page-slice* kurallarında (${sliceRules.length}) pointer-events:none yok`, sliceRules.length >= 3 && sliceRules.every((m) => !/pointer-events\s*:\s*none/.test(m[2])));
-  check("app.js: openWordMealStructure alt dilimi inert YAPMIYOR (setAttribute('inert') / .inert = yok)", !/setAttribute\(\s*["']inert["']|\.inert\s*=/.test(openSrc));
+  check("ayah-panel.js: openWordMealStructure alt dilimi inert YAPMIYOR (setAttribute('inert') / .inert = yok)", !/setAttribute\(\s*["']inert["']|\.inert\s*=/.test(openSrc));
 
   // aria-hidden içinde odaklanabilir öğe olmamalı (WCAG 4.1.2): yoksa klavye kullanıcısı ağaçta olmayan bir öğeye
   // düşerdi. Bu açıkça denetleniyor, çünkü jsdom'da axe'in 'aria-hidden-focus' kuralı bir <button>'ı bile yakalamadı.
@@ -366,8 +366,8 @@ check("goToUnitNum da showPage'e çıkıyor (goToJuz/Hizb/Rub/Manzil'in ortak yo
   check("ikinci kapanış: temiz", pc.querySelectorAll("[aria-hidden]").length === 0 && sameList(exposedLines(pc), LINES));
 
   // Kaynak: gizleme alt dilim üzerinde ve aria-hidden ile yapılıyor (davranış kontrolleri asıl güvence, bu yalnızca kayıt).
-  check('app.js: openWordMealStructure alt dilime aria-hidden="true" veriyor', /bottomOuterEl\.setAttribute\(\s*"aria-hidden"\s*,\s*"true"\s*\)/.test(openSrc));
-  check("app.js: üst dilime/panele/#page-container'a aria-hidden verilmiyor", !/(topEl|panelEl|innerEl|svg|els\.pageContainer)\.setAttribute\(\s*["']aria-hidden["']/.test(openSrc + mountSrc));
+  check('ayah-panel.js: openWordMealStructure alt dilime aria-hidden="true" veriyor', /bottomOuterEl\.setAttribute\(\s*"aria-hidden"\s*,\s*"true"\s*\)/.test(openSrc));
+  check("ayah-panel.js ve page-layout.js: üst dilime/panele/#page-container'a aria-hidden verilmiyor", !/(topEl|panelEl|innerEl|svg|els\.pageContainer)\.setAttribute\(\s*["']aria-hidden["']/.test(openSrc + mountSrc));
 }
 
 // -- js/render.js: metin katmanı yapısı kaynak üzerinden -------------------------------------------------
@@ -422,7 +422,7 @@ const ARABIC_LETTER_RE = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]
 }
 
 // -- Kelime kelime metin katmanı: GERÇEK addTextSelectionLayer(..., words) -----------------------------------
-// Ezber oturumu (app.js drawEzberCovers -> syncEzberTextLayer) kapağın altındaki kelimeleri erişilebilirlik ağacından çıkarabilsin diye
+// Ezber oturumu (ezber-study.js drawEzberCovers -> syncEzberTextLayer) kapağın altındaki kelimeleri erişilebilirlik ağacından çıkarabilsin diye
 // ayet satırları kelime başına bir <span class="text-layer-word" data-word-id> olarak kuruluyor. Bu, metni, seçimi, kopyalamayı ve dili
 // DEĞİŞTİRMEMELİ; ağaçta yalnızca boşluktan oluşan düğüm bırakmamalı ve kendisi hiçbir şeyi gizlememeli (gizleme yalnızca Ezber'de).
 // Oturum davranışı test/ezber_metin_katmani_test.mjs'te; 604 sayfanın tamamı test/full_corpus_test.mjs'te.
@@ -463,7 +463,7 @@ const ARABIC_LETTER_RE = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]
   check("kelimeler arası boşluk soldaki kelimenin span'ının SONUNDA: ilk üçü tek boşlukla biter, sonuncu boşluksuz", S0.slice(0, 3).every((sp, k) => sp.textContent === `${WORD_TEXTS[k]} `) && S0[3].textContent === WORD_TEXTS[3]);
   check("satırın doğrudan çocukları yalnızca span'lar: ağaçta yalnızca boşluktan oluşan düğüm yok", [...L0.childNodes].every((n) => n.nodeType === 1 && n.tagName === "SPAN") && L0.childNodes.length === 4);
   check('lang="ar" ve dir="rtl" satırda duruyor; span\'lar kendi lang/role/tabindex/aria-* taşımıyor (etkin dil yine Arapça)', L0.getAttribute("lang") === "ar" && L0.getAttribute("dir") === "rtl" && S0.every((sp) => !sp.hasAttribute("lang") && !sp.hasAttribute("role") && !sp.hasAttribute("tabindex") && ![...sp.attributes].some((a) => a.name.startsWith("aria-")) && sp.closest("[lang]") === L0));
-  check("render.js hiçbir şeyi gizlemiyor: kelime kelime kurulmuş satırlarda hiç aria-hidden yok (gizleme yalnızca Ezber oturumunda, app.js)", d.querySelectorAll("[aria-hidden]").length === 0);
+  check("render.js hiçbir şeyi gizlemiyor: kelime kelime kurulmuş satırlarda hiç aria-hidden yok (gizleme yalnızca Ezber oturumunda, ezber-study.js)", d.querySelectorAll("[aria-hidden]").length === 0);
   check("kelime span'larında stil yok (yalnızca class + data-word-id: görünüm, seçim vurgusu ve satır genişliği satırdan geliyor)", S0.every((sp) => !sp.hasAttribute("style") && [...sp.attributes].map((a) => a.name).sort().join() === "class,data-word-id"));
 
   // Bir kelime gizlenince (Ezber'de olan bu) kalan metin düzgün ve boşluk düğümü artığı yok
@@ -561,9 +561,9 @@ const ARABIC_LETTER_RE = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]
   // (c) Oynat düğmesinin etiketi (düğmenin erişilebilir adı) hem Arapça ibare hem Türkçe durum metni taşıyor:
   // metin ve dil birlikte değişmeli, yoksa "Yükleniyor…" Arapça sesle ya da ibare Türkçe sesle okunur.
   const labelWrites = appSource.match(/els\.playBtnLabel\.textContent\s*=/g) || [];
-  check("app.js: #play-btn-label metni yalnızca setPlayLabel() içinde yazılıyor (dil metinle birlikte değişsin)", labelWrites.length === 1);
+  check("uygulama modülleri: #play-btn-label metni yalnızca setPlayLabel() içinde yazılıyor (dil metinle birlikte değişsin)", labelWrites.length === 1);
   const setPlayLabelSrc = /function setPlayLabel\(text, lang\) \{[\s\S]*?\n\}/.exec(appSource);
-  check("app.js: setPlayLabel bulundu", !!setPlayLabelSrc);
+  check("playback.js: setPlayLabel bulundu", !!setPlayLabelSrc);
   if (setPlayLabelSrc) {
     const labelEls = { playBtnLabel: { textContent: "", lang: "" } };
     const setPlayLabel = new Function("els", `${setPlayLabelSrc[0]}\nreturn setPlayLabel;`)(labelEls);
@@ -573,14 +573,14 @@ const ARABIC_LETTER_RE = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]
     check('setPlayLabel: metin ve dil birlikte yazılıyor (Arapça ibare → "ar")', labelEls.playBtnLabel.textContent === "بسم الله الرحمن الرحيم" && labelEls.playBtnLabel.lang === "ar");
   }
   const labelCalls = [...appSource.matchAll(/setPlayLabel\(\s*"([^"]+)"\s*,\s*"([a-z]+)"\s*\)/g)];
-  check(`app.js: ${labelCalls.length} setPlayLabel çağrısı bulundu`, labelCalls.length >= 4);
+  check(`uygulama modülleri: ${labelCalls.length} setPlayLabel çağrısı bulundu`, labelCalls.length >= 4);
   for (const [, text, lang] of labelCalls) {
     check(`setPlayLabel("${text}", "${lang}"): dil metne uyuyor (Arapça harf varsa "ar", yoksa "tr")`, lang === (ARABIC_LETTER_RE.test(text) ? "ar" : "tr"));
   }
 
   // (d) Veriden gelen / yardımcıyla üretilen parçalar. markArabicSpans'in kendi birim testi ve veri taraması
-  // test/topics_test.mjs'te; burada yalnızca app.js'e BAĞLI olduğuna (ham ${t.description} enjeksiyonu kalmadığına) bakılıyor.
-  check("app.js: konu açıklaması markArabicSpans() ile basılıyor, ham ${t.description} enjeksiyonu kalmadı", /markArabicSpans\(t\.description\)/.test(appSource) && !/\$\{t\.description\}/.test(appSource));
+  // test/topics_test.mjs'te; burada yalnızca topics-modal.js'e BAĞLI olduğuna (ham ${t.description} enjeksiyonu kalmadığına) bakılıyor.
+  check("uygulama modülleri: konu açıklaması markArabicSpans() ile basılıyor, ham ${t.description} enjeksiyonu kalmadı", /markArabicSpans\(t\.description\)/.test(appSource) && !/\$\{t\.description\}/.test(appSource));
   const cardsHTML = renderWordMealCardsHTML([{ arabic: "كِتَٰبٌ", translation: "kitap" }]);
   check('renderWordMealCardsHTML: Arapça kelime lang="ar" taşıyor, Türkçe karşılığı (.wbw-tr) taşımıyor', /<span class="wbw-ar" lang="ar">كِتَٰبٌ<\/span>/.test(cardsHTML) && /<span class="wbw-tr">kitap<\/span>/.test(cardsHTML));
 }
@@ -593,7 +593,7 @@ const ARABIC_LETTER_RE = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]
 // "Oynat", çalarken -yüklenirken de, ikinci dokunuş durdurur- "Duraklat"), etiket ekranda görünen metin. Ad görünen
 // metni içeriyor (WCAG 2.5.3: sesle kumanda eden kullanıcı ekrandaki metni söyleyerek düğmeye basabilsin). Ad
 // durumla birlikte değiştiği için aria-pressed YOK (ad da durum da değişirse "Duraklat, geçiş düğmesi, basılı"
-// gibi çelişkili okunur). Gerçek setPlayLabel/setPlayActive (app.js'ten kaynak olarak çıkarılıp) gerçek
+// gibi çelişkili okunur). Gerçek setPlayLabel/setPlayActive (playback.js'ten kaynak olarak çıkarılıp) gerçek
 // index.html'e uygulanıyor ve ad, axe-core'un accname uygulamasıyla HESAPLANIYOR (elle yazılmış bir ad hesabı değil).
 playName: {
   const d = new JSDOM(html, { pretendToBeVisual: true, virtualConsole: new VirtualConsole() }).window.document;
@@ -643,7 +643,7 @@ playName: {
   // (b) Davranış: gerçek setPlayLabel/setPlayActive; startPlayback / stopPlayback / startEzberPlayback'in yazdığı dizilerle
   const setPlayLabelSrc2 = /function setPlayLabel\(text, lang\) \{[\s\S]*?\n\}/.exec(appSource);
   const setPlayActiveSrc = /function setPlayActive\(active\) \{[\s\S]*?\n\}/.exec(appSource);
-  check("app.js: setPlayLabel ve setPlayActive bulundu", !!setPlayLabelSrc2 && !!setPlayActiveSrc);
+  check("playback.js: setPlayLabel ve setPlayActive bulundu", !!setPlayLabelSrc2 && !!setPlayActiveSrc);
   if (setPlayLabelSrc2 && setPlayActiveSrc) {
     const els = { playBtn: btn, playBtnAction: actionEl, playBtnLabel: labelEl };
     const { setPlayLabel, setPlayActive } = new Function("els", `${setPlayLabelSrc2[0]}\n${setPlayActiveSrc[0]}\nreturn { setPlayLabel, setPlayActive };`)(els);
@@ -666,19 +666,19 @@ playName: {
   }
 
   // (c) Kaynak: eylem sözcüğü ve .playing TEK yerden yazılıyor; üç çağrı noktası + tıklama işleyicisiyle tutarlı
-  check("app.js: .playing sınıfı yalnızca setPlayActive içinde yazılıyor (ad ile görünüm ayrışmasın)", (appSource.match(/playBtn\.classList\.(?:add|remove|toggle)\(/g) || []).length === 1 && /function setPlayActive\(active\) \{[\s\S]*?playBtn\.classList\.toggle\("playing", active\)/.test(appSource));
-  check("app.js: eylem sözcüğü (#play-btn-action) yalnızca setPlayActive içinde yazılıyor", (appSource.match(/els\.playBtnAction\.textContent\s*=/g) || []).length === 1);
-  check('app.js: setPlayActive eylemi "Duraklat"/"Oynat" olarak yazıyor', /els\.playBtnAction\.textContent = active \? "Duraklat" : "Oynat";/.test(appSource));
-  check("app.js: düğmeye hiçbir yerde aria-pressed yazılmıyor", !/playBtn\.(?:setAttribute|toggleAttribute|removeAttribute)\(\s*["']aria-pressed/.test(appSource));
+  check("uygulama modülleri: .playing sınıfı yalnızca setPlayActive içinde yazılıyor (ad ile görünüm ayrışmasın)", (appSource.match(/playBtn\.classList\.(?:add|remove|toggle)\(/g) || []).length === 1 && /function setPlayActive\(active\) \{[\s\S]*?playBtn\.classList\.toggle\("playing", active\)/.test(appSource));
+  check("uygulama modülleri: eylem sözcüğü (#play-btn-action) yalnızca setPlayActive içinde yazılıyor", (appSource.match(/els\.playBtnAction\.textContent\s*=/g) || []).length === 1);
+  check('playback.js: setPlayActive eylemi "Duraklat"/"Oynat" olarak yazıyor', /els\.playBtnAction\.textContent = active \? "Duraklat" : "Oynat";/.test(appSource));
+  check("uygulama modülleri: düğmeye hiçbir yerde aria-pressed yazılmıyor", !/playBtn\.(?:setAttribute|toggleAttribute|removeAttribute)\(\s*["']aria-pressed/.test(appSource));
   const startFn = /async function startPlayback\(\) \{[\s\S]*?\n\}\n/.exec(appSource);
   const stopFn = /function stopPlayback\(\) \{[\s\S]*?\n\}\n/.exec(appSource);
   const ezberFn = /async function startEzberPlayback\([^)]*\) \{[\s\S]*?\n\}\n/.exec(appSource);
-  check("app.js: startPlayback / stopPlayback / startEzberPlayback bulundu", !!startFn && !!stopFn && !!ezberFn);
+  check("playback.js ve ezber-play.js: startPlayback / stopPlayback / startEzberPlayback bulundu", !!startFn && !!stopFn && !!ezberFn);
   check("startPlayback: setPlayActive(true) İLK await'ten ÖNCE (veri yüklenirken de çalıyor sayılır: ad 'Duraklat Yükleniyor…', ikinci dokunuş durdurur)", !!startFn && startFn[0].includes("setPlayActive(true)") && startFn[0].includes("await ") && startFn[0].indexOf("setPlayActive(true)") < startFn[0].indexOf("await ") && startFn[0].indexOf("setPlayActive(true)") < startFn[0].indexOf('setPlayLabel("Yükleniyor…"'));
-  check('app.js: els.playBtnAction, index.html\'deki #play-btn-action\'ı bulacak şekilde tanımlı (yoksa setPlayActive ilk durdurmada null.textContent ile çöker)', /\bplayBtnAction: document\.getElementById\("play-btn-action"\),/.test(appSource) && html.includes('id="play-btn-action"'));
+  check('state.js: els.playBtnAction, index.html\'deki #play-btn-action\'ı bulacak şekilde tanımlı (yoksa setPlayActive ilk durdurmada null.textContent ile çöker)', /\bplayBtnAction: document\.getElementById\("play-btn-action"\),/.test(appSource) && html.includes('id="play-btn-action"'));
   check("stopPlayback: setPlayActive(false) ve besmele etiketi", !!stopFn && /setPlayActive\(false\)/.test(stopFn[0]) && /setPlayLabel\("بسم الله الرحمن الرحيم", "ar"\)/.test(stopFn[0]));
   check("startEzberPlayback: setPlayActive(true)", !!ezberFn && /setPlayActive\(true\)/.test(ezberFn[0]));
-  check("app.js: setPlayActive tam 3 yerden çağrılıyor (başlat, durdur, Ezber başlat)", (appSource.match(/setPlayActive\(/g) || []).length === 4); // 3 çağrı + 1 tanım
+  check("uygulama modülleri: setPlayActive tam 3 yerden çağrılıyor (başlat, durdur, Ezber başlat)", (appSource.match(/setPlayActive\(/g) || []).length === 4); // 3 çağrı + 1 tanım
   check("tıklama işleyicisi: çalıyorsa durdur, değilse başlat (ad 'Duraklat' iken düğme gerçekten durduruyor)", /els\.playBtn\.addEventListener\("click", \(\) => \{\s*if \(state\.playback\.active\) stopPlayback\(\);\s*else startPlayback\(\);\s*\}\);/.test(appSource));
 }
 
@@ -851,7 +851,7 @@ try {
     if (d.outline && /^(none|0)(\s|$)/.test(d.outline)) outlineNone.push(r.selectors.join(", "));
   }
   // izinli: kapsayıcı odaklarında (halka içerideki öğede/:focus-visible'da; .ezber-picker: Sure/Kârî seçicisi açılınca odak
-  // kapsayıcıya alınıyor, bkz. app.js openEzberPicker) ve arama giriş alanında (halkayı .arama-form:focus-within çiziyor)
+  // kapsayıcıya alınıyor, bkz. ezber-modal.js openEzberPicker) ve arama giriş alanında (halkayı .arama-form:focus-within çiziyor)
   const OUTLINE_NONE_OK = [".modal-sheet:focus", ".word-meal-panel:focus", ".ezber-picker:focus", ".arama-input"];
   check(`\`outline: none\` yalnızca yerine başka gösterge konmuş yerlerde (${OUTLINE_NONE_OK.join(", ")})${outlineNone.length ? " -- bulunan: " + outlineNone.join(" | ") : ""}`, outlineNone.length === OUTLINE_NONE_OK.length && OUTLINE_NONE_OK.every((x) => outlineNone.includes(x)));
   check(".ezber-field input:focus: outline kapatılmıyor (halka genel input:focus-visible kuralından geliyor; Kârî artık <select> değil, düğme)", (() => {

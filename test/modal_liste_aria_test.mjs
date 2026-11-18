@@ -58,6 +58,7 @@ import { JSDOM, VirtualConsole } from "jsdom";
 import axeCore from "axe-core";
 import { syncListStop } from "../js/liste-gezintisi.js";
 import { syncGridStop } from "../js/izgara-gezintisi.js";
+import { appSource } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
@@ -65,7 +66,6 @@ const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
 const readJSON = (...p) => JSON.parse(readText(...p));
 const html = readText("index.html");
 const css = readText("css", "style.css");
-const appSource = readText("js", "app.js");
 const strip = (s) => s.replace(/^\s*\/\/.*$/gm, ""); // tam satır yorumları olmadan (yorumlardaki örnek kod sayımı bozmasın)
 const appCode = strip(appSource);
 const gezginCode = strip(readText("js", "ayet-gezgini.js"));
@@ -120,30 +120,30 @@ const RECITERS_SRC = constObjSource("RECITERS");
 const SRC = {};
 for (const n of ["surahLabel", "populateSurahList", "toggleAyahGrid", "closeAllAyahGrids", "setActiveAyahChip", "syncAyahGridHighlight", "populateUnitList", "setActiveModalItem"]) SRC[n] = fnSource(n);
 const extracted = !!BLOCK && !!RECITERS_SRC && Object.values(SRC).every(Boolean);
-check("app.js: <ezber-picker> bloğu, RECITERS ve sekiz işlev (surahLabel, populateSurahList, toggleAyahGrid, closeAllAyahGrids, setActiveAyahChip, syncAyahGridHighlight, populateUnitList, setActiveModalItem) kaynaktan çıkarıldı", extracted);
+check("uygulama modülleri: <ezber-picker> bloğu, RECITERS ve sekiz işlev (surahLabel, populateSurahList, toggleAyahGrid, closeAllAyahGrids, setActiveAyahChip, syncAyahGridHighlight, populateUnitList, setActiveModalItem) kaynaktan çıkarıldı", extracted);
 if (!extracted) {
-  console.error("app.js'ten gerekli kaynak parçaları çıkarılamadı");
+  console.error("uygulama modüllerinden gerekli kaynak parçaları çıkarılamadı");
   console.error(`${failures} check(s) failed.`);
   process.exit(1);
 }
 const CODE = Object.fromEntries(Object.entries(SRC).map(([k, v]) => [k, strip(v)]));
 const RECITER_KEYS = Object.keys(new Function(`${RECITERS_SRC}\nreturn RECITERS;`)());
 
-check('app.js: setActiveModalItem: .active ve aria-current TEK "on" değerinden yazılıyor (eşleşme: classList.toggle + setAttribute "true"; eşleşmeme: removeAttribute)', /const on = item\.dataset\[matchAttr\] === String\(value\);\s*item\.classList\.toggle\("active", on\);\s*if \(on\) item\.setAttribute\("aria-current", "true"\);\s*else item\.removeAttribute\("aria-current"\);/.test(CODE.setActiveModalItem));
-check('app.js: setActiveAyahChip: aynı kalıp (.active + aria-current tek "on" değerinden)', /const on = parseInt\(chip\.dataset\.ayah, 10\) === ayahNum;\s*chip\.classList\.toggle\("active", on\);\s*if \(on\) chip\.setAttribute\("aria-current", "true"\);\s*else chip\.removeAttribute\("aria-current"\);/.test(CODE.setActiveAyahChip));
-check("app.js: syncAyahGridHighlight: başka surenin ızgarasındaki etkin düğmede .active ve aria-current birlikte siliniyor", /querySelectorAll\("\.ayah-chip\.active"\)\.forEach\(\(c\) => \{\s*c\.classList\.remove\("active"\);\s*c\.removeAttribute\("aria-current"\);\s*\}\);/.test(CODE.syncAyahGridHighlight));
+check('modals.js: setActiveModalItem: .active ve aria-current TEK "on" değerinden yazılıyor (eşleşme: classList.toggle + setAttribute "true"; eşleşmeme: removeAttribute)', /const on = item\.dataset\[matchAttr\] === String\(value\);\s*item\.classList\.toggle\("active", on\);\s*if \(on\) item\.setAttribute\("aria-current", "true"\);\s*else item\.removeAttribute\("aria-current"\);/.test(CODE.setActiveModalItem));
+check('modal-lists.js: setActiveAyahChip: aynı kalıp (.active + aria-current tek "on" değerinden)', /const on = parseInt\(chip\.dataset\.ayah, 10\) === ayahNum;\s*chip\.classList\.toggle\("active", on\);\s*if \(on\) chip\.setAttribute\("aria-current", "true"\);\s*else chip\.removeAttribute\("aria-current"\);/.test(CODE.setActiveAyahChip));
+check("modal-lists.js: syncAyahGridHighlight: başka surenin ızgarasındaki etkin düğmede .active ve aria-current birlikte siliniyor", /querySelectorAll\("\.ayah-chip\.active"\)\.forEach\(\(c\) => \{\s*c\.classList\.remove\("active"\);\s*c\.removeAttribute\("aria-current"\);\s*\}\);/.test(CODE.syncAyahGridHighlight));
 {
   const setters = [...appCode.matchAll(/setAttribute\("aria-current",\s*([^)]*)\)/g)].map((m) => m[1].trim());
-  check(`app.js: aria-current'ı yazan yer 2 (setActiveModalItem, setActiveAyahChip), ikisi de yalnızca "true" (boş dizge ""/"false" yok) (bulunan: ${JSON.stringify(setters)})`, setters.length === 2 && setters.every((v) => v === '"true"'));
-  check('app.js: aria-current\'ı silen yer 3 (iki işlev + syncAyahGridHighlight)', (appCode.match(/removeAttribute\("aria-current"\)/g) || []).length === 3);
-  check('app.js: toggleAttribute("aria-current") YOK (boş değerli öznitelik "false" sayılır: etkin öğe bildirilmezdi)', !/toggleAttribute\(\s*"aria-current"/.test(appCode));
+  check(`uygulama modülleri: aria-current'ı yazan yer 2 (setActiveModalItem, setActiveAyahChip), ikisi de yalnızca "true" (boş dizge ""/"false" yok) (bulunan: ${JSON.stringify(setters)})`, setters.length === 2 && setters.every((v) => v === '"true"'));
+  check('uygulama modülleri: aria-current\'ı silen yer 3 (iki işlev + syncAyahGridHighlight)', (appCode.match(/removeAttribute\("aria-current"\)/g) || []).length === 3);
+  check('uygulama modülleri: toggleAttribute("aria-current") YOK (boş değerli öznitelik "false" sayılır: etkin öğe bildirilmezdi)', !/toggleAttribute\(\s*"aria-current"/.test(appCode));
   const writers = (appCode.match(/classList\.(?:toggle|add|remove)\("active"/g) || []).length;
-  check(`app.js: .active sınıfını yazan yer 4 (3'ü liste satırı/ayet düğmesi: her biri aria-current ile birlikte; 4.'sü tefsir sekmesi: aria-expanded ile): yeni bir yazıcı eklenirse aria-current'ı atlamasın, bu test de güncellensin (bulunan: ${writers})`, writers === 4);
+  check(`uygulama modülleri: .active sınıfını yazan yer 4 (3'ü liste satırı/ayet düğmesi: her biri aria-current ile birlikte; 4.'sü tefsir sekmesi: aria-expanded ile): yeni bir yazıcı eklenirse aria-current'ı atlamasın, bu test de güncellensin (bulunan: ${writers})`, writers === 4);
 }
-check("app.js: ayet düğmesinin adı `${info.nameTurkish} Suresi, ${a}. ayet` (toggleAyahGrid, düğme oluşturulurken)", /chip\.setAttribute\("aria-label", `\$\{info\.nameTurkish\} Suresi, \$\{a\}\. ayet`\);/.test(CODE.toggleAyahGrid));
+check("modal-lists.js: ayet düğmesinin adı `${info.nameTurkish} Suresi, ${a}. ayet` (toggleAyahGrid, düğme oluşturulurken)", /chip\.setAttribute\("aria-label", `\$\{info\.nameTurkish\} Suresi, \$\{a\}\. ayet`\);/.test(CODE.toggleAyahGrid));
 check("js/ayet-gezgini.js: ayet düğmelerinin adı aynı biçimde (`<Sure> Suresi, <N>. ayet`): iki ayet düğmesi ailesi aynı okunuyor", /makeButton\(AYAH_CLASS, `\$\{hooks\.surahName\(surah\)\} Suresi, \$\{ayah\}\. ayet`/.test(gezginCode));
-check('app.js: populateSurahList: her .ayah-grid role="group" ve aria-label=`${info.nameTurkish} Suresi ayetleri` ile oluşturuluyor (adlı grup: rolsüz <div>\'de aria-label geçersiz olurdu)', /ayahGrid\.setAttribute\("role", "group"\);/.test(CODE.populateSurahList) && /ayahGrid\.setAttribute\("aria-label", `\$\{info\.nameTurkish\} Suresi ayetleri`\);/.test(CODE.populateSurahList));
-check('app.js: ızgara tek yerde oluşturuluyor (className = "ayah-grid" bir kez) ve role="group" uygulamada tek yerde yazılıyor: grup özniteliklerini atlayan ikinci bir yol yok', (appCode.match(/className = "ayah-grid"/g) || []).length === 1 && (appCode.match(/setAttribute\("role", "group"\)/g) || []).length === 1);
+check('modal-lists.js: populateSurahList: her .ayah-grid role="group" ve aria-label=`${info.nameTurkish} Suresi ayetleri` ile oluşturuluyor (adlı grup: rolsüz <div>\'de aria-label geçersiz olurdu)', /ayahGrid\.setAttribute\("role", "group"\);/.test(CODE.populateSurahList) && /ayahGrid\.setAttribute\("aria-label", `\$\{info\.nameTurkish\} Suresi ayetleri`\);/.test(CODE.populateSurahList));
+check('uygulama modülleri: ızgara tek yerde oluşturuluyor (className = "ayah-grid" bir kez) ve role="group" uygulamada tek yerde yazılıyor: grup özniteliklerini atlayan ikinci bir yol yok', (appCode.match(/className = "ayah-grid"/g) || []).length === 1 && (appCode.match(/setAttribute\("role", "group"\)/g) || []).length === 1);
 
 // -- (2) index.html + CSS --------------------------------------------------------------------------------------
 {

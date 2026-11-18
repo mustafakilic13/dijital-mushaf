@@ -35,12 +35,12 @@ import { JSDOM, VirtualConsole } from "jsdom";
 import { createModalFocus } from "../js/modal-odak.js";
 import { setupTablist } from "../js/sekme-gezintisi.js";
 import { setupListNav, syncListStop, listRows } from "../js/liste-gezintisi.js";
+import { appSource } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
 const html = readText("index.html");
-const appSource = readText("js", "app.js");
 const appCode = appSource.replace(/^\s*\/\/.*$/gm, ""); // tam satır yorumları olmadan
 const surahs = JSON.parse(readText("data", "surahs.json"));
 
@@ -110,9 +110,9 @@ const SW = {
   saveEzberSettings: fnSource("saveEzberSettings"),
   setupEzberModal: fnSource("setupEzberModal"),
 };
-check("app.js: <ezber-picker> bloğu, modal odak bloğu, RECITERS, EZBER_TABS, EZBER_SETTINGS_KEY ve gerekli işlevler kaynaktan çıkarıldı", !!BLOCK && MODAL_START > 0 && MODAL_END > MODAL_START && !!RECITERS_SRC && !!TABS_SRC && !!KEY_SRC && Object.values(SW).every(Boolean));
+check("uygulama modülleri: <ezber-picker> bloğu, modal odak bloğu, RECITERS, EZBER_TABS, EZBER_SETTINGS_KEY ve gerekli işlevler kaynaktan çıkarıldı", !!BLOCK && MODAL_START > 0 && MODAL_END > MODAL_START && !!RECITERS_SRC && !!TABS_SRC && !!KEY_SRC && Object.values(SW).every(Boolean));
 if (!BLOCK || !(MODAL_START > 0 && MODAL_END > MODAL_START) || !RECITERS_SRC || !TABS_SRC || !KEY_SRC || !Object.values(SW).every(Boolean)) {
-  console.error("app.js'ten gerekli kaynak parçaları çıkarılamadı");
+  console.error("uygulama modüllerinden gerekli kaynak parçaları çıkarılamadı");
   console.error(`${failures} check(s) failed.`);
   process.exit(1);
 }
@@ -120,18 +120,18 @@ if (!BLOCK || !(MODAL_START > 0 && MODAL_END > MODAL_START) || !RECITERS_SRC || 
 const TABS = ["dinle", "oku", "yaz"];
 {
   const helper = bodyOf(BLOCK[1], "clearEzberRangeError");
-  check("app.js: clearEzberRangeError(target) <ezber-picker> bloğunun içinde (setEzberSurah onu çağırıyor, test aynı bloğu çalıştırıyor)", helper !== null && /function clearEzberRangeError\(target\)/.test(BLOCK[1]));
-  check("app.js: clearEzberRangeError hem Başlangıç hem Bitiş alanının özel iletisini boş dizgeyle siliyor (hedef sekmenin alanları)", helper !== null && /getElementById\(`ezber-\$\{target\}-from`\)\.setCustomValidity\(""\)/.test(helper) && /getElementById\(`ezber-\$\{target\}-to`\)\.setCustomValidity\(""\)/.test(helper) && (helper.match(/setCustomValidity\(/g) || []).length === 2);
+  check("ezber-modal.js: clearEzberRangeError(target) <ezber-picker> bloğunun içinde (setEzberSurah onu çağırıyor, test aynı bloğu çalıştırıyor)", helper !== null && /function clearEzberRangeError\(target\)/.test(BLOCK[1]));
+  check("ezber-modal.js: clearEzberRangeError hem Başlangıç hem Bitiş alanının özel iletisini boş dizgeyle siliyor (hedef sekmenin alanları)", helper !== null && /getElementById\(`ezber-\$\{target\}-from`\)\.setCustomValidity\(""\)/.test(helper) && /getElementById\(`ezber-\$\{target\}-to`\)\.setCustomValidity\(""\)/.test(helper) && (helper.match(/setCustomValidity\(/g) || []).length === 2);
   const surahFn = bodyOf(BLOCK[1], "setEzberSurah");
-  check("app.js: setEzberSurah (autofillRange) iletiyi clearEzberRangeError ile siliyor (aralığı sıfırlayan dalda)", surahFn !== null && /if \(autofillRange\) \{[\s\S]*clearEzberRangeError\(target\);[\s\S]*\}/.test(surahFn) && !/setCustomValidity/.test(surahFn));
+  check("ezber-modal.js: setEzberSurah (autofillRange) iletiyi clearEzberRangeError ile siliyor (aralığı sıfırlayan dalda)", surahFn !== null && /if \(autofillRange\) \{[\s\S]*clearEzberRangeError\(target\);[\s\S]*\}/.test(surahFn) && !/setCustomValidity/.test(surahFn));
   const rer = bodyOf(appSource, "readEzberRange");
-  check("app.js: readEzberRange iletiyi her çağrıda baştan hesaplıyor (önce siliyor, sonra yalnızca Bitiş alanına yazıyor) ve iletiyi başka yerde silmiyor", rer !== null && /toEl\.setCustomValidity\(""\);\s*if \(from > to\) \{\s*toEl\.setCustomValidity\("Bitiş ayeti, başlangıç ayetinden küçük olamaz\."\);\s*\} else if \(versesCount && \(from < 1 \|\| to > versesCount\)\) \{\s*toEl\.setCustomValidity\(`Bu sure \$\{versesCount\} ayetten oluşuyor\.`\);\s*\}/.test(rer) && !/fromEl\.setCustomValidity/.test(rer));
-  check("app.js: setCustomValidity yalnızca 5 yerde (yardımcıda 2 silme, readEzberRange'de 1 silme + 2 yazma): başka bir yerde yazılan ileti temizlenmeyebilir", (appCode.match(/setCustomValidity\(/g) || []).length === 5);
+  check("ezber-modal.js: readEzberRange iletiyi her çağrıda baştan hesaplıyor (önce siliyor, sonra yalnızca Bitiş alanına yazıyor) ve iletiyi başka yerde silmiyor", rer !== null && /toEl\.setCustomValidity\(""\);\s*if \(from > to\) \{\s*toEl\.setCustomValidity\("Bitiş ayeti, başlangıç ayetinden küçük olamaz\."\);\s*\} else if \(versesCount && \(from < 1 \|\| to > versesCount\)\) \{\s*toEl\.setCustomValidity\(`Bu sure \$\{versesCount\} ayetten oluşuyor\.`\);\s*\}/.test(rer) && !/fromEl\.setCustomValidity/.test(rer));
+  check("uygulama modülleri: setCustomValidity yalnızca 5 yerde (yardımcıda 2 silme, readEzberRange'de 1 silme + 2 yazma): başka bir yerde yazılan ileti temizlenmeyebilir", (appCode.match(/setCustomValidity\(/g) || []).length === 5);
   const setup = SW.setupEzberModal.replace(/^\s*\/\/.*$/gm, ""); // yorum satırları sayıma karışmasın
-  check("app.js: Başlangıç ve Bitiş alanlarının `input` olayı (3 sekme x 2 alan, tek döngü) clearEzberRangeError(target) çağırıyor", /for \(const target of EZBER_TABS\) \{\s*for \(const field of \["from", "to"\]\) \{\s*document\.getElementById\(`ezber-\$\{target\}-\$\{field\}`\)\.addEventListener\("input", \(\) => clearEzberRangeError\(target\)\);\s*\}\s*\}/.test(setup) && (setup.match(/clearEzberRangeError/g) || []).length === 2);
+  check("ezber-modal.js: Başlangıç ve Bitiş alanlarının `input` olayı (3 sekme x 2 alan, tek döngü) clearEzberRangeError(target) çağırıyor", /for \(const target of EZBER_TABS\) \{\s*for \(const field of \["from", "to"\]\) \{\s*document\.getElementById\(`ezber-\$\{target\}-\$\{field\}`\)\.addEventListener\("input", \(\) => clearEzberRangeError\(target\)\);\s*\}\s*\}/.test(setup) && (setup.match(/clearEzberRangeError/g) || []).length === 2);
   const onOpenAt = setup.indexOf("onOpen: () => {");
   const clearAt = setup.indexOf("for (const target of EZBER_TABS) clearEzberRangeError(target);");
-  check("app.js: modal açılırken (onOpen) üç sekmenin iletisi siliniyor (EZBER_TABS döngüsüyle)", onOpenAt > 0 && clearAt > onOpenAt);
+  check("ezber-modal.js: modal açılırken (onOpen) üç sekmenin iletisi siliniyor (EZBER_TABS döngüsüyle)", onOpenAt > 0 && clearAt > onOpenAt);
 }
 
 // -- (2) index.html -------------------------------------------------------------------------------------------

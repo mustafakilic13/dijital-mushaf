@@ -13,7 +13,7 @@
 //   1. Roving tabindex: seçili sekme tabindex="0", diğerleri "-1" -> sekme çubuğu TEK Tab durağı olur,
 //      sonraki Tab doğrudan panelin içeriğine geçer (modal-odak.js'in tabbablesIn'i tabindex < 0 olanları
 //      zaten saymıyor, yani modalın ilk/son durağı hesabı da doğru kalıyor). tabindex'i aria-selected'la
-//      AYNI yerde yazmak app.js'in işi (switchJuzTab/switchEzberTab): seçimi orası değiştiriyor, iki
+//      AYNI yerde yazmak uygulamanın işi (js/modal-lists.js'te switchJuzTab, js/ezber-modal.js'te switchEzberTab): seçimi orası değiştiriyor, iki
 //      özniteliğin ayrışması mümkün olmasın. index.html'deki başlangıç değerleri de aynı kurala uyuyor.
 //   2. setupTablist(): Sağ/Sol komşu sekmeye (uçlarda başa/sona sararak), Home/End ilk/son sekmeye
 //      geçirir ve geçilen sekmeyi seçtirir (onSelect). Panellerin hepsi sayfa açılışında DOM'a konuyor,
@@ -22,7 +22,7 @@
 //
 // Yön: sekme çubuğu yatay ve soldan sağa (arayüz Türkçe). Mushaftaki sayfa çevirme düzeni (Sol ok =
 // SONRAKİ sayfa) burada geçerli değil: Sol ok önceki, Sağ ok sonraki sekmeye gider. Modal açıkken sayfa
-// çevirme zaten kapalı (app.js onPageTurnKeydown), yani iki düzen birbirine karışmıyor.
+// çevirme zaten kapalı (page-nav.js onPageTurnKeydown), yani iki düzen birbirine karışmıyor.
 //
 // Değiştiricili tuşlar (Alt+Sol = tarayıcıda geri, Ctrl+Home, Shift+ok...) ve başka bir işleyicinin
 // tükettiği olaylar yok sayılır. Yalnızca gerçekten işlenen tuşun varsayılanı engellenir (Home/End

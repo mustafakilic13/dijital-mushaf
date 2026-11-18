@@ -17,7 +17,7 @@
 // eklenen metin yine 3249 karakter (kapatınca yine 0), açılış/kapanış animasyonunun eğrisi ve ekran görüntüleri (430 ve 1200 px; kapalı, açık,
 // tekrar kapalı, tekrar açık) öncekiyle aynı.
 //
-// Düzeltme: (js/app.js; css/style.css'te yalnızca yorum)
+// Düzeltme: (js/ayah-panel.js; css/style.css'te yalnızca yorum)
 //   - sekme düğmeleri baştan aria-expanded="false"; updateTafsirTabsUI, .active ile aria-expanded'ı AYNI değerden (wm.tafsirActive) yazıyor;
 //   - düz kapanış BİTİNCE (animasyon sürerken değil) metin DOM'dan kaldırılıyor (clearTafsirContent); arada yeni bir tıklama olduysa
 //     (requestId değiştiyse) kaldırılmıyor;
@@ -28,7 +28,7 @@
 //
 // Burada kontrol edilenler:
 //   (1) kaynak: işaretleme, updateTafsirTabsUI, kapanış temizliği + koruması, açılış karesi koruması, CSS'te visibility/display yok;
-//   (2) app.js'ten çıkarılan GERÇEK işlevler (ayahPanelBodyHTML, updateTafsirTabsUI, animateTafsirClosed, clearTafsirContent, showTafsirContent,
+//   (2) ayah-panel.js'ten çıkarılan GERÇEK işlevler (ayahPanelBodyHTML, updateTafsirTabsUI, animateTafsirClosed, clearTafsirContent, showTafsirContent,
 //       onTafsirTabClick, tafsirContentHTML, escapeHtml) x GERÇEK js/tafsir.js x GERÇEK data/tafsir-saadi.json (2:255) x SAHTE zamanlayıcı
 //       (setTimeout / requestAnimationFrame elle ilerletiliyor: deterministik, kare kare): ilk durum, açma, kapama (animasyon sürerken metin
 //       duruyor; transitionend ile ve 400 ms yedek zamanlayıcıyla bitince kalkıyor), yeniden açma, ilk açılışta veri bekleme, veri gelirken
@@ -49,11 +49,11 @@ import { fileURLToPath } from "url";
 import { JSDOM, VirtualConsole } from "jsdom";
 import axeCore from "axe-core";
 import { tafsirSourceIds, tafsirSourceLabel, isTafsirSourceAvailable, resolveTafsirText, tafsirCreditHTML } from "../js/tafsir.js";
+import { appSource } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
-const appSource = readText("js", "app.js");
 const css = readText("css", "style.css");
 
 let failures = 0;
@@ -82,8 +82,8 @@ const NAMES = ["escapeHtml", "ayahPanelBodyHTML", "tafsirContentHTML", "updateTa
 const SRCS = Object.fromEntries(NAMES.map((n) => [n, fnSource(n)]));
 const loadingM = /const WORD_MEAL_LOADING_HTML = (`[^`]*`);/.exec(appSource);
 const missing = NAMES.filter((n) => !SRCS[n]);
-check(`app.js: gerekli işlevlerin hepsi bulundu (eksik: ${missing.join(", ") || "yok"})`, missing.length === 0);
-check("app.js: WORD_MEAL_LOADING_HTML bulundu", !!loadingM);
+check(`ayah-panel.js: gerekli işlevlerin hepsi bulundu (eksik: ${missing.join(", ") || "yok"})`, missing.length === 0);
+check("ayah-panel.js: WORD_MEAL_LOADING_HTML bulundu", !!loadingM);
 if (missing.length || !loadingM) {
   console.error(`${failures} check(s) failed.`);
   process.exit(1);
@@ -92,31 +92,31 @@ if (missing.length || !loadingM) {
 // -- (1) Kaynak ----------------------------------------------------------------------------------------------
 {
   const body = SRCS.ayahPanelBodyHTML;
-  check('app.js: ayahPanelBodyHTML tefsir sekme düğmelerini baştan aria-expanded="false" ile kuruyor', /class="wm-tafsir-tab"[^`]*aria-expanded="false"/.test(body));
-  check('app.js: sekme düğmesinde role="tab" ve aria-pressed YOK (açılıp kapanan bir düğme: aria-expanded)', !/role="tab"|aria-pressed/.test(body + SRCS.updateTafsirTabsUI));
+  check('ayah-panel.js: ayahPanelBodyHTML tefsir sekme düğmelerini baştan aria-expanded="false" ile kuruyor', /class="wm-tafsir-tab"[^`]*aria-expanded="false"/.test(body));
+  check('ayah-panel.js: sekme düğmesinde role="tab" ve aria-pressed YOK (açılıp kapanan bir düğme: aria-expanded)', !/role="tab"|aria-pressed/.test(body + SRCS.updateTafsirTabsUI));
   const upd = SRCS.updateTafsirTabsUI;
   check(
-    "app.js: updateTafsirTabsUI .active ve aria-expanded'ı AYNI değerden (wm.tafsirActive) yazıyor (ayrışamazlar)",
+    "ayah-panel.js: updateTafsirTabsUI .active ve aria-expanded'ı AYNI değerden (wm.tafsirActive) yazıyor (ayrışamazlar)",
     /const active = btn\.dataset\.tafsirId === wm\.tafsirActive;/.test(upd) &&
       /classList\.toggle\("active", active\)/.test(upd) &&
       /setAttribute\("aria-expanded", active \? "true" : "false"\)/.test(upd)
   );
   const click = SRCS.onTafsirTabClick;
   check(
-    "app.js: onTafsirTabClick düz kapanışta, kapanış BİTİNCE ve yalnızca requestId değişmediyse clearTafsirContent çağırıyor",
+    "ayah-panel.js: onTafsirTabClick düz kapanışta, kapanış BİTİNCE ve yalnızca requestId değişmediyse clearTafsirContent çağırıyor",
     /animateTafsirClosed\(panelEl\)\.then\(\(\) => \{[^}]*if \(wm\.tafsirRequestId === requestId\) clearTafsirContent\(panelEl\);\s*\}\);\s*return;/.test(click)
   );
-  check("app.js: clearTafsirContent yalnızca düz kapanış dalında (bir kez) çağrılıyor; geçiş dalında metin boşaltılmıyor", (click.match(/clearTafsirContent\(/g) || []).length === 1);
+  check("ayah-panel.js: clearTafsirContent yalnızca düz kapanış dalında (bir kez) çağrılıyor; geçiş dalında metin boşaltılmıyor", (click.match(/clearTafsirContent\(/g) || []).length === 1);
   const clear = SRCS.clearTafsirContent;
-  check('app.js: clearTafsirContent yalnızca .wm-tafsir-content\'i boşaltıyor (öğe duruyor: yeniden açılışta yazılacak yer)', /querySelector\("\.wm-tafsir-content"\)/.test(clear) && /\.innerHTML = ""/.test(clear));
+  check('ayah-panel.js: clearTafsirContent yalnızca .wm-tafsir-content\'i boşaltıyor (öğe duruyor: yeniden açılışta yazılacak yer)', /querySelector\("\.wm-tafsir-content"\)/.test(clear) && /\.innerHTML = ""/.test(clear));
   const show = SRCS.showTafsirContent;
   check(
-    "app.js: showTafsirContent panelin açılmasını bir kare sonra YALNIZCA sekme hâlâ etkinse yapıyor",
+    "ayah-panel.js: showTafsirContent panelin açılmasını bir kare sonra YALNIZCA sekme hâlâ etkinse yapıyor",
     /requestAnimationFrame\(\(\) => \{\s*if \(state\.wordMeal\.tafsirActive === sourceId\) panelEl\.classList\.add\("wm-open"\);\s*\}\);/.test(show)
   );
-  check("app.js: açılış yolu aynı: metin önce (kapalı) panele yazılıyor, wm-open sonra", show.indexOf("contentEl.innerHTML =") > -1 && show.indexOf("contentEl.innerHTML =") < show.indexOf("requestAnimationFrame"));
+  check("ayah-panel.js: açılış yolu aynı: metin önce (kapalı) panele yazılıyor, wm-open sonra", show.indexOf("contentEl.innerHTML =") > -1 && show.indexOf("contentEl.innerHTML =") < show.indexOf("requestAnimationFrame"));
   check(
-    "app.js: delege edilmiş tıklama işleyicisi sekmeyi onTafsirTabClick(tabBtn.dataset.tafsirId)'e veriyor",
+    "ayah-panel.js: delege edilmiş tıklama işleyicisi sekmeyi onTafsirTabClick(tabBtn.dataset.tafsirId)'e veriyor",
     /const tabBtn = e\.target\.closest\("\.wm-tafsir-tab"\);\s*if \(tabBtn\) \{\s*onTafsirTabClick\(tabBtn\.dataset\.tafsirId\);\s*return;\s*\}/.test(appSource)
   );
   const innerRule = /\.wm-tafsir-panel-inner\s*\{([^}]*)\}/.exec(css);
@@ -135,7 +135,7 @@ const textOfHTML = (html) => {
   return t.textContent.trim();
 };
 // Panelin içeriği = tefsir metni + metnin ALTINDA kaynağa atıf satırı (QuranEnc.com'un şartı; js/tafsir.js tafsirCreditHTML,
-// app.js tafsirContentHTML; atıfın kendisi test/tafsir_atif_test.mjs'te sınanıyor). Atıf .wm-tafsir-content'in İÇİNDE olduğu
+// ayah-panel.js tafsirContentHTML; atıfın kendisi test/tafsir_atif_test.mjs'te sınanıyor). Atıf .wm-tafsir-content'in İÇİNDE olduğu
 // için kapanınca metinle birlikte kalkıyor: aşağıdaki "kapanınca içerik boş" denetimleri atıfı da kapsıyor.
 const EXPECTED_TEXT = textOfHTML(EXPECTED_HTML + tafsirCreditHTML("saadi"));
 check("veri: beklenen düz metin dolu", EXPECTED_TEXT.length > 3000);

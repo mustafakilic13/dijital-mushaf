@@ -24,6 +24,7 @@ klavye ve ekran okuyucu erişimi ("Erişilebilirlik"); kurulabilir, çevrimdış
 **İçindekiler**
 
 - [Nasıl çalışır (mimari)](#nasıl-çalışır-mimari)
+- [Modül haritası](#modül-haritası)
 - [Gezinme](#gezinme)
 - [Ayet detay paneli (kelime meali, meal, tefsir)](#ayet-detay-paneli-kelime-meali-meal-tefsir)
 - [Konu Fihristi](#konu-fihristi)
@@ -76,7 +77,7 @@ Ayet sonu işaretlerinin içindeki numaralar rükûya göre dönüşümlü renkl
 bir surenin 1., 3., 5. rükûsu normal mürekkeple, 2., 4., 6. rükûsu ikinci
 renkle (`--gold-deep`) çiziliyor. Hangi ayetin hangi rükûda olduğu
 `data/ruku.json`'dan geliyor (114 sure, toplam 558 rükû; her sure için
-`[başlangıç ayeti, surenin kaçıncı rükûsu]` çiftleri); karar `js/app.js`
+`[başlangıç ayeti, surenin kaçıncı rükûsu]` çiftleri); karar `js/lookup.js`
 `isAltRuku`'da, boyama `js/render.js`'te yalnızca ayetin son kelimesinin
 sonundaki işaret ve numara glyph'leri üzerinde yapılıyor.
 
@@ -88,6 +89,106 @@ Sonuç: 604 sayfanın tamamı Node.js üzerinden render edilip ölçülüyor (bk
 hizalanan 8.790 satırın yalnızca 5'i sütun genişliğinden (16.200 birim) 150
 birimden (≈ %1) fazla sapıyor -- 4'ü kısa, 1'i uzun kalıyor ve testte tek tek,
 bilinen istisna olarak listeli.
+
+## Modül haritası
+
+`js/app.js` bir zamanlar tek dosyaydı (≈ 3.850 satır); artık yalnızca açılışı içeriyor, uygulama kodu `js/` altındaki odaklı ES
+modüllerinde (derleme adımı yok: tarayıcı `import`'ları olduğu gibi yüklüyor). Bölme, her ifadeyi olduğu gibi (metin olarak birebir)
+yeni yerine taşıyarak yapıldı; davranış değişmedi (tek bilinçli fark: `escapeHtml` tek kopyaya indi, aşağıya bakın).
+
+**Giriş ve ortak yapı taşları**
+
+- `js/app.js` -- giriş noktası (`index.html` bunu yükler): `main()` verileri yükler, her modülün `setup*` işlevini çağırır, ilk sayfayı
+  gösterir; `registerServiceWorker()`.
+- `js/state.js` -- paylaşılan durum `state` ve DOM öğe tablosu `els`. Yaprak modül: hiçbir şey içe aktarmaz.
+- `js/html.js` -- `escapeHtml` (TEK kopya). Yaprak modül.
+- `js/data-load.js` -- `loadJSON`, `loadHarfBuzzAndFont`; sayfa -> sure/cüz/hizb/rub/menzil tabloları (`buildPageLookups`).
+- `js/lookup.js` -- salt okunur sorgular: ayetin/sayfanın cüzü, hizbi, rubu, menzili; `ayahBounds`, `ayahPage`, `isAltRuku`...
+
+**Sayfa ve gezinme**
+
+- `js/page.js` -- sayfa gösterimi: üst çubuk, `buildPage`, ayet/kelime vurgusu, `showPage` (tüm gezinmenin tek hunisi), `goTo*`
+  işlevleri, adres çubuğu (`#sayfa`), son kalınan konum.
+- `js/page-layout.js` -- sayfa kabının boyutlandırılması (`layoutPageContainer`) ve kapalı sayfanın yerine takılması (`mountClosedPage`).
+- `js/page-nav.js` -- `setupNav`: ok düğmeleri, sayfaya dokunma (`pointToAyah`), Sol/Sağ ok tuşları (`onPageTurnKeydown`), kaydırma
+  hareketi, adres çubuğu değişimi, yeniden boyutlandırma.
+- `js/announce.js` -- ekran okuyucu anonsları: `announce`, `announceNavigation` (tek canlı bölge `#nav-announcer`).
+- `js/ayah-nav.js` -- ayet gezgini bağlantısı (`js/ayet-gezgini.js`, `#ayah-nav`).
+- `js/wake-lock.js` -- uygulama açıkken ekranın kararmasını önleyen Screen Wake Lock.
+
+**Modallar ve paneller**
+
+- `js/modals.js` -- `openModal` / `closeModal` / `closeAllModals` (odak yönetimi `js/modal-odak.js` ile), etkin satır işaretleme, tüm
+  modalların düğme / Esc / arka plan kablolaması (`setupModals`).
+- `js/modal-lists.js` -- Sure ve Cüz/Hizb/Rub/Menzil listeleri, (tembel kurulan) ayet düğmeleri ızgarası, Cüz sekmeleri.
+- `js/ayah-panel.js` -- ayet detay paneli: kelime meali, meal, tefsir, konu etiketleri (`openWordMeal`, `closeWordMeal`,
+  `onAyahTextClick`).
+- `js/surahinfo-modal.js` -- Sure Bilgisi modalı (istatistik şeridi, bölümler, modal içi ayrıntı görünümü).
+- `js/topics-modal.js` -- Konu Fihristi modalı (çipler, konu ayrıntısı, geri yığını).
+
+**Ses ve Ezber**
+
+- `js/playback.js` -- sesli okuma: `RECITERS`, `recitationAudioUrl`, ayet / besmele / istiâze klipleri, kelime vurgusu, Oynat
+  (`setupPlayback`).
+- `js/ezber-modal.js` -- Ezber modalı: sekmeler, kayıtlı ayarlar, Sure / Kârî seçicileri, aralık doğrulama, başlat düğmeleri.
+- `js/ezber-play.js` -- Ezber > Dinle: birikimli tekrarlı çalma.
+- `js/ezber-study.js` -- Ezber > Oku / Yaz: kapaklar, kelime/harf birimleri, ekran ve fiziksel klavye, oturumun başlaması/bitmesi.
+
+Kendi başına duran kütüphane modülleri (`js/justify.js`, `render.js`, `wordmeal.js`, `meal.js`, `tafsir.js`, `surahinfo.js`,
+`topics.js`, `search.js`, `arama.js`, `modal-odak.js`, `sekme-gezintisi.js`, `liste-gezintisi.js`, `izgara-gezintisi.js`,
+`ayet-gezgini.js`) uygulama durumuna (`state` / `els`) bağlanmaz; tek ortak bağımlılıkları `js/html.js`. Bir işlevin yerini bulmak
+için: `grep -n "function ad(" js/*.js`.
+
+**Çevrimsel içe aktarma ve tek kural.** Uygulama modülleri birbirini kısmen karşılıklı kullanıyor (ör. `page.js` <-> `ayah-panel.js`
+<-> `modals.js`); şu an 10 modül (`ayah-nav`, `ayah-panel`, `ezber-modal`, `ezber-play`, `ezber-study`, `modals`, `page`, `playback`,
+`surahinfo-modal`, `topics-modal`) tek bir çevrimsel grup oluşturuyor ve her birinin başlık yorumunda "Çevrimsel içe aktarma" notu var.
+Bu güvenli, çünkü içe aktarılan adlar yalnızca işlev gövdelerinde (çağrı anında) kullanılıyor: işlev bildirimleri yükleme sırasından
+bağımsız olarak hazır, `const`'lar ise bir işlev çağrılana dek çoktan değerlendirilmiş oluyor. **Kural: modül yüklenirken (üst
+düzeyde) başka bir uygulama modülünden ad OKUMAYIN;** yalnızca yaprak modüllerden (`state.js`: `state`, `els`; `html.js`) okumak
+güvenli, çünkü onlar her yoldan önce ve eksiksiz değerlendirilir. Bu kuralı ve modül yapısını `test/modul_siniri_test.mjs` denetler:
+
+- her uygulama modülü, jsdom'da (gerçek `index.html`) AYRI bir Node sürecinde İLK modül olarak içe aktarılıyor -- değerlendirme sırası
+  her seferinde farklı olduğundan, üst düzeyde başka bir modülün henüz değerlendirilmemiş `const`'unu okuyan kod "Cannot access ...
+  before initialization" ile kırılıyor;
+- her içe aktarma var olan bir `js/` dosyasına ve onun gerçekten dışa aktardığı bir ada gidiyor (tarayıcıda olmayan bir ad bütün
+  uygulamanın yüklenmesini engeller); hiçbir modül `app.js`'i içe aktarmıyor (yüklenince `main()` çalışır); uygulama modüllerinin
+  dışa aktardığı her ad başka bir modülce kullanılıyor; yaprak modüller hiçbir şey içe aktarmıyor; kütüphane modülleri uygulama
+  modüllerine (`js/html.js` dışında) bağlanmıyor;
+- başlık notları gerçek döngüyle uyumlu (döngüdeki modülde not var, değilde yok);
+- eksik import taraması: bir modül başka bir modülün dışa aktardığı bir adı içe aktarmadan kullanıyorsa bildirilir (yalnızca o yola
+  girilince "X is not defined" olarak patlayacak hata önceden yakalanır); taramanın dayanağı olarak her dışa aktarılan ad yalnızca
+  BİR modülde bulunur (aynı adı iki modül dışa aktarırsa test söyler);
+- `escapeHtml` yalnızca `js/html.js`'te tanımlı; `app.js` yalnızca `main()` ve `registerServiceWorker()`'ı içeriyor.
+
+**Yeni modül eklerken.** (1) `js/` altına dosya + başlık yorumu (ilk satır `// ad.js -- ne yaptığı`); çevrimsel gruba girerse test notu
+istetir. (2) `sw.js` `PRECACHE_URLS`'e ekleyin (alfabetik; `test/sw_test.mjs`, `app.js`'ten erişilen her dosyanın listede olmasını
+ister). (3) `test/uygulama_kaynagi.mjs`'teki `APP_MODULES` (eski `app.js`'in parçasıysa) ya da `LIBRARY_MODULES` (kendi başına duran
+kütüphaneyse) listesine ekleyin. (4) Bu belgedeki "Proje yapısı" ağacına ve bu bölüme birer satır ekleyin. İçe aktarma biçimi
+yalnızca `import { a, b } from "./x.js";`; bölünen modüllerde dışa aktarmalar dosya sonundaki tek `export { a, b };` içinde,
+bildirimlerin kendisi `export`suz (varsayılan/yıldızlı ihraç desteklenmez; test söyler).
+
+**Testler uygulama kaynağını nasıl okuyor.** Birçok test bir işlevi ya da `// <ezber-picker> ... // </ezber-picker>` gibi işaretli bir
+bloğu kaynak metinden çıkarıp Node'da çalıştırıyor. Eskiden tek bir `js/app.js` okunuyordu; şimdi `test/uygulama_kaynagi.mjs`
+modüllerin birleşik metnini `appSource` olarak veriyor (import/export satırları atılmış, bildirimler olduğu gibi), tek modül için
+`moduleSource(ad)`, bir modülün aldığı adlar için `importedNames(ad, "./x.js")` / `appImportedNames("./x.js")`. Kontrol adları ve
+yorumlar ilgili modülü adıyla anar (`ayah-panel.js: ...`); birden çok modülü kapsayan sayımlar `uygulama modülleri:` ile başlar.
+
+**`escapeHtml` tek kopya.** Önceden dört yerde ayrı ayrı tanımlıydı (`app.js`, `meal.js`, `wordmeal.js`: yalnızca `& < >`; `search.js`:
+tırnaklar da); şimdi hepsi `js/html.js`'teki tek, sıkı sürümü (`& < > " '`) kullanıyor: hem metin hem öznitelik bağlamında güvenli. Bir
+metin düğümünde ham tırnak ile `&quot;` / `&#39;` aynı DOM'u verir; fark yalnızca üretilen HTML dizgesinde.
+
+**Bölmenin doğrulanması ve sınırları.** Taşıma bir betikle yapıldı ve her ifadenin metni eski dosyayla karşılaştırıldı (yalnızca başlık
+yorumu, import/export satırı ve 9 bağıl-konum yorumu değişti); TypeScript derleyicisiyle "tanımsız ad / olmayan ihraç" taramasında eski ve
+yeni ağaç 0 hata verdi. Gerçek Chromium'da eski ve yeni ağaç 56 adımlık bir senaryoyla karşılaştırıldı (sayfa gezinmesi, modallar, ayet
+paneli, arama, Ezber, klavye): DOM, odak, anons bölgesi, `localStorage`, ses günlüğü ve konsol iletileri birebir aynı çıktı.
+`test/modul_siniri_test.mjs` de bilerek bozulmuş kopyalarda denendi: 37 bozucu değişikliğin (eksik / yanlış / olmayan import, `app.js`'i
+içe aktarma, yaprak ve kütüphane kuralı ihlalleri, eksik ya da yalan çevrimsel not, ikinci bir döngü, üst düzeyde başka modülün
+`const`'unu okuma, çift `escapeHtml`, `app.js`'e fazladan işlev, belge eksikleri) hepsi yakalandı; 4 masum değişiklik (yorum/dizge/şablon
+metni içinde ad anma, yerel gölge, `state.js`'ten üst düzey okuma, geçerli yeni import) yanlış alarm vermedi. Bir ders: üst düzeyde
+`RECITERS` okuyan bir `ezber-modal.js` yalnızca `playback.js` İLK modül olarak yüklenince patlıyor, gerçek giriş `app.js` bunu görmüyor;
+her modülün ayrı süreçte ilk giriş yapmasının nedeni bu. Sınırlar: ses sahte bir `Audio` ile denendi (gerçek ses sunucusuna ve canlı
+siteye sandbox'tan erişilemedi); yalnızca Chromium (Firefox ve Safari denenmedi); gerçek bir ekran okuyucuyla (NVDA, JAWS, VoiceOver,
+TalkBack) denenmedi; bu doğrulama araçları depoda yok -- depoda kalan koruma `test/modul_siniri_test.mjs` ve mevcut testlerdir.
 
 ## Gezinme
 
@@ -122,14 +223,14 @@ tutarlılığını ve gezinme mantığını doğruluyor.
 gidince 1'e, 1'de geri gidince 604'e sarar. Ekranın **kenarındaki ok
 butonları** ile klavye okları ise nereye gideceğini gösteriyor: soldaki
 (sol yönlü) ok ileri, sağdaki (sağ yönlü) ok geri götürür — sonraki sayfa
-mushafta kavramsal olarak sola doğru olduğu için. `js/app.js`'te
+mushafta kavramsal olarak sola doğru olduğu için. `js/page.js`'te
 `goToNextPage`/`goToPrevPage` ortak, sadece hangi girdinin hangisini
 tetiklediği farklı.
 
 **Ayet seçimi:** Ekrandaki sayfada her zaman bir ayet "seçili" (altın renkte
 vurgulu) durur — varsayılan olarak o sayfadaki ilk ayet. Sure modalında her
 sure satırının yanındaki ok ikonuna dokunmak o surenin tüm ayet numaralarını
-listeler (`js/app.js`, `toggleAyahGrid` — ilk açılışta o anda oluşturulur,
+listeler (`js/modal-lists.js`, `toggleAyahGrid` — ilk açılışta o anda oluşturulur,
 114 sure için baştan oluşturulmaz; akordeon mantığıyla çalışır, biri açılınca
 açık olan diğeri kapanır); bir ayete dokunmak o ayetin bulunduğu sayfaya
 gidip onu vurgular. Sure satırının kendisine (ok değil) dokunmak o surenin
@@ -137,7 +238,7 @@ gidip onu vurgular. Sure satırının kendisine (ok değil) dokunmak o surenin
 sayfanın ilk ayetini seçer. **Sayfadaki bir ayetin metnine doğrudan
 dokunmak** da onu seçer — tıklama noktası SVG koordinatına çevrilip
 (`getScreenCTM`), o sayfa render edilirken çıkarılan ayet segmentleriyle
-(`{surah,ayah,baselineY,xMin,xMax}`) eşleştiriliyor (`js/app.js`,
+(`{surah,ayah,baselineY,xMin,xMax}`) eşleştiriliyor (`js/page-nav.js`,
 `pointToAyah`); iki satırın sınırındaki belirsiz noktalarda en yakın
 satırın baseline'ı tercih ediliyor. Seçim nereden yapılırsa yapılsın (sayfa
 üzerinden, herhangi bir modalden), Sure modalindeki ilgili ayet ızgarası —
@@ -156,7 +257,7 @@ vurguyu hem de sayfa üzerindeki tıklanabilir alanları besliyor.
 kutu görsel olarak süslemeli bir COLR glifi olduğu ve çoğu zaman boşluktan
 ibaret olduğu için hit-test'i tek başına çizilen path'lere değil, glifin
 tüm bbox'unu kaplayan görünmez bir `<rect>`'e yaptırıyoruz) bir modal açılır
-(`js/app.js` `openSurahInfo`/`setupSurahInfoModal`): üstte ayet sayısı/nüzul
+(`js/surahinfo-modal.js` `openSurahInfo`/`setupSurahInfoModal`): üstte ayet sayısı/nüzul
 yeri/cüz bilgisini gösteren küçük bir istatistik şeridi (zaten yüklü olan
 `data/surahs.json` + `data/surah-pages.json`/cüz eşlemesinden), altında
 sure hakkında bir akordeon. Akordeonun bölüm sayısı ve başlıkları sureden
@@ -182,7 +283,7 @@ yapması yeterli.
 Metnin içindeki `<a href="...">` linkleri QUL'un kendi site-içi path'leri
 (`/{sure}`, `/{sure}/{ayet}[-{ayet}]`, dipnotlarda `/{sure}:{ayet}[-{ayet}]
 ?font=...&translations=...`) — çeviri onları olduğu gibi korudu, ama bu
-uygulamada karşılıkları yok. `js/app.js`'teki `setupSurahInfoModal` bu
+uygulamada karşılıkları yok. `js/surahinfo-modal.js`'teki `setupSurahInfoModal` bu
 yüzden info body'deki her tıklamayı yakalayıp (`e.preventDefault()`)
 `js/surahinfo.js` `parseInfoLink`'e yönlendiriyor: salt sure linki bir
 "Mushaf'a Sureye Git" teklifine (`goToSurah`), ayet/aralık/dipnot linkleri
@@ -191,7 +292,7 @@ indirgenir) aralıktaki her ayetin kendi Arapça metni (`ayahArabicText`,
 Konu Fihristi'nin ayet listesiyle aynı, bkz. aşağısı) + Elmalılı meali +
 kendi "Mushaf'ta Ayete Git" butonuna (`goToAyah`) dönüşür — ikisi de
 `#surah-info-detail` alt-panelinde, `.ezber-picker`'la aynı
-geri-gidilebilir düzende (bkz. `js/app.js`'teki
+geri-gidilebilir düzende (bkz. `js/surahinfo-modal.js`'teki
 `openSurahInfoLink`/`closeSurahInfoDetail`; odak yönetimi için bkz. "Erişilebilirlik").
 `test/surah_info_links_test.mjs`,
 `parseInfoLink`'i güncel `surah-info-tr.json`'daki linklerin tamamına
@@ -206,7 +307,7 @@ verideki 396 başlığın tamamına karşı bir taramayla doğruluyor.
 
 Sayfadaki bir ayetin metnine dokunmak, o ayetin **son satırından hemen
 sonra** bir panel açar; aynı ayete (veya başka bir ayete) tekrar dokunmak
-kapatır. Panelde sırayla kelime meali, meal ve tefsir var (bkz. `js/app.js`,
+kapatır. Panelde sırayla kelime meali, meal ve tefsir var (bkz. `js/ayah-panel.js`,
 "Ayet detay paneli (kelime meali, meal, ...)" başlıklı yorum bloğu ve
 `ayahPanelBodyHTML`). Klavyeyle ve ekran okuyucuyla aynı panel ayet
 gezgininden (Enter/Space) açılıyor, bkz. "Erişilebilirlik".
@@ -232,7 +333,7 @@ normal satır aralığında birbirine hafifçe giriyor (harekelerin ihtiyaç
 duyduğu boşluk, satırlar arası mesafeden biraz daha geniş tasarlanmış),
 bu yüzden `cutY` her iki tarafa da tam bitişik olamıyor; ortalarını alarak
 her iki komşu satırın da harekelerinin panelin arkasında kalma riskini
-en aza indiriyor (`js/app.js`, `openWordMeal`).
+en aza indiriyor (`js/ayah-panel.js`, `openWordMeal`).
 
 Dokunulan ayet bir surenin sayfadaki son ayetiyse, "alttaki satır" aslında
 bir sonraki surenin başlık afişi olabilir — düz bir metin satırı değil,
@@ -258,7 +359,7 @@ hissini tamamen CSS veriyor, JS sadece kesim noktasını hesaplayıp dilimleri
 bir kere kuruyor.
 
 Panelin içeriği, her çeviri türü için ayrı, etiketli bir `.wm-section`
-olacak şekilde kuruluyor (`js/app.js`, `ayahPanelBodyHTML`) — yeni bir
+olacak şekilde kuruluyor (`js/ayah-panel.js`, `ayahPanelBodyHTML`) — yeni bir
 bölüm eklemek (tefsir gibi) bu fonksiyona bir `.wm-section` daha eklemek
 kadar basit.
 
@@ -293,13 +394,13 @@ aynı şekilde (kaynağı doğrulayıp bu script'e ekleyerek) düzeltilebilir.
 sadeleştirilmiş mealinin QUL exportu) `"sure:ayet" → {"t": "..."}`
 şeklinde, ayet başına tek girişli düz bir sözlük; kelime meali gibi sadece
 ilk kullanımda çekiliyor (~1MB, `js/meal.js`, `loadMealData`) ve panel
-ilk açıldığında ikisi paralel yükleniyor (`js/app.js`, `openWordMeal`) --
+ilk açıldığında ikisi paralel yükleniyor (`js/ayah-panel.js`, `openWordMeal`) --
 biri başarısız olursa diğerinin görünümünü etkilemiyor. Meal metninin
 sağ altında kaynak olarak "Elmalılı Muhammed Hamdi Yazır" gösteriliyor
 (`js/meal.js`, `renderMealHTML`).
 
 **Tefsir** tek bir kaynak butonu olarak gösteriliyor ("Tefsîr-i Sa'dî"):
-butona basmak ortak alanı açar; tekrar basmak kapatır (bkz. `js/app.js`,
+butona basmak ortak alanı açar; tekrar basmak kapatır (bkz. `js/ayah-panel.js`,
 `onTafsirTabClick` ve `animateTafsirClosed`); düğmenin durumu `aria-expanded`
 ile bildiriliyor ve kapanış bitince metin DOM'dan kaldırılıyor (bkz.
 "Erişilebilirlik", "Tefsir sekme düğmesi"). `sources` (`js/tafsir.js`)
@@ -339,7 +440,7 @@ ve telif"); QuranEnc, çevirilerin yeniden yayımını yayıncıya ve kaynağa a
 atıf, sürüm numarası ve değişiklik yapmama şartlarına bağlıyor. Bu yüzden
 tefsir metninin hemen altında, `.wm-tafsir-content`'in içinde ayrı bir
 `<p class="tafsir-kaynak">` olarak "Türkçe çeviri: QuranEnc.com (Kur'an-ı Kerim
-Ansiklopedisi), sürüm V1.0.0." satırı gösteriliyor (`js/app.js`,
+Ansiklopedisi), sürüm V1.0.0." satırı gösteriliyor (`js/ayah-panel.js`,
 `tafsirContentHTML`); aynı satır arama sonuçlarında "Tefsir (Sa'dî)"
 bölümünün başında da var (`js/arama.js`). Satırı ve kaynağın kredi bilgisini
 (ad, adres, sürüm) tek yerden, `js/tafsir.js`'teki kaynak tanımından
@@ -358,7 +459,7 @@ denenmedi.
 ## Konu Fihristi
 
 Ayet detay panelinin en üstünde (bkz. yukarısı), ayetin ait olduğu
-konular -- varsa -- küçük etiketler halinde listeleniyor (`js/app.js`,
+konular -- varsa -- küçük etiketler halinde listeleniyor (`js/ayah-panel.js`,
 `ayahTopicsRowHTML`); birine dokunmak bir modal açıyor
 (`openTopicsModal`) -- konunun Arapça adı, Ontoloji/Tematik/Genel
 rozetleri, açıklaması, Ana Konu(ları), İlişkili Konular ve Alt Konular
@@ -415,7 +516,7 @@ yine de kendi ana/ilişkili/alt konu bağlantılarından bir tık ötede.
 
 Ayetlerin Arapça metni `data/mushaf.json`'un kendi (zaten düz Unicode --
 glif/şekillendirme katmanı DEĞİL, bkz. `js/wordmeal.js`'in header notu)
-kelime metninden, sayfa-bağımsız bir okumayla kuruluyor (`js/app.js`,
+kelime metninden, sayfa-bağımsız bir okumayla kuruluyor (`js/ayah-panel.js`,
 `ayahArabicText`) -- ayetin KENDİ sayfasını `ayahBounds` ile bulup oradan
 okuyor, `ayahRawWords`'ün aksine yalnızca o anda açık sayfaya bağlı değil
 (zaten `state.mushaf` başlangıçta bütünüyle yükleniyor, bkz. yukarısı);
@@ -509,7 +610,7 @@ tazelenir. **Popüler konu çipleri** adı tam eşleşen konuyu doğrudan açar
 Kod iki katman: `js/search.js` **saf mantık** (DOM/fetch yok --
 normalleştirme, sorgu ayrıştırma, sure eşleştirme, dizinler [meal/kelime
 meali/Arapça metin/tefsir], vurgu, son aramalar), `js/arama.js` **arayüz**
-(DOM + olaylar; app.js'e bağımlı değil, gezinme/modal fonksiyonları ve
+(DOM + olaylar; uygulama durumuna (`state`/`els`) bağımlı değil, gezinme/modal fonksiyonları ve
 veri yükleyiciler `setupArama`'ya parametre olarak geliyor).
 
 Normalleştirme (`fold`): Latin'de küçük harf, ı/İ/I hepsi `i`, ç ğ ö ş ü
@@ -530,7 +631,7 @@ bağlaç/edatlar ("ve", "ile", "bir"...) çok terimli sorguda arama koşulu
 sayılmaz ("sabır ve namaz" mealdeki "sabırla, namazla"yı da bulur).
 
 Testler (`test/search_test.mjs` -- Node, bağımlılıksız; `test/arama_ui_test.mjs`
--- jsdom, gerçek `index.html` + gerçek veri dosyalarıyla; app.js kablolamasını
+-- jsdom, gerçek `index.html` + gerçek veri dosyalarıyla; uygulama modüllerinin kablolamasını
 kaynak metin üzerinden de denetler):
 
 ```bash
@@ -552,7 +653,7 @@ için bkz. "Erişilebilirlik"). Okuma 114:6'da bitiyor, başa sarmıyor.
 - **Ses.** Ayet sesleri uzaktan geliyor:
   `https://audio-cdn.tarteel.ai/quran/<okuyucu>/SSSAAA.mp3` (sure ve ayet
   üçer haneli). QUL'un exportunda 6236 ayetin hepsi tam bu kalıpta olduğundan
-  adres ayet başına saklanmıyor, `js/app.js` `recitationAudioUrl`'de yeniden
+  adres ayet başına saklanmıyor, `js/playback.js` `recitationAudioUrl`'de yeniden
   kuruluyor (`tools/build_recitation.py`, kalıba uymayan tek kayıtta bile
   üretimi durduruyor). Okuyucular `RECITERS`'te: **Husarî (Mücevved)** ve
   **Abdülbâsıt Abdüssamed (Mücevved)**. Ana Oynat düğmesi her zaman Husarî'yi
@@ -655,6 +756,9 @@ hesaplanan sayıyla karşılaştırıyor (bilinen tek istisna: sayfa 451, kelime
 
 ## Erişilebilirlik
 
+> **Not (modül bölünmesi).** Bu bölümdeki geçmiş kayıtlar (`Düzeltme (...)` başlıkları, yeni test ve mutasyon sayıları) `js/app.js`
+> tek dosyayken yazıldı; oradaki `js/app.js`, bölünmeden önceki tek dosyadır. Bir işlevin şimdiki yeri için "Modül haritası"na bakın.
+
 **Sayfa/sure/ayet geçişi anonsu.** `#nav-announcer` (`body`'nin doğrudan
 altında, `role="status"` + `aria-live="polite"` + `aria-atomic="true"`,
 `.sr-only` ile görsel olarak gizli ama erişilebilirlik ağacında) tüm
@@ -673,7 +777,7 @@ penceresinde gelen anonslar (bir ayete dokununca hem sayfa/ayet hem panel
 anonsu) **tek metinde birleşiyor** -- yoksa ikincisi birincinin yerine
 yazılır ve biri hiç duyulmazdı; aynı anahtarla gelen yeni anons bekleyenin
 yerine geçiyor (tuşa basılı tutarak sayfa çevirirken yalnızca sonuncusu
-söylenir). Mantık `js/app.js`'te `<announce>` işaretleri arasında;
+söylenir). Mantık `js/announce.js`'te `<announce>` işaretleri arasında;
 `test/erisilebilirlik_test.mjs` o bloğu çıkarıp Node'da çalıştırıyor.
 
 **`#page-container` canlı bölge DEĞİL.** Eskiden `aria-live="polite"`
@@ -701,7 +805,7 @@ arası boşluk soldaki kelimenin span'ının sonunda; besmele satırı düz meti
 Ezber'in kapak altı metni ağaçtan çıkarması buna dayanıyor (aşağıda). Gerçek
 (önbellekteki) SVG'de `render.js` hiçbir yerde `aria-hidden` uygulamıyor, üst
 SVG'de de `role="img"` yok (olsaydı içindeki gerçek metni tek bir resim gibi
-"yutabilirdi"). Yapısal olarak doğru. İki istisna var, ikisi de `app.js`'ten:
+"yutabilirdi"). Yapısal olarak doğru. İki istisna var, ikisi de uygulama kodundan (`ayah-panel.js`, `ezber-study.js`):
 ayet panelinin açıkken kurduğu ikinci kopya (sonraki paragraf) ve Ezber
 oturumunda kapakların altında kalan kelimeler (Ezber bölümlerinin sonundaki
 "Ezber sırasında kapakların altındaki metin" paragrafı).
@@ -813,7 +917,7 @@ görünmez (`.sr-only`) Türkçe eylem (`#play-btn-action`: boştayken "Oynat",
   `startEzberPlayback`) yazılıyor; görünüm ile ad ayrışamaz.
 
 `test/erisilebilirlik_test.mjs`'e 46 kontrol eklendi (99 → 145): statik
-işaretleme; gerçek `setPlayLabel`/`setPlayActive` (`app.js`'ten kaynak olarak
+işaretleme; gerçek `setPlayLabel`/`setPlayActive` (`playback.js`'ten kaynak olarak
 çıkarılıp) gerçek `index.html`'e uygulanıyor ve ad, elle yazılmış bir
 hesapla değil, axe-core'un accname uygulamasıyla hesaplanıyor (5 durum:
 yükleniyor, çalıyor, durdu, Ezber çalıyor, Ezber durdu); kaynak kontrolleri
@@ -911,7 +1015,7 @@ taklit edildi) sabit açanı olan 5 modalın 5'inde arayüzü kilitledi, yamalı
 kaçan odağın geri çekilmesi, Chromium ve Safari/iOS açan yakalama yolları,
 tıklama kaydının açanın kendi `click` işleyicisinden ÖNCE yapılması,
 zincirleme açılış, yok olmuş/gizli/devre dışı açanda sessiz vazgeçme) ve
-`app.js`'in `openModal`/`closeModal`/`closeAllModals` bloğunun kaynaktan
+`modals.js`'in `openModal`/`closeModal`/`closeAllModals` bloğunun kaynaktan
 çıkarılıp gerçek modal işaretlemesiyle çalıştırılması (sıralama, kapat-aç
 yarışı, `restoreFocus:false`). Her parça tek tek bozularak (modülde 20,
 `app.js`'te 12, HTML/CSS'te 4, `sw.js`'te 2 -- toplam 38 mutasyon)
@@ -931,7 +1035,7 @@ gezginin "Âl-i İmrân Suresi hakkında bilgi" düğmesi -> Enter -> metindeki
 sürüyor ("Geri dön"e gidiyor, Kapat'a değil); Geri'ye Enter -> yine `<body>`
 (okuyucu, 18 bağlantılı bir metinde kaldığı yeri kaybediyor). Konu
 Fihristi'nin çip/bağlantı/Geri geçişleri bunu daha önce aynı yöntemle
-çözmüştü (`pushTopicsModalTopic`); Sure Bilgisi'nde yoktu. Şimdi (`js/app.js`,
+çözmüştü (`pushTopicsModalTopic`); Sure Bilgisi'nde yoktu. Şimdi (`js/surahinfo-modal.js`,
 `<surah-info-detail>` bloğu):
 
 - **Ayrıntıya girerken odak modalın kapsayıcısına** alınıyor (modal
@@ -968,7 +1072,7 @@ Aynı ölçümde çıkan bir bulgu (kapalı akordeon bölümlerinin içeriği Ta
 sırasında duruyor) bu yamada DEĞİŞTİRİLMEDİ; ayrı bir commit olarak
 düzeltildi, bkz. aşağıdaki "Sure Bilgisi'nde kapalı akordeon bölümleri".
 
-`test/sure_bilgisi_odak_test.mjs` (yeni, jsdom, 46 kontrol): app.js'ten GERÇEK
+`test/sure_bilgisi_odak_test.mjs` (yeni, jsdom, 46 kontrol): modals.js ve surahinfo-modal.js'ten GERÇEK
 `openModal` bloğu ile GERÇEK `<surah-info-detail>` bloğu çıkarılıp gerçek
 `index.html`, `modal-odak.js` ve `surahinfo.js`'in `parseInfoLink`'iyle
 çalıştırılıyor: bağlantı -> ayrıntı (odak kapsayıcıda; Tab sırası Kapat ->
@@ -1050,7 +1154,7 @@ jsdom CSSOM'uyla ayrıştırılıyor: kapalı/açık `visibility` değerleri
 (`!important` yok), kapanış gecikmesi grid süresine EŞİT, açılışınki yok,
 opacity geçişi iki durumda aynı, 0fr/1fr kalıbını kullanan panel kümesi
 bilinen üçü (yenisi eklenirse test kırılıp bu karara dönüp bakmayı istiyor);
-(2) app.js'ten GERÇEK `surahInfoBodyHTML` x 114 surenin gerçek verisi (396
+(2) surahinfo-modal.js'ten GERÇEK `surahInfoBodyHTML` x 114 surenin gerçek verisi (396
 bölüm; kapalı 282 bölümde 365 bağlantı) x gerçek `style.css` (jsdom'a
 enjekte): her kapalı bölümde panel içi, içerik ve her bağlantı `visibility:
 hidden`, her açık bölümde `visible`, başlık düğmeleri hep `visible`, bölümü
@@ -1132,7 +1236,7 @@ Bilgisi'nin birinde 2 pikselde 1 düzeylik oynama var (yukarıdaki kapalı
 akordeon paragrafındakiyle aynı türden).
 
 `test/tefsir_sekme_aria_test.mjs` (yeni; jsdom, 88 kontrol, ≈ 6-10 sn):
-`app.js`'ten kaynaktan çıkarılan GERÇEK `ayahPanelBodyHTML`,
+`ayah-panel.js`'ten kaynaktan çıkarılan GERÇEK `ayahPanelBodyHTML`,
 `updateTafsirTabsUI`, `animateTafsirClosed`, `clearTafsirContent`,
 `showTafsirContent` ve `onTafsirTabClick` x gerçek `js/tafsir.js` x gerçek
 `data/tafsir-saadi.json` (2:255) x elle ilerletilen zamanlayıcı (`setTimeout`
@@ -1280,7 +1384,7 @@ saf yardımcılar (`ayahsOnPage`, `surahsOfSvg`, `revealDelta`),
 `aria-current`/`aria-expanded`, tuşlar ve dokunulmayan tuşlar, tıklama, sayfa
 değişince odağın korunması, `restoreFocus`, `:focus-visible` işareti,
 `onFocusTarget`; aynı numaralı iki ayetin (112:3 ve 113:3) karışmaması),
-`app.js`'in `<ayah-nav>` bloğunun kaynaktan çıkarılıp gerçek denetleyiciyle
+`ayah-nav.js`'in `<ayah-nav>` bloğunun kaynaktan çıkarılıp gerçek denetleyiciyle
 çalıştırılması (seçim -> `showPage`, başlık -> Sure Bilgisi, panel açılınca
 odak + kaydırma, yalnızca klavye odağında halka/kaydırma, Ezber'de gizleme),
 `showPage`/`openWordMeal`/`closeWordMeal`/`startEzberStudy`/`endEzberStudy`
@@ -1367,7 +1471,7 @@ değişmedi (yalnızca klavye işleyicisi), bu yüzden ekran görüntüsü
 karşılaştırması yapılmadı.
 
 `test/sayfa_ok_tuslari_test.mjs` (yeni; jsdom, 130 kontrol, ≈ 3-5 sn):
-`app.js`'ten kaynaktan çıkarılan GERÇEK `onPageTurnKeydown` ve
+`page-nav.js`'ten kaynaktan çıkarılan GERÇEK `onPageTurnKeydown` ve
 `ARROW_KEY_OWNER_SELECTOR` x GERÇEK `index.html` DOM'u x gerçek
 `KeyboardEvent`'ler: düz tuşlar ve yönler, Sol/Sağ dışındaki 15 tuş, 15
 değiştirici birleşimi x 2 yön, açık modal, tüketilmiş olay, bileşim, tuş
@@ -1430,7 +1534,7 @@ sekme henüz seçili değilse `onSelect(sekme)` çağrılır, sonra sekme
 odaklanır. Alt/Ctrl/Meta/Shift ile birlikte basılan tuşlar ve başka bir
 işleyicinin tükettiği olaylar yok sayılır; yalnızca işlenen tuşun varsayılanı
 engellenir (Home/End modalı kaydırmasın), Yukarı/Aşağı/Tab/Enter/Boşluk'a
-dokunulmaz. `js/app.js`'te `switchJuzTab` ve `switchEzberTab`,
+dokunulmaz. `js/modal-lists.js`'teki `switchJuzTab` ve `js/ezber-modal.js`'teki `switchEzberTab`,
 `aria-selected`'ı yazdıkları döngüde `tabindex`'i de yazıyor (seçili `0`,
 ötekiler `-1`; roving tabindex), `setupModals` ve `setupEzberModal` iki
 sekme listesini `setupTablist`'e bağlıyor; `index.html`'deki başlangıç
@@ -1493,7 +1597,7 @@ birbiriyle aynı çıktı).
 `targetTabIndex` için 1-9 sekme x her sıra (taşan, negatif dahil) x 4 gezinti
 tuşu + 24 ilgisiz tuş, bağımsız bir kurala karşı, 4000 rastgele çağrı ve
 sarma özellikleri; `index.html`'in başlangıç durumu (tek `tabindex="0"` =
-`aria-selected="true"`, `aria-controls` <-> `aria-labelledby`); app.js'ten
+`aria-selected="true"`, `aria-controls` <-> `aria-labelledby`); modal-lists.js ve ezber-modal.js'ten
 kaynaktan çıkarılan GERÇEK `switchJuzTab`/`switchEzberTab`, GERÇEK bağlama
 satırları ve tıklama dinleyicileri x GERÇEK `index.html` DOM'u x gerçek
 `KeyboardEvent`'ler, iki sekme listesi için: 4 işlenen tuş x her sekme,
@@ -1573,7 +1677,7 @@ ve gizli giriş `#ezber-dinle-reciter` (değeri
 `tabindex="-1"`, Geri, başlık, `.modal-list`. `css/style.css`'te
 `.ezber-surah-btn*` ve `.ezber-surah-picker*` genel adlara
 (`.ezber-picker-btn*`, `.ezber-picker*`) taşındı, `.ezber-field select` kuralı
-gitti, Kârî satırı için `.modal-item-title` (15 px) eklendi. `js/app.js`'te
+gitti, Kârî satırı için `.modal-item-title` (15 px) eklendi. `js/ezber-modal.js`'te
 (`// <ezber-picker>` bloğu) tek bir `ezberPicker = { kind, target, opener }`
 kaydı ve iki işlev var, `openEzberPicker(kind, target)` ve
 `closeEzberPicker({ restoreFocus })`: Sure ve Kârî aynı koddan geçiyor (kopya
@@ -1667,7 +1771,7 @@ normalize edilince) ve iki seçici birbiriyle birebir aynı yapıda, `<select>`
 yok, kimlikler tekil, `aria-labelledby` başvuruları var olan kimliklere
 çıkıyor, varsayılan değerler `RECITERS`'la tutarlı, eski sınıf adları HTML ve
 CSS'te yok, CSS kuralları (`outline`, `:has` yüksekliği, `[hidden]`,
-`.modal-item-title`); `app.js`'ten işaretler arasından çıkarılan GERÇEK
+`.modal-item-title`); `ezber-modal.js`'ten işaretler arasından çıkarılan GERÇEK
 `openEzberPicker`/`closeEzberPicker`/`setEzberReciter`/liste kurucuları, GERÇEK
 `closeModal` ve `setupEzberModal` x GERÇEK `index.html` x GERÇEK
 `createModalFocus` ve `setupTablist`, Chromium'un "odak düzeltmesi"ni (gizlenen
@@ -1766,7 +1870,7 @@ yardımcıya taşındı ve üç yerden çağrılıyor:
 yazıyor (yeni yorumda belirtildi).
 
 `test/ezber_aralik_test.mjs` (yeni; jsdom + kaynak denetimi, 156 kontrol,
-≈ 15-19 sn): `app.js`'ten işaretler arasından çıkarılan GERÇEK `<ezber-picker>`
+≈ 15-19 sn): `ezber-modal.js` ve `modals.js`'ten işaretler arasından çıkarılan GERÇEK `<ezber-picker>`
 bloğu, `readEzberRange`, `setupEzberModal`, `openModal`/`closeModal` (GERÇEK
 `createModalFocus` ve `setupTablist` ile) x GERÇEK `index.html` x GERÇEK
 `surahs.json`. jsdom da tarayıcı doğrulamasını gönderme olayından önce
@@ -1861,7 +1965,7 @@ Düzeltme (`js/app.js`: yorumlarla 23 satır eklendi, 5 satır çıktı;
   ediyor: doğru (modal diyalog açıyorlar).
 
 `test/modal_liste_aria_test.mjs` (yeni; jsdom + kaynak denetimi + axe-core,
-73 kontrol, ≈ 8-12 sn; ızgara grubuyla 86): `app.js`'ten çıkarılan GERÇEK
+73 kontrol, ≈ 8-12 sn; ızgara grubuyla 86): uygulama modüllerinden çıkarılan GERÇEK
 `populateSurahList`, `populateUnitList`, `toggleAyahGrid`, `setActiveAyahChip`,
 `syncAyahGridHighlight`, `setActiveModalItem` ve `<ezber-picker>` bloğu x GERÇEK
 `index.html` x GERÇEK `data/*.json`. Kontroller: kaynak (`.active` ve
@@ -1996,7 +2100,7 @@ satır eklendi, 1 satır çıktı; `sw.js`: 1 satır eklendi):
   modül `PRECACHE_URLS`'te olmalı; `sw_test` zorunlu kılıyor).
 
 `test/liste_gezintisi_test.mjs` (yeni; jsdom + kaynak denetimi, 91 kontrol, ≈ 7
-sn): (1) kaynak: dışa aktarılanlar, `PAGE_STEP`, `app.js`'in import'u,
+sn): (1) kaynak: dışa aktarılanlar, `PAGE_STEP`, uygulama modüllerinin import'u,
 `setActiveModalItem`'deki `syncListStop`, yedi listenin kaydı, `tabindex` yazan
 yerler, `sw.js` önbelleği; (2) saf `targetCell`: 25 satırlık tablo, 114 satırda
 PageUp/PageDown, geçersiz girdiler (null), donmuş girdi, 4 satıra kadar bütün
@@ -2143,7 +2247,7 @@ satır eklendi, 1 satır çıktı; `sw.js`: 1 satır eklendi):
   modül `PRECACHE_URLS`'te olmalı; `sw_test` zorunlu kılıyor).
 
 `test/izgara_gezintisi_test.mjs` (yeni; jsdom + kaynak denetimi, 104 kontrol, ≈
-16-18 sn): (1) kaynak: dışa aktarılanlar, `PAGE_ROWS`, `app.js`'in import'u ve
+16-18 sn): (1) kaynak: dışa aktarılanlar, `PAGE_ROWS`, uygulama modüllerinin import'u ve
 üç `syncGridStop` çağrı yerinin her biri, `setupGridNav`'ın Sure listesine
 kaydı, yerleşimin yalnızca tam sayı `offset*` değerlerinden okunması, `sw.js`
 önbelleği; (2) düzen modeli: jsdom'da yerleşim yok (`offset*` hep 0), bu yüzden
@@ -2466,7 +2570,7 @@ işaretlemesi, alt çubuktaki sırası ve Tab durakları; (2) CSS: `.sr-only`'ni
 kırptığı HER özelliğin odak kuralında geri alındığı (liste `.sr-only`'den
 türetiliyor: ileride yeni bir kırpma özelliği eklenirse test kırılır),
 `display` olmadığı, halkanın kapatılmadığı, `.bottombar`'ın `position:
-relative` olduğu, yazı/zemin kontrastı; (3) `app.js`'ten kaynaktan çıkarılan
+relative` olduğu, yazı/zemin kontrastı; (3) `ezber-study.js` ve `announce.js`'ten kaynaktan çıkarılan
 GERÇEK işlevler (`ezberRevealNextWord`, `onEzberStudyTap`,
 `ezberStudyGoToAyah`, `ezberStudyPlayAyahThenAdvance`, `startEzberStudy`,
 `endEzberStudy`, `<announce>` bloğu) x gerçek `index.html`: dokunma ve
@@ -2610,7 +2714,7 @@ için kelime meali verisi iki ağaçta da önceden yüklendi.
 161, ≈ 8 sn): (1) klavye işaretlemesi: grup adı, 3 satır x 10 tuş, 29 harf
 tuşunun her birinde harf + Türkçe okunuş (okunuşlar testte ayrı bir tabloda:
 işaretlemedeki bir yazım hatası testi kırar), 💡'nin adı, 30 Tab durağı,
-klavyenin alt çubuktan SONRA gelmesi; (3) `app.js`'ten çıkarılan GERÇEK
+klavyenin alt çubuktan SONRA gelmesi; (3) `ezber-study.js` ve `announce.js`'ten çıkarılan GERÇEK
 işlevler x gerçek `index.html`: her sonucun tam duyuru metni (7 harflik bir
 ayetin her harfi ayrı ayrı), hızlı art arda basışların birleşmesi, 8 yazım
 varyantı, 💡 (açma/kapama/karşılık yok/hedef yok/Oku/oturum yok), fiziksel tuş
@@ -2738,7 +2842,7 @@ Chromium):
   başına ≈ 3 ms) ve algılanır bir yavaşlama değil.
 
 `test/ezber_metin_katmani_test.mjs` (yeni; jsdom, 37 kontrol, ≈ 5 sn):
-`app.js`'ten kaynaktan çıkarılan GERÇEK `drawEzberCovers`,
+`ezber-study.js`'ten kaynaktan çıkarılan GERÇEK `drawEzberCovers`,
 `syncEzberTextLayer`, `ezberRenderCoverState` ve `ezberWordIsUpcoming` x
 gerçek `render.js` ile gerçek `data/mushaf.json` sayfalarından çizilen
 SVG'ler (1. sayfa Fâtiha; Bakara'nın 3. ve 4. sayfası: satırlar ayet
@@ -2752,7 +2856,7 @@ sonra değil); oturum bitince ya da yarıda bırakılınca SVG oturumdan önceki
 hâliyle BAYT BAYT aynı; oturum iki sayfaya yayılınca (Oku ve Yaz, 3. -> 4.
 sayfa, 15-17. ayetler) sayfadan çıkarken eski sayfada kapak da işaret de
 kalmıyor; kapak katmanı olmayan SVG'de ve kimliksiz span'larda işlev
-çökmüyor; kaynak korumaları (`render.js` `aria-hidden` yazmıyor, `app.js`
+çökmüyor; kaynak korumaları (`render.js` `aria-hidden` yazmıyor, `ezber-study.js`
 yalnızca `.text-layer-word`'e yazıyor ve gizlemeyi `inert` / `display` ile
 yapmıyor, ayet satırı kelimelerle, besmele kelimesiz çağrılıyor).
 `test/erisilebilirlik_test.mjs`'e 18 kontrol eklendi (194 -> 212: gerçek
@@ -2950,7 +3054,7 @@ Kararlar:
 - **Görünür bir değişiklik değil** (odaksız hâl piksel piksel aynı). Tek
   commit; beğenilmezse `git revert` yeter.
 
-`test/topic_links_test.mjs` (yeni, jsdom + axe-core, 53 kontrol): app.js'ten
+`test/topic_links_test.mjs` (yeni, jsdom + axe-core, 53 kontrol): modals.js ve topics-modal.js'ten
 GERÇEK `openModal` bloğu ile GERÇEK `<topics-modal>` bloğu çıkarılıp gerçek
 `index.html`, `topics.js`, `modal-odak.js` ve `data/topics-tr.json` ile
 çalıştırılıyor. "Allah" konusunda rol/`tabindex`, Tab sırası, odaklanabilirlik,
@@ -3179,7 +3283,7 @@ uygulama), veri varsayımları, 1.739 girdilik tam tarama (gerçek jsdom
 ayrıştırıcısıyla her metin düğümünün etkin dili: Arapça yazılı -> `ar`, Latin
 yazılı -> `tr`; metin birebir aynı; eklenen sarmalayıcılar geri alınınca özgün
 veri geri geliyor), `resolveTafsirText` (çapa / yönlendirmeli / yok), arama
-özetlerinin 8.022 gerçek penceresinde tarama ve app.js/arama.js kablolaması;
+özetlerinin 8.022 gerçek penceresinde tarama ve ayah-panel.js/arama.js kablolaması;
 `test/arama_ui_test.mjs`'e 9 kontrol (140 -> 149; 3 gerçek sorgu). Kodun her
 parçası tek tek bozularak 14 mutasyon denendi (yanlış etiketin düzeltilmemesi
 ya da `ar`'a çevrilmesi, bağlam atlamasının ve kapanıştaki dil geri
@@ -3215,7 +3319,7 @@ okuyucu yine yok.)
 dosyanın kendi başlık yorumu):
 
 - **Ses** (`dijital-mushaf-audio-v1`) -- her ayet sesi isteğini
-  (`audio-cdn.tarteel.ai`, bkz. `js/app.js`'teki
+  (`audio-cdn.tarteel.ai`, bkz. `js/playback.js`'teki
   `recitationAudioUrl`/`RECITERS`) **önbellek-önce** sunuyor: önbellekte varsa
   ağa hiç gidilmeden oradan, yoksa ağdan çekilip bir kopyası -- yanıt tarayıcıya
   beklemeden verilirken, arka planda -- önbelleğe eklenerek. Bu yoldan yalnızca
@@ -3513,7 +3617,7 @@ kapıyla tutulurken de dönüp yazmanın `waitUntil`'e verildiği, yazma hatası
 (kota) yanıtı etkilemediği; 206'nın (kabuk ve CDN, opak olmayan) yazılmaya
 çalışılmadığı ve uyarı düşürmediği, 200'ün yazılmaya devam ettiği; çevrimdışı
 eûzü dilimleme tablosu (yukarıdaki ölçümle aynı satırlar), 200 olmayan (203) ve
-`Content-Type`'sız kayıtlar; `js/app.js`'teki her `RECITERS.*.introLocal`
+`Content-Type`'sız kayıtlar; `js/playback.js`'teki her `RECITERS.*.introLocal`
 dosyasının `PRECACHE_URLS`'te olduğu ve kurulumdan sonra çevrimdışı `Range` ile
 206 döndüğü. Yeni kontrollerin 35'i eski `sw.js`'te kırılıyor (yani boş
 geçmiyorlar). `sw.js`'e uygulanan 54 tek noktalı bozulmanın (mutant) 50'i
@@ -3575,7 +3679,26 @@ js/sekme-gezintisi.js          Sekme listeleri (Cüz, Ezber): Sol/Sağ/Home/End 
 js/liste-gezintisi.js          Modal listeleri (Sure, Cüz/Hizb/Rub/Menzil, Ezber seçicileri): ok tuşu gezintisi + tek Tab durağı (roving tabindex), düz düğmeler (bkz. "Erişilebilirlik")
 js/izgara-gezintisi.js         Sure modalındaki ayet düğmeleri ızgarası: görsel düzene göre iki boyutlu ok tuşu gezintisi + tek Tab durağı (roving tabindex), düz düğmeler (bkz. "Erişilebilirlik")
 js/ayet-gezgini.js              Ayet gezgini: sayfadaki ayet/sure başlığı için görünmez <nav> -- klavye ve ekran okuyucu erişimi (bkz. "Erişilebilirlik")
-js/app.js               Sayfa yükleme, önbellek, gezinme, modaller, ayet seçimi, ayet detay paneli, konu fihristi
+js/app.js               Giriş noktası: main() verileri yükler, her modülün setup* işlevini çağırır, ilk sayfayı gösterir; registerServiceWorker() (bkz. "Modül haritası")
+js/state.js               Paylaşılan durum (state) ve DOM öğe tablosu (els); yaprak modül
+js/html.js                 escapeHtml (tek kopya); yaprak modül
+js/data-load.js            Veri ve yazı tipi yükleme (data/*.json, HarfBuzz) + sayfa -> sure/cüz/hizb/rub/menzil tabloları
+js/lookup.js                Salt okunur sorgular: ayet/kelime/sayfa için cüz, hizb, rub, menzil, sure, sayfa
+js/page-layout.js            Sayfa kabının boyutlandırılması ve kapalı sayfanın kurulması
+js/page.js                    Sayfa gösterimi ve gezinme: üst çubuk, buildPage, vurgular, showPage, goTo*, adres çubuğu, son konum
+js/page-nav.js                setupNav: ok düğmeleri, sayfaya dokunma/ok tuşları/kaydırma, pointToAyah
+js/announce.js                 Ekran okuyucu anonsları (#nav-announcer)
+js/ayah-nav.js                  Ayet gezgini bağlantısı (js/ayet-gezgini.js)
+js/ayah-panel.js                 Ayet detay paneli: kelime meali, meal, tefsir, konu etiketleri
+js/modals.js                      Modal açma/kapama (odak yönetimi dahil), etkin satır, tüm modalların kablolaması
+js/modal-lists.js                  Sure ve Cüz/Hizb/Rub/Menzil listeleri, ayet düğmeleri ızgarası, Cüz sekmeleri
+js/surahinfo-modal.js               Sure Bilgisi modalı
+js/topics-modal.js                   Konu Fihristi modalı
+js/playback.js                        Sesli okuma: okuyucular, ayet/besmele/istiâze klipleri, kelime vurgusu, Oynat
+js/ezber-modal.js                      Ezber modalı: sekmeler, ayarlar, Sure/Kârî seçicileri, aralık doğrulama
+js/ezber-play.js                        Ezber > Dinle: birikimli tekrarlı çalma
+js/ezber-study.js                        Ezber > Oku/Yaz: kapaklar, kelime/harf birimleri, ekran ve fiziksel klavye
+js/wake-lock.js                           Ekranın kararmasını önleyen Screen Wake Lock
 data/mushaf.json         604 sayfa × satır × kelime (QUL'dan üretildi, ~3MB)
 data/surahs.json          Sure adları/metadata (Türkçe isim dahil) + başlık glyph'i
 data/surah-pages.json     Sure → başlangıç sayfası
@@ -3618,11 +3741,11 @@ test/full_corpus_test.mjs  604 sayfayı Node'da render edip DOĞRULAYAN test: hi
 test/search_test.mjs        Arama saf mantığı (Node)
 test/arama_ui_test.mjs       Arama modalı arayüzü (jsdom)
 test/erisilebilirlik_test.mjs  Anons bölgesi, panel açıkken tek sayfa metni (alt kopya aria-hidden), kelime kelime metin katmanı + axe-core yapısal tarama (jsdom)
-test/modal_odak_test.mjs        Modal odak yönetimi: işaretleme, Tab döngüsü, açan öğeye dönüş, app.js bağlantısı (jsdom)
+test/modal_odak_test.mjs        Modal odak yönetimi: işaretleme, Tab döngüsü, açan öğeye dönüş, modals.js bağlantısı (jsdom)
 test/topic_links_test.mjs       Konu açıklamalarındaki <topic> bağlantıları: role/tabindex, Enter, odak, Geri düğmesi/odak, 461 bağlantının taraması, axe-core (jsdom)
 test/tafsir_dil_test.mjs        Sa'dî tefsiri dil işaretleri: birim, veri varsayımları, 1739 girdilik tam tarama, panel ve arama özeti yolu (jsdom)
 test/tafsir_atif_test.mjs       Sa'dî tefsirinin QuranEnc.com atfı: kredi verisi ve satır, panelde verideki 6236 ayetin hepsi, arama sonuçlarında tek atıf, CSS (jsdom)
-test/ayet_gezgini_test.mjs         Ayet gezgini: işaretleme, CSS, saf yardımcılar, denetleyici, app.js bağlantısı ve sırası, axe-core (jsdom)
+test/ayet_gezgini_test.mjs         Ayet gezgini: işaretleme, CSS, saf yardımcılar, denetleyici, uygulama modüllerinin bağlantısı ve sırası, axe-core (jsdom)
 test/sw_test.mjs              Servis worker: sahte self/caches ile (Node); ses Range kuralı, yazmayı beklemeden yanıt, 206 yazılmaması, çevrimdışı eûzü dilimleme, kota tahliyesi
 test/topics_test.mjs            Konu Fihristi: ayrıştırma yardımcıları + tüm verinin referans bütünlüğü taraması (Node)
 test/juz_subdivisions_test.mjs    Cüz/hizb/rub/manzil veri tutarlılığı ve gezinme mantığı (Node)
@@ -3641,6 +3764,8 @@ test/ezber_aralik_test.mjs       Ezber aralık alanları: geçersiz aralıktan s
 test/modal_liste_aria_test.mjs     Modal listeleri (Sure, Cüz, Ezber seçicileri): etkin satır/ayet düğmesi aria-current, ayet düğmesi adı "<Sure> Suresi, <N>. ayet", ayet ızgarasının role="group" + adı ("<Sure> Suresi ayetleri"), Ezber düğmelerinde aria-haspopup yok, rastgele diziler, axe-core (jsdom)
 test/liste_gezintisi_test.mjs      Modal listelerinde ok tuşu gezintisi ve tek Tab durağı: saf targetCell (tüm küçük matrisler x model), GERÇEK kablolama (Sure, Cüz, Ezber seçicileri), rastgele diziler x model (jsdom)
 test/izgara_gezintisi_test.mjs     Ayet düğmeleri ızgarası: CSS'ten türetilen düzen modeli (Chromium satır uzunluklarıyla doğrulanmış), saf targetChip (tüm küçük yerleşimler x model), GERÇEK kablolama (Bakara, Fâtiha), rastgele diziler x model (jsdom)
+test/uygulama_kaynagi.mjs         Testlerin ortak yardımcısı (test değil): uygulama modüllerinin birleşik kaynağı appSource, moduleSource, importedNames (bkz. "Modül haritası")
+test/modul_siniri_test.mjs        Modül sınırı: import grafiği, çevrimsel gruptaki her modül İLK modül olarak yüklenebiliyor (jsdom, ayrı süreç), eksik import taraması, tek escapeHtml, app.js yalnızca açılış (Node + jsdom)
 ```
 
 ## Çalıştırma
@@ -3707,7 +3832,7 @@ SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
 `npm run test:fast` (tam tarama hariç, ≈ 105-135 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 32 dosyanın hepsi ≈
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 33 dosyanın hepsi ≈
 2,5-3,5 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 53-86 sn, arama
 arayüzü 19-22 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
 testi 8-10 sn, Ezber klavye testi ≈ 8 sn, Ezber metin katmanı testi ≈ 5 sn,
@@ -3717,7 +3842,8 @@ Ezber seçici testi ≈ 11-15 sn,
 Ezber aralık testi ≈ 15-19 sn,
 modal liste testi ≈ 8-12 sn,
 liste gezinti testi ≈ 6-8 sn,
-ızgara gezinti testi ≈ 16-18 sn);
+ızgara gezinti testi ≈ 16-18 sn,
+modül sınırı testi ≈ 5-8 sn);
 GitHub Actions'taki ilk koşuda işin tamamı 1 dk 25 sn sürdü.
 
 **Tam tarama testi artık gerçekten doğruluyor.** `test/full_corpus_test.mjs`
@@ -3903,7 +4029,7 @@ saklanmamış ve klavyeyle erişilebilir olması; kopya dönmesi; değerlerin
 kaçışlanması); ayet panelinde verideki 6236 ayetin hepsi için içerik "metin +
 atıf" (metin yoksa "bulunamadı", atıfsız), 1739 farklı metnin hepsinde atıf
 DOM'da üst düzey son kardeş ve atıf çıkarılınca kalan DOM metnin kendi
-DOM'uyla birebir aynı; kablolama (`app.js`'te yalnızca metin dalında,
+DOM'uyla birebir aynı; kablolama (`ayah-panel.js`'te yalnızca metin dalında,
 `arama.js`'te yalnızca tefsir bölümünde ve başlığın hemen altında; iki
 dosyada aynı kaynak kimliği); gerçek `index.html` ve `arama.js` ile jsdom'da:
 tefsir yüklenmeden, yüklenirken ve yüklenemeyince atıf yok, yüklenince tefsir
@@ -3941,7 +4067,7 @@ kendiliğinden çıkıyor (fontun kendi en-boy oranından). Bir başlıktan önc
 sonra 1'er satır (`GAP_BEFORE_HEADER`, `GAP_AFTER_HEADER`) boşluk
 bırakılıyor — bu yüzden sayfanın toplam yüksekliği, üzerindeki sure başlığı
 sayısına göre biraz değişiyor. Konteynerin yüksekliği her sayfa için ayrı
-ayrı, o sayfanın gerçek toplam yüksekliğinden hesaplanıyor (`app.js`,
+ayrı, o sayfanın gerçek toplam yüksekliğinden hesaplanıyor (`page-layout.js`,
 `state.currentTotalHeight`), sabit bir oran değil.
 
 ## Veriyi güncellemek
@@ -3990,12 +4116,12 @@ python3 tools/build_recitation.py [husary|abdulsamad] [çıktı-klasörü]
 çalıştırılıyor (varsayılan: `husary`, `data/`). Betik, ham dosyadaki her ayet
 adresinin `.../quran/<cdn_slug>/SSSAAA.mp3` kalıbına uyduğunu doğruluyor
 (uymazsa üretimi durduruyor; bkz. "Sesli okuma"). Yeni bir okuyucu eklemek
-için betikteki `RECITERS` sözlüğüne ve `js/app.js`'teki `RECITERS` kaydına
+için betikteki `RECITERS` sözlüğüne ve `js/playback.js`'teki `RECITERS` kaydına
 birer giriş eklenir (ikisi birbirinin aynası). Depodaki iki ham dosyayla
 yeniden üretilen `data/recitation-*.json` dosyaları da mevcutlarla bayt bayt
 aynı çıkıyor.
 
-`data/ruku.json` için depoda üretim betiği yok; `js/app.js`'in yorumuna göre
+`data/ruku.json` için depoda üretim betiği yok; `js/lookup.js`'in yorumuna göre
 QUL'un `quran-metadata-ruku.json` dosyasından türetilmiş.
 
 **Yeni bir veri, ses ya da yazı tipi dosyası eklerken** `VERI_KAYNAKLARI.md`'ye

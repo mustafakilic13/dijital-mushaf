@@ -1,22 +1,22 @@
 // Ezber oturumunda kapağın ALTINDAKİ Arapça metin erişilebilirlik ağacından çıkarılıyor mu? Regresyon kontrolü.
 //
 // Neden var: Ezber > Oku/Yaz'da açılmamış kelimeler yalnızca GÖRSEL olarak gizliydi: SVG'ye, görünmez metin katmanının ÜSTÜNE kapak
-// dikdörtgenleri çiziliyor (app.js drawEzberCovers). Metin katmanının kendisi (render.js addTextSelectionLayer) ise satır başına tek
+// dikdörtgenleri çiziliyor (ezber-study.js drawEzberCovers). Metin katmanının kendisi (render.js addTextSelectionLayer) ise satır başına tek
 // bir metin düğümüydü ve erişilebilirlik ağacında tam metin olarak duruyordu: ekran okuyucu kullanıcısı, kapakların altındaki
 // ayeti sayfadan okuyabiliyordu -- Yaz'daki "Doğru" / "Bu harf değil" geri bildirimi ve Oku'daki "kelimeyi aç" anlamsız kalıyordu.
 // Gerçek Chromium'da (CDP Accessibility.getFullAXTree; 430 px; Fâtiha sayfası, 280 Arapça harf; Oku 1:1-3 ve Yaz 1:1-2; oturum
 // başlarken, kelime/harf açılırken, ayet geçerken ve biterken 11 durum) düzeltmeden ÖNCE: kapak sayısı 12 -> 7 (Oku) ve 36 -> 32 (Yaz)
 // arasında değişirken ağaçtaki Arapça harf 11 durumun HEPSİNDE 280/280'di (ayrıntı GELISTIRICI.md'de).
 //
-// Düzeltme: (js/render.js, js/app.js)
+// Düzeltme: (js/render.js, js/ezber-study.js)
 //   - addTextSelectionLayer, satırı kelime başına bir <span class="text-layer-word" data-word-id> olarak kuruyor (aralarındaki boşluk
 //     soldaki kelimenin span'ının sonunda; textContent, seçim ve kopyalama değişmiyor, ağaçta yalnızca boşluktan oluşan düğüm yok);
 //   - drawEzberCovers, kapakları çizdiği AYNI veriden (coverDefs) kapaklı kelimelerin span'larına aria-hidden="true" veriyor
 //     (syncEzberTextLayer); kapak kalkınca işaret de kalkıyor; drawEzberCovers(svg, []) (oturum sonu) hepsini temizliyor.
 //
-// Burada kontrol edilenler (jsdom; app.js'ten çıkarılan GERÇEK drawEzberCovers / syncEzberTextLayer / ezberWordIsUpcoming /
+// Burada kontrol edilenler (jsdom; ezber-study.js'ten çıkarılan GERÇEK drawEzberCovers / syncEzberTextLayer / ezberWordIsUpcoming /
 // ezberRenderCoverState, GERÇEK render.js addTextSelectionLayer ve splitIntoUnits, GERÇEK data/mushaf.json sayfaları):
-//   (1) kaynak: render.js satırları kelime kelime kuruyor (yalnız ayet satırlarında), app.js kapakla birlikte işaretliyor;
+//   (1) kaynak: render.js satırları kelime kelime kuruyor (yalnız ayet satırlarında), ezber-study.js kapakla birlikte işaretliyor;
 //   (2) Fâtiha sayfası (1), Bakara'nın iki sayfası (3 ve 4; satırlar ayet sınırlarını aşıyor; oturum sayfa 3'ten 4'e geçiyor): Oku ve Yaz
 //       oturumunun HER adımında
 //       aria-hidden alan kelimeler kümesi (a) bağımsız bir "neyin kapalı olması gerekir" kestirimine, (b) çizilen kapak dikdörtgenlerinin
@@ -33,11 +33,11 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { JSDOM, VirtualConsole } from "jsdom";
+import { appSource } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
-const appSource = readText("js", "app.js");
 const renderSource = readText("js", "render.js");
 
 let failures = 0;
@@ -73,11 +73,11 @@ function fnSource(name) {
 }
 const NAMES = ["drawEzberCovers", "syncEzberTextLayer", "ezberWordIsUpcoming", "ezberRenderCoverState"];
 const SRCS = Object.fromEntries(NAMES.map((n) => [n, fnSource(n)]));
-check(`app.js: gerekli işlevlerin hepsi bulundu (eksik: ${NAMES.filter((n) => !SRCS[n]).join(", ") || "yok"})`, NAMES.every((n) => SRCS[n]));
+check(`ezber-study.js: gerekli işlevlerin hepsi bulundu (eksik: ${NAMES.filter((n) => !SRCS[n]).join(", ") || "yok"})`, NAMES.every((n) => SRCS[n]));
 const draw = SRCS.drawEzberCovers || "";
-check("app.js: drawEzberCovers kapakları çizdikten SONRA, aynı coverDefs ile syncEzberTextLayer'ı çağırıyor (kapak ve işaret ayrışamaz)", /layer\.appendChild\(rect\);\s*\}\s*syncEzberTextLayer\(svg, coverDefs\);\s*\}$/.test(draw));
-check("app.js: aria-hidden yalnızca .text-layer-word'e veriliyor (syncEzberTextLayer); başka bir yerde Ezber kapağı için aria-hidden yok", /querySelectorAll\("\.text-layer-word"\)/.test(SRCS.syncEzberTextLayer || "") && !/aria-hidden/.test((SRCS.ezberRenderCoverState || "") + draw));
-check("app.js: gizleme inert/pointer-events/display ile yapılmıyor (dokunma ve seçim çalışmaya devam eder)", !/inert|pointer-events|\.hidden|display|visibility/.test(SRCS.syncEzberTextLayer || ""));
+check("ezber-study.js: drawEzberCovers kapakları çizdikten SONRA, aynı coverDefs ile syncEzberTextLayer'ı çağırıyor (kapak ve işaret ayrışamaz)", /layer\.appendChild\(rect\);\s*\}\s*syncEzberTextLayer\(svg, coverDefs\);\s*\}$/.test(draw));
+check("ezber-study.js: aria-hidden yalnızca .text-layer-word'e veriliyor (syncEzberTextLayer); başka bir yerde Ezber kapağı için aria-hidden yok", /querySelectorAll\("\.text-layer-word"\)/.test(SRCS.syncEzberTextLayer || "") && !/aria-hidden/.test((SRCS.ezberRenderCoverState || "") + draw));
+check("ezber-study.js: gizleme inert/pointer-events/display ile yapılmıyor (dokunma ve seçim çalışmaya devam eder)", !/inert|pointer-events|\.hidden|display|visibility/.test(SRCS.syncEzberTextLayer || ""));
 
 if (!NAMES.every((n) => SRCS[n])) {
   console.error(`${failures} check(s) failed.`);

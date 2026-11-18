@@ -52,8 +52,8 @@ import {
   sanitizeRecent,
   addRecentQuery,
   removeRecentQuery,
-  escapeHtml,
 } from "./search.js";
+import { escapeHtml } from "./html.js";
 import { buildWordMealCards } from "./wordmeal.js";
 import { markTafsirLanguages, tafsirCreditHTML } from "./tafsir.js";
 

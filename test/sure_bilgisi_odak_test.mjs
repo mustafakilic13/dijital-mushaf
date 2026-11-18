@@ -7,7 +7,7 @@
 //   - bağlantıya Enter -> odak <body> (document.activeElement), erişilebilirlik ağacında "yok sayıldı": ekran okuyucu yeni
 //     görünümü duymuyor; sonraki Tab görünümün ortasından sürüyor (Kapat'a değil Geri'ye gidiyor);
 //   - Geri'ye Enter -> odak yine <body>: okuyucu 13-18 bağlantılı bir metinde kaldığı yeri kaybediyor.
-// Düzeltme (js/app.js, <surah-info-detail> bloğu):
+// Düzeltme (js/surahinfo-modal.js, <surah-info-detail> bloğu):
 //   - showSurahInfoDetail: ana içerikten ayrıntıya GEÇERKEN odak modalın kapsayıcısına alınır (modal açılırkenki ve
 //     Konu Fihristi'ndeki pushTopicsModalTopic gibi: "3. Âl-i İmrân, iletişim kutusu" okunur, Tab Kapat'tan sürer);
 //     görünüm zaten açıkken içerik yenilenirse ("Yükleniyor…" -> ayetlerin meali) odağa dokunulmaz;
@@ -38,12 +38,12 @@ import { fileURLToPath } from "url";
 import { JSDOM } from "jsdom";
 import { createModalFocus, tabbablesIn } from "../js/modal-odak.js";
 import { parseInfoLink } from "../js/surahinfo.js";
+import { appSource } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
 const html = readText("index.html");
-const appSource = readText("js", "app.js");
 
 let failures = 0;
 function check(name, cond) {
@@ -55,12 +55,12 @@ function check(name, cond) {
 
 // -- (1) Kaynak ----------------------------------------------------------------------------------------------
 const BLOCK = /\/\/ <surah-info-detail>([\s\S]*?)\/\/ <\/surah-info-detail>/.exec(appSource);
-check("app.js: <surah-info-detail> ... </surah-info-detail> bloğu bulundu", !!BLOCK);
+check("surahinfo-modal.js: <surah-info-detail> ... </surah-info-detail> bloğu bulundu", !!BLOCK);
 const MODAL_START = appSource.indexOf("const modalFocus = createModalFocus(");
 const MODAL_END = appSource.indexOf("function setupModals()");
-check("app.js: modal odak bloğu (modalFocus .. closeAllModals) bulundu", MODAL_START > 0 && MODAL_END > MODAL_START);
+check("modals.js: modal odak bloğu (modalFocus .. closeAllModals) bulundu", MODAL_START > 0 && MODAL_END > MODAL_START);
 const ESCAPE_SRC = /function escapeHtml\(s\) \{[\s\S]*?\n\}/.exec(appSource);
-check("app.js: escapeHtml bulundu", !!ESCAPE_SRC);
+check("html.js: escapeHtml bulundu", !!ESCAPE_SRC);
 
 // Bir işlevin gövdesi (süslü parantezleri sayarak; dizge/yorum içinde süslü parantez yok).
 function bodyOf(src, name) {
@@ -80,7 +80,7 @@ if (BLOCK) {
   const show = bodyOf(src, "showSurahInfoDetail");
   const close = bodyOf(src, "closeSurahInfoDetail");
   const back = bodyOf(src, "backFromSurahInfoDetail");
-  check("app.js: showSurahInfoDetail, closeSurahInfoDetail ve backFromSurahInfoDetail bloğun içinde", !!show && !!close && !!back);
+  check("surahinfo-modal.js: showSurahInfoDetail, closeSurahInfoDetail ve backFromSurahInfoDetail bloğun içinde", !!show && !!close && !!back);
 
   if (show && close && back) {
     const iEntering = show.indexOf("const entering = els.surahInfoDetail.hidden;");
@@ -107,7 +107,7 @@ if (BLOCK) {
   check("setupSurahInfoModal: çözümlenen bağlantı açan olarak kaydediliyor, openSurahInfoLink'ten ÖNCE", /if \(!target\) return;\s*surahInfoLinkOpener = link;[^\n]*\n\s*openSurahInfoLink\(target\);/.test(src));
   check('setupSurahInfoModal: "Mushaf\'a/Ayete Git" düğmesi goToAyah/goToSurah çağırıyor ve modalı kapatıyor (davranış aşağıda, 2h)', /goToAyah\(surah, ayah\)/.test(src) && /goToSurah\(surah\)/.test(src) && /closeModal\(els\.surahInfoModal\)/.test(src));
 }
-check("app.js: closeModal, Sure Bilgisi kapanırken genel sıfırlama closeSurahInfoDetail'ı çağırıyor", /if \(modalEl === els\.surahInfoModal\) closeSurahInfoDetail\(\);/.test(appSource));
+check("modals.js: closeModal, Sure Bilgisi kapanırken genel sıfırlama closeSurahInfoDetail'ı çağırıyor", /if \(modalEl === els\.surahInfoModal\) closeSurahInfoDetail\(\);/.test(appSource));
 
 {
   const D = new JSDOM(html).window.document;

@@ -4,7 +4,7 @@
 // şartları (https://quranenc.com/tr/home/about ve https://quranenc.com/en/home/api; 2026-11-14'te okundu): içerik DEĞİŞTİRİLMEDEN,
 // yayıncıya ve kaynağa (QuranEnc.com) AÇIKÇA atıfla ve yeniden yayımda SÜRÜM numarası belirtilerek gösterilebilir. Atıf yalnızca
 // belgelerdeydi (VERI_KAYNAKLARI.md, README.md); uygulama metni atıfsız gösteriyordu. Şimdi aynı satır iki yerde görünüyor:
-//   - ayet panelinde, tefsir metninin hemen ALTINDA (js/app.js tafsirContentHTML); metin yoksa ("bulunamadı", "yakında eklenecek",
+//   - ayet panelinde, tefsir metninin hemen ALTINDA (js/ayah-panel.js tafsirContentHTML); metin yoksa ("bulunamadı", "yakında eklenecek",
 //     veri yüklenmemiş) atıf da yok; panel kapanınca metinle birlikte DOM'dan kalkıyor (.wm-tafsir-content'in içinde);
 //   - arama sonuçlarında, "Tefsir (Sa'dî)" bölümünün başında (js/arama.js; satırlardaki özetler bu metinden);
 // ve satırı tek bir yer üretiyor: js/tafsir.js tafsirCreditHTML (kredi verisi aynı dosyada, kaynak tanımında).
@@ -12,11 +12,11 @@
 // Burada kontrol edilenler:
 //   (1) kredi verisi + üretilen satır: ad (QuranEnc.com), https://quranenc.com altında bağlantı, sürüm numarası, görünen cümle, bağlantının
 //       target/rel öznitelikleri, kopya dönmesi, bilinmeyen kaynak, değerlerin kaçışlanması (kaynak), her kaynağın atfı olması;
-//   (2) panel: app.js'ten çıkarılan GERÇEK tafsirContentHTML x GERÇEK tafsir.js x GERÇEK data/tafsir-saadi.json: verideki 6236 ayetin
+//   (2) panel: ayah-panel.js'ten çıkarılan GERÇEK tafsirContentHTML x GERÇEK tafsir.js x GERÇEK data/tafsir-saadi.json: verideki 6236 ayetin
 //       HEPSİ için içerik == (metin varsa) metin + atıf, (yoksa) "bulunamadı" ve atıf YOK; metin BİR BİT değişmiyor (atıf satırı
 //       çıkarılınca ham metin); 1739 farklı metnin hepsinde atıf DOM'da üst düzey kardeş (açık kalmış bir etikete düşmüyor, metnin
 //       ayrıştırılması değişmiyor); "yakında eklenecek" ve veri yok yollarında atıf yok;
-//   (3) kablolama (kaynak): app.js yalnızca tafsirContentHTML'in metin dalında kullanıyor; arama.js yalnızca tefsir bölümüne
+//   (3) kablolama (kaynak): ayah-panel.js yalnızca tafsirContentHTML'in metin dalında kullanıyor; arama.js yalnızca tefsir bölümüne
 //       veriyor ve bölüm başında (not'tan önce) basıyor; iki dosyadaki kaynak kimliği aynı;
 //   (4) arama: GERÇEK index.html x GERÇEK js/arama.js x GERÇEK meal/konu/tefsir verisi, jsdom'da: tefsir yüklenmeden / yüklenirken /
 //       yüklenemeyince atıf YOK; yüklenince "Tefsir (Sa'dî)" bölümünde tam bir tane, başlığın hemen altında; diğer bölümlerde YOK;
@@ -36,11 +36,11 @@ import { fileURLToPath } from "url";
 import { JSDOM, VirtualConsole } from "jsdom";
 import { tafsirSourceIds, tafsirSourceCredit, tafsirCreditHTML, tafsirSourceLabel, isTafsirSourceAvailable, resolveTafsirText } from "../js/tafsir.js";
 import { setupArama, DEBOUNCE_MS } from "../js/arama.js";
+import { appSource, appSourceRaw, appImportedNames } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
-const appSource = readText("js", "app.js");
 const aramaSource = readText("js", "arama.js");
 const tafsirSource = readText("js", "tafsir.js");
 const css = readText("css", "style.css");
@@ -135,7 +135,7 @@ const SENTENCE = CREDIT ? `Türkçe çeviri: ${CREDIT.name} (${CREDIT.descriptio
   for (const f of ["url", "name", "description", "version"]) {
     check(`tafsir.js: tafsirCreditHTML credit.${f} değerini escapeHtml'den geçiriyor (HTML'e kaçışsız girmiyor)`, !!credSrc && credSrc.includes(`escapeHtml(credit.${f})`));
   }
-  check("tafsir.js: escapeHtml tek bir yerden (./search.js) alınıyor (yeni bir kopya yok)", /import \{ escapeHtml \} from "\.\/search\.js";/.test(tafsirSource) && !/function escapeHtml/.test(tafsirSource));
+  check("tafsir.js: escapeHtml tek bir yerden (./html.js) alınıyor (yeni bir kopya yok)", /import \{ escapeHtml \} from "\.\/html\.js";/.test(tafsirSource) && !/function escapeHtml/.test(tafsirSource));
 }
 
 // -- 2. ayet paneli: GERÇEK tafsirContentHTML x gerçek veri ------------------------------------------------------
@@ -143,7 +143,7 @@ const DATA = JSON.parse(readText("data", "tafsir-saadi.json"));
 const NOT_FOUND_HTML = `<p class="word-meal-loading">Bu ayet için tefsir bulunamadı.</p>`;
 const escSrc = fnSource(appSource, "escapeHtml");
 const contentSrc = fnSource(appSource, "tafsirContentHTML");
-check("app.js: escapeHtml ve tafsirContentHTML bulundu", !!escSrc && !!contentSrc);
+check("html.js ve ayah-panel.js: escapeHtml ve tafsirContentHTML bulundu", !!escSrc && !!contentSrc);
 if (!escSrc || !contentSrc) {
   console.error(`${failures} check(s) failed.`);
   process.exit(1);
@@ -219,10 +219,10 @@ const makeContent = ({ available = (id) => id === "saadi", data = DATA } = {}) =
 
 // -- 3. kablolama (kaynak) --------------------------------------------------------------------------------------
 {
-  check("app.js: tafsirCreditHTML ./tafsir.js'ten alınıyor", /import \{[^}]*\btafsirCreditHTML\b[^}]*\} from "\.\/tafsir\.js";/.test(appSource));
-  check("app.js: atıf yalnızca iki yerde geçiyor (içe aktarma + tafsirContentHTML'in metin dalı)", (noComments(appSource).match(/tafsirCreditHTML/g) || []).length === 2);
-  check("app.js: tafsirContentHTML atfı yalnızca METİN varken ekliyor (return text ? text + tafsirCreditHTML(sourceId) : bulunamadı)", /return text \? text \+ tafsirCreditHTML\(sourceId\) : `<p class="word-meal-loading">Bu ayet için tefsir bulunamadı\.<\/p>`;/.test(contentSrc || ""));
-  check("app.js: atıf .wm-tafsir-content'in DIŞINDA ayrıca yazılmıyor (kapanınca metinle birlikte kalksın)", !/tafsir-kaynak/.test(appSource) && !/wm-tafsir-credit/.test(appSource));
+  check("uygulama modülleri: tafsirCreditHTML ./tafsir.js'ten alınıyor", appImportedNames("./tafsir.js").includes("tafsirCreditHTML"));
+  check("uygulama modülleri: atıf yalnızca iki yerde geçiyor (içe aktarma + tafsirContentHTML'in metin dalı)", (noComments(appSourceRaw).match(/tafsirCreditHTML/g) || []).length === 2);
+  check("ayah-panel.js: tafsirContentHTML atfı yalnızca METİN varken ekliyor (return text ? text + tafsirCreditHTML(sourceId) : bulunamadı)", /return text \? text \+ tafsirCreditHTML\(sourceId\) : `<p class="word-meal-loading">Bu ayet için tefsir bulunamadı\.<\/p>`;/.test(contentSrc || ""));
+  check("uygulama modülleri: atıf .wm-tafsir-content'in DIŞINDA ayrıca yazılmıyor (kapanınca metinle birlikte kalksın)", !/tafsir-kaynak/.test(appSource) && !/wm-tafsir-credit/.test(appSource));
 
   check("arama.js: tafsirCreditHTML ./tafsir.js'ten alınıyor", /import \{[^}]*\btafsirCreditHTML\b[^}]*\} from "\.\/tafsir\.js";/.test(aramaSource));
   check("arama.js: atıf yalnızca iki yerde üretiliyor (içe aktarma + tefsir bölümü nesnesi)", (noComments(aramaSource).match(/tafsirCreditHTML/g) || []).length === 2);

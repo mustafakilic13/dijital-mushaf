@@ -1,7 +1,7 @@
 // wordmeal.js
 //
 // "Kelime meal" -- word-by-word Turkish translation, shown in a panel that
-// opens beneath the tapped ayah's last line (see app.js's openWordMeal).
+// opens beneath the tapped ayah's last line (see ayah-panel.js's openWordMeal).
 //
 // data/word-meal.json is a flat { "surah:ayah:position": "turkish text" }
 // map (QUL's word-by-word translation export, ~70k entries). `position` is
@@ -21,8 +21,10 @@
 // position 1 (so there's always a card to fold into) and every used
 // position is within that ayah's real word count.
 
+import { escapeHtml } from "./html.js";
+
 // U+06DD ARABIC END OF AYAH, prefixes the ayah-ending glyph's text. Also
-// used by app.js's ayahArabicText (Konu Fihristi's plain-text ayah
+// used by ayah-panel.js's ayahArabicText (Konu Fihristi's plain-text ayah
 // rendering) to strip the same marker outside this module's own cards.
 export const MARKER = "\u06dd";
 
@@ -64,7 +66,7 @@ export function loadWordMealData() {
 // `rawWords`: mushaf.json word objects ({i,t}) for one ayah, in reading
 // order, INCLUDING the trailing end-of-ayah marker -- exactly what you get
 // by filtering mushaf.json's line.w entries down to an ayah's
-// [firstWordId, lastWordId] range (see app.js's ayahRawWords). Returns an
+// [firstWordId, lastWordId] range (see ayah-panel.js's ayahRawWords). Returns an
 // ordered array of { arabic, translation } cards, first word of the ayah
 // first, ready to render right-to-left.
 export function buildWordMealCards(rawWords, translations, surah, ayah) {
@@ -91,10 +93,6 @@ export function buildWordMealCards(rawWords, translations, surah, ayah) {
   });
 
   return cards.map((c) => ({ arabic: c.arabicParts.join(" "), translation: c.translation }));
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 }
 
 // Cards -> the word-meal body's inner HTML: a right-to-left, wrapping row

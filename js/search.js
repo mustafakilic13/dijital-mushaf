@@ -4,10 +4,9 @@
 // SAF yarısı: metin normalleştirme, sorgu ayrıştırma, sure adı eşleştirme,
 // tam metin dizini + arama, vurgulu özet (snippet) üretimi ve "son
 // aramalar" listesi yardımcıları. DOM yok, fetch yok -- topics.js /
-// surahinfo.js ile aynı "saf mantık ayrı modülde, arayüz app.js'te"
+// surahinfo.js ile aynı "saf mantık ayrı modülde, arayüz uygulama modüllerinde"
 // düzeni; test/search_test.mjs Node'da doğrudan import edip sınar.
-// Veri yükleme (meal.json vb.) ve ekran app.js'teki "Arama modalı"
-// bölümünde.
+// Veri yükleme (meal.json vb.) ve ekran js/arama.js'te ("Arama modalı").
 //
 // Tek normalleştirme, iki alfabe: fold() hem Türkçe/Latin metni hem Arapça
 // metni aynı geçişte katlıyor, çünkü arama kutusuna hangisi yazılırsa
@@ -31,6 +30,7 @@
 // konumunu da döndürüyor -- eşleşme katlanmış metinde bulunuyor, <mark>
 // ise orijinal (harekeli/şapkalı) metnin üzerine konuyor.
 
+import { escapeHtml } from "./html.js";
 import { topicCategoryLabels } from "./topics.js";
 
 // ---------------------------------------------------------------------
@@ -626,7 +626,7 @@ export function searchWordIndex(index, terms, { limit = 200 } = {}) {
 // ---------------------------------------------------------------------
 // Aynı ad birden çok topic_id'ye ait olabilir (Namaz 1038/1613, Tevbe
 // 369/1701, ...). Ayet panelindeki etiketler ayet başına en küçük id'yi
-// seçiyor (bkz. app.js ayahTopicsRowHTML); ARAMADA ise kullanıcı en
+// seçiyor (bkz. ayah-panel.js ayahTopicsRowHTML); ARAMADA ise kullanıcı en
 // kapsamlı kaydı bekler -- "Tevbe" 5 ayetlik 369 değil 74 ayetlik 1701
 // olsun -- o yüzden ada göre tekilleştirirken EN ÇOK ayeti olan kayıt, eşitlikte
 // en küçük id kalıyor. Konuya girince ana/alt/ilişkili konu bağlantılarıyla
@@ -688,10 +688,6 @@ export function findTopicByName(index, name) {
 // ---------------------------------------------------------------------
 // Vurgu / özet
 // ---------------------------------------------------------------------
-export function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-
 // Arapça'da harf vurgulanınca ardındaki harekeler de vurguya dahil olsun
 // (yoksa "بِسْمِ"in yalnızca harfleri boyanıp hareke işaretleri dışarıda kalır).
 function isArabicMark(code) {

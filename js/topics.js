@@ -27,7 +27,7 @@
 //                              attributes, no dangling data-id refs --
 //                              safe to set as innerHTML unescaped, same
 //                              "trusted own-translated content" treatment
-//                              app.js already gives surah-info/tafsir.
+//                              the app modules already give surah-info/tafsir.
 //   parent_id                 generic (non-thematic, non-ontology)
 //   thematic_parent_id        \ another record's topic_id, or null.
 //   ontology_parent_id        / NOT mutually exclusive with each other or
@@ -35,7 +35,7 @@
 //                              thematic_parent_id and ontology_parent_id,
 //                              10 set parent_id alongside one of the
 //                              other two -- so a topic can have more than
-//                              one "Ana Konu" at once; app.js shows every
+//                              one "Ana Konu" at once; topics-modal.js shows every
 //                              non-null one instead of picking just one.
 //   thematic, ontology         0/1 flags, ALSO not mutually exclusive (17
 //                              records have both set) -- topicCategoryLabels
@@ -52,7 +52,7 @@
 //                              through the parent/child relationship
 //                              (childrenOf, below) instead, or through the
 //                              <topic data-id="X"> links embedded directly
-//                              in some descriptions (app.js routes a click
+//                              in some descriptions (topics-modal.js routes a click
 //                              on one of those through the exact same
 //                              "open this other topic" path as a related/
 //                              parent/child chip).
@@ -150,7 +150,7 @@ export function markArabicSpans(html) {
 // Açıklamalardaki iç bağlantılar (<topic data-id="N">…</topic>; 273 konuda 461 adet) tarayıcı için bilinmeyen bir
 // öğe: Tab ile odaklanamıyor ve erişilebilirlik ağacında yok sayılıyor (rol "none"), yani klavye ve ekran okuyucu
 // kullanıcısı için düz metin. Bağlantı olarak işaretler (role="link" tabindex="0"); Enter'a basınca açılması
-// app.js'te setupTopicsModal'da. data-id'siz <topic>'lere (48 adet) dokunmaz: hedefleri yok, tıklanınca hiçbir
+// topics-modal.js'te setupTopicsModal'da. data-id'siz <topic>'lere (48 adet) dokunmaz: hedefleri yok, tıklanınca hiçbir
 // şey olmuyor, odak durağı olmamalı. Veri dosyasına dokunmaz. Tam eşleşme yeterli ve güvenli: verideki <topic>
 // etiketleri yalnızca `<topic data-id="N">` ya da `<topic>` biçiminde (bkz. test/topics_test.mjs).
 export function markTopicLinks(html) {

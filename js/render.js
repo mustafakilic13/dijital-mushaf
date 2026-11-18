@@ -150,7 +150,7 @@ export class LineRenderer {
   //
   // Note: this does NOT draw any ayah-selection highlight -- that's applied
   // afterwards, as a separate overlay positioned from the `segments` this
-  // returns (see app.js's updateAyahHighlight). Keeping selection state out
+  // returns (see page.js's updateAyahHighlight). Keeping selection state out
   // of the glyph-drawing pass is what lets the page's SVG (expensive: a
   // HarfBuzz shape + justify + glyph-path pass per line) be built once and
   // reused while the user taps between ayahs/words on it.
@@ -301,7 +301,7 @@ export class LineRenderer {
   // data-word-id="i"> olarak kuruluyor; kelimeler arası boşluk soldaki kelimenin span'ının SONUNDA duruyor,
   // yani textContent, seçim ve kopyalama değişmiyor (span'lar biçimsiz, satır içi) ve bir kelime gizlenince
   // boşluğunu da götürüyor (ağaçta yalnızca boşluktan oluşan düğüm kalmıyor). Neden: Ezber oturumunda
-  // (app.js drawEzberCovers) kapağın altındaki kelimeler erişilebilirlik ağacından da çıkarılabilsin -- tek
+  // (ezber-study.js drawEzberCovers) kapağın altındaki kelimeler erişilebilirlik ağacından da çıkarılabilsin -- tek
   // bir metin düğümündeki bir kelimeyi ağaçtan ayıklamanın yolu yok. Bu katman kendisi ağaçtan hiçbir şeyi çıkarmıyor.
   addTextSelectionLayer(pageG, lineText, rightEdgeX, width, baselineY, words = null) {
     if (!lineText || width <= 0) return;
@@ -347,7 +347,7 @@ export class LineRenderer {
   // proportionally from the glyph's own aspect ratio, centred at `centerY`
   // (both computed by computeHeaderMetrics/the layout pass in renderPage).
   // Tapping it opens the "Sure Bilgisi" info modal for `surahNumber` (see
-  // app.js's setupSurahInfoModal/the page click handler in setupNav) -- a
+  // js/surahinfo-modal.js's setupSurahInfoModal/the page click handler in js/page-nav.js's setupNav) -- a
   // previous version had this same tap target, removed along with its
   // Diyanet Kur'an Yolu-sourced content, see GELISTIRICI.md; restored here
   // against a different, redistributable source (js/surahinfo.js).
@@ -454,7 +454,7 @@ export class LineRenderer {
 
     // Same idea as ayahSegments above, but one run PER WORD instead of
     // merged by ayah -- feeds the recitation word-highlight overlay (see
-    // app.js's updateWordHighlight), which needs a single word's own
+    // page.js's updateWordHighlight), which needs a single word's own
     // x-range, not its whole ayah's. Kept as a fully separate pass/array
     // (rather than teaching ayahSegments to also expose per-word bounds) so
     // the existing ayah-highlight/tap-to-select path is untouched by this.
@@ -559,11 +559,11 @@ export class LineRenderer {
 // proportionally from its own aspect ratio (usually noticeably taller
 // than one text line).
 // Needs each header's real bbox up front (from headerDataBySurah) since its
-// height depends on it -- that's why app.js fetches header JSON before
+// height depends on it -- that's why page.js fetches header JSON before
 // calling renderPage rather than after.
 export function computeLayout(pageLines, headerDataBySurah) {
   const positions = [];
-  const surahHeaderTopYs = []; // every header's own top edge on this page, in placement order -- see this function's return doc and openWordMeal's cutY calc in app.js for why these need to be exposed separately from `positions` (which renderPage/LineRenderer consume internally to actually draw each line, but never hands back to the caller)
+  const surahHeaderTopYs = []; // every header's own top edge on this page, in placement order -- see this function's return doc and openWordMeal's cutY calc in ayah-panel.js for why these need to be exposed separately from `positions` (which renderPage/LineRenderer consume internally to actually draw each line, but never hands back to the caller)
   let cursorY = TOP_MARGIN; // baseline (text) or bottom-edge (header) of the most recently placed line
   let prevWasHeader = false;
 
@@ -591,12 +591,12 @@ export function computeLayout(pageLines, headerDataBySurah) {
 // Renders a full page (array of line objects from mushaf.json) into a new
 // <svg> element and returns it. `headerDataBySurah` is a Map of surah
 // number -> parsed data/surah-headers/<n>.json contents for every header
-// on this page (app.js fetches these before calling renderPage, since the
+// on this page (page.js fetches these before calling renderPage, since the
 // layout pass needs each header's real aspect ratio up front).
 // `wordIdToAyah(wordId) -> {surah,ayah}|null`, if given, makes the returned
 // `segments` array usable both for tap-to-select hit testing AND for
 // positioning the ayah-selection highlight, which callers draw themselves
-// into the returned svg's ".ayah-highlight-layer" <g> (see app.js's
+// into the returned svg's ".ayah-highlight-layer" <g> (see page.js's
 // updateAyahHighlight) -- this page render is highlight-state-independent
 // on purpose, so it can be built once per page and reused as the user taps
 // between ayahs/words on it, instead of re-shaping+re-justifying+
@@ -604,7 +604,7 @@ export function computeLayout(pageLines, headerDataBySurah) {
 // `isAltRuku(surah,ayah) -> boolean`, if given, colours that ayah's
 // end-of-ayah number with the alternating-ruku colour (see renderMushafLine).
 // Also returns `surahHeaderTopYs`, the top-edge Y of every surah-header line
-// on the page in placement order -- app.js's openWordMeal needs it to keep
+// on the page in placement order -- ayah-panel.js's openWordMeal needs it to keep
 // the word-meal panel's page-slice cut from landing inside (or past) a
 // header banner when the tapped ayah is a surah's last, see the comment
 // there.
@@ -621,7 +621,7 @@ export function renderPage(lineRenderer, pageLines, headerDataBySurah, wordIdToA
   svg.appendChild(pageG);
 
   // Both empty placeholders, always first (so highlights sit behind every
-  // glyph and header on the page) -- app.js fills them in: the ayah one per
+  // glyph and header on the page) -- page.js fills them in: the ayah one per
   // selection (updateAyahHighlight), the word one per recitation-playback
   // position (updateWordHighlight). Word layer sits ABOVE the ayah layer so
   // the actively-recited word reads as a brighter "spotlight" within the
@@ -648,10 +648,10 @@ export function renderPage(lineRenderer, pageLines, headerDataBySurah, wordIdToA
   });
 
   // Ezber -> Oku/Yaz's "hide until revealed" cover rectangles (see
-  // app.js's drawEzberCovers) -- appended LAST, unlike the two highlight
+  // ezber-study.js's drawEzberCovers) -- appended LAST, unlike the two highlight
   // layers above, so it paints on top of every glyph instead of behind
   // them (a highlight tints text you can still read through it; a cover
-  // has to actually hide it). Empty until app.js fills it in, same
+  // has to actually hide it). Empty until ezber-study.js fills it in, same
   // always-present-placeholder pattern as those two.
   const coverLayer = document.createElementNS(SVG_NS, "g");
   coverLayer.setAttribute("class", "ezber-cover-layer");

@@ -63,7 +63,7 @@ Note: this is NOT the same file as the "Digital Khatt V2 Font" resource on
 qul.tarteel.ai/resources (font id 247) -- that QUL-hosted build is missing the
 cv01-cv18 OpenType character-variant features (kashida elongation) that
 js/justify.js relies on, so it was replaced with this one. HarfBuzz needs raw
-sfnt bytes, not the WOFF2 container, so js/app.js decompresses it back to the
+sfnt bytes, not the WOFF2 container, so js/data-load.js decompresses it back to the
 original OTF bytes client-side via vendor/woff2-decompress/ before handing it
 to hb.createBlob(); CSS's @font-face loads the same .woff2 file natively
 instead (browsers decode WOFF2 themselves, no JS needed there).

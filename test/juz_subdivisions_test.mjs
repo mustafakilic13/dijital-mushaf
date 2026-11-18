@@ -2,11 +2,11 @@
 // Pure Node, no deps (unlike full_corpus_test.mjs, no jsdom/harfbuzz needed
 // since none of this touches rendering) -- just: node juz_subdivisions_test.mjs
 //
-// Re-implements (verbatim) the small pure-logic pieces from js/app.js that
+// Re-implements (verbatim) the small pure-logic pieces from js/lookup.js and js/data-load.js that
 // this feature added (unitForAyah, buildPageToUnitArray) so they can run
-// against the real data/*.json files without a browser/DOM. If app.js's
+// against the real data/*.json files without a browser/DOM. If the app modules'
 // real versions ever drift from these, this test won't catch that drift --
-// it's testing the ALGORITHM + DATA are consistent, not that app.js still
+// it's testing the ALGORITHM + DATA are consistent, not that the app still
 // calls them correctly (the els.*/function-reference checks for that were
 // done by hand when this was built).
 import fs from "fs";
@@ -93,7 +93,7 @@ function main() {
 
   // 3) Hierarchical alignment: juz j == hizb (2j-1); hizb h == rub (4h-3).
   //    (manzil is intentionally NOT checked here -- it does not nest under
-  //    juz, see state.manzil's comment in app.js.)
+  //    juz, see state.manzil's comment in js/state.js.)
   for (let j = 1; j <= 30; j++) {
     check(
       `juz ${j} firstVerseKey == hizb ${2 * j - 1} firstVerseKey`,

@@ -1,4 +1,4 @@
-// Ayet gezgini regresyon kontrolü: js/ayet-gezgini.js ve app.js'teki bağlantısı. Sayfa tek bir <svg> olduğundan
+// Ayet gezgini regresyon kontrolü: js/ayet-gezgini.js ve uygulama modüllerindeki bağlantısı. Sayfa tek bir <svg> olduğundan
 // ayet detay paneli ile Sure Bilgisi'ne yalnızca fareyle/dokunarak ulaşılıyordu (gerçek Chromium ölçümü GELISTIRICI.md'de:
 // 28 klavye denemesinin 28'inde ikisi de açılmadı). Burada kontrol edilenler:
 //   (1) index.html'deki #ayah-nav işaretlemesi (nav + etiketler + gizli listeler + ipucu), .reader-scroll'dan ÖNCE
@@ -10,11 +10,11 @@
 //       çevirme belge düzeyinde çalışmaya devam etmeli), Enter tekrarında click bastırma, tıklama -> panel / Sure
 //       Bilgisi, sayfa değişince (liste yeniden kurulunca) odağın korunması, restoreFocus, gizleme, :focus-visible
 //       işareti, onFocusTarget bildirimleri;
-//   (5) app.js'in <ayah-nav> bloğu kaynaktan çıkarılıp GERÇEK denetleyiciyle ve sahte showPage/onAyahTextClick ile
+//   (5) ayah-nav.js'in <ayah-nav> bloğu kaynaktan çıkarılıp GERÇEK denetleyiciyle ve sahte showPage/onAyahTextClick ile
 //       çalıştırılıyor: seçim -> showPage({ayah, skipHash}), sure başlığı -> openSurahInfo, panel AÇILDIYSA odağın
 //       panele alınması (kapandıysa/başka ayetse alınmaması), açılış animasyonundan sonra kaydırma (transitionend ya da
 //       zamanlayıcı yedeği, yalnızca bir kez), yalnızca KLAVYE odağında halka/kaydırma, Ezber'de gizleme;
-//   (6) app.js'in showPage/openWordMeal/closeWordMeal/startEzberStudy/endEzberStudy'deki syncAyahNav çağrılarının
+//   (6) uygulama modüllerinin showPage/openWordMeal/closeWordMeal/startEzberStudy/endEzberStudy'deki syncAyahNav çağrılarının
 //       varlığı VE sırası (odağın DOM'dan kalkmadan ÖNCE ölçülmesi gibi);
 //   (7) dolu gezginin axe-core yapısal taraması.
 //
@@ -30,13 +30,13 @@ import { fileURLToPath } from "url";
 import { JSDOM } from "jsdom";
 import axeCore from "axe-core";
 import { createAyahNav, ayahsOnPage, surahsOfSvg, revealDelta } from "../js/ayet-gezgini.js";
+import { appSource, appImportedNames } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
 const html = readText("index.html");
 const css = readText("css", "style.css");
-const appSource = readText("js", "app.js");
 const swSource = readText("sw.js");
 
 let failures = 0;
@@ -108,8 +108,8 @@ const FATIHA = range(1, 1, 7);
   check("CSS: klavye ipucu yalnızca #ayah-nav[data-kbd] iken görünür (display: block)", !!hintOn && /display:\s*block/.test(hintOn));
 }
 check("sw.js: js/ayet-gezgini.js PRECACHE_URLS'te (çevrimdışı açılışta modül bulunamazsa app.js hiç başlamaz)", /"js\/ayet-gezgini\.js"/.test(swSource));
-check('app.js: createAyahNav/ayahsOnPage/surahsOfSvg/revealDelta "./ayet-gezgini.js"ten import ediliyor', /import \{ createAyahNav, ayahsOnPage, surahsOfSvg, revealDelta \} from "\.\/ayet-gezgini\.js";/.test(appSource));
-check("app.js: els.ayahNav = #ayah-nav", /ayahNav:\s*document\.getElementById\("ayah-nav"\)/.test(appSource));
+check('uygulama modülleri: createAyahNav/ayahsOnPage/surahsOfSvg/revealDelta "./ayet-gezgini.js"ten import ediliyor (başka ad yok)', appImportedNames("./ayet-gezgini.js").join() === "ayahsOnPage,createAyahNav,revealDelta,surahsOfSvg");
+check("state.js: els.ayahNav = #ayah-nav", /ayahNav:\s*document\.getElementById\("ayah-nav"\)/.test(appSource));
 
 // -- (3) Saf yardımcılar ------------------------------------------------------------------------------------------
 {
@@ -374,7 +374,7 @@ const tabbableCount = (nav) => itemsOf(nav).filter((b) => b.getAttribute("tabind
   items[3].matches = (sel) => (sel === ":focus-visible" ? false : Element.prototype.matches.call(items[3], sel));
   items[3].focus();
   check(":focus-visible DEĞİLSE (fareyle gelen programatik odak) data-kbd KONMUYOR -> fare kullanıcısı halka görmez", !nav.hasAttribute("data-kbd"));
-  check(":focus-visible değilken de onFocusTarget bildiriliyor (halka/kaydırma kararı app.js'te data-kbd'ye bakıyor)", JSON.stringify(calls.focus[calls.focus.length - 1]) === JSON.stringify({ kind: "ayah", surah: 1, ayah: 4 }));
+  check(":focus-visible değilken de onFocusTarget bildiriliyor (halka/kaydırma kararı ayah-nav.js'te data-kbd'ye bakıyor)", JSON.stringify(calls.focus[calls.focus.length - 1]) === JSON.stringify({ kind: "ayah", surah: 1, ayah: 4 }));
   // :focus-visible seçicisi desteklenmiyorsa halka GÖSTERİLİR
   items[4].matches = () => {
     throw new dom.window.DOMException("bad selector", "SyntaxError");
@@ -394,9 +394,9 @@ const tabbableCount = (nav) => itemsOf(nav).filter((b) => b.getAttribute("tabind
   check("sync: odak gezgin dışındayken bildirim YOK (zaten null)", calls.focus.length === k);
 }
 
-// -- (5) app.js <ayah-nav> bloğu, gerçek denetleyiciyle ---------------------------------------------------------
+// -- (5) ayah-nav.js <ayah-nav> bloğu, gerçek denetleyiciyle ---------------------------------------------------------
 const BLOCK = /\/\/ <ayah-nav>([\s\S]*?)\/\/ <\/ayah-nav>/.exec(appSource);
-check("app.js: <ayah-nav> ... </ayah-nav> bloğu bulundu", !!BLOCK);
+check("ayah-nav.js: <ayah-nav> ... </ayah-nav> bloğu bulundu", !!BLOCK);
 
 function makeWiring() {
   const dom = new JSDOM(html, { pretendToBeVisual: true });
@@ -641,7 +641,7 @@ if (BLOCK) {
   }
 }
 
-// -- (6) app.js içindeki çağrı noktaları ve SIRALARI --------------------------------------------------------------
+// -- (6) uygulama modülleri içindeki çağrı noktaları ve SIRALARI --------------------------------------------------------------
 function fnBody(name) {
   const re = new RegExp(`(?:async )?function ${name}\\(`);
   const m = re.exec(appSource);
@@ -724,6 +724,6 @@ if (failures) {
   process.exit(1);
 } else {
   console.log(
-    "All checks passed (#ayah-nav işaretlemesi + CSS halka/ipucu kuralları + sw.js önbelleği, saf yardımcılar (ayahsOnPage/surahsOfSvg/revealDelta), createAyahNav (liste, roving tabindex, aria-current/expanded, ok tuşları + uçlarda dönmeme + dokunulmayan tuşlar, Enter tekrarı, tıklama, sayfa değişince odağın korunması, restoreFocus, :focus-visible işareti, onFocusTarget), app.js bağlantısı (seçim -> showPage, başlık -> Sure Bilgisi, panel açılınca odak + kaydırma, yalnızca klavye odağında halka/kaydırma, Ezber'de gizleme), çağrı noktaları ve sıraları, axe-core). NOT: bunlar otomatik/yapısal kontroller -- gerçek bir ekran okuyucu testinin ve gerçek Tab gezintisinin yerini tutmaz (gerçek Chromium ölçümü GELISTIRICI.md'de)."
+    "All checks passed (#ayah-nav işaretlemesi + CSS halka/ipucu kuralları + sw.js önbelleği, saf yardımcılar (ayahsOnPage/surahsOfSvg/revealDelta), createAyahNav (liste, roving tabindex, aria-current/expanded, ok tuşları + uçlarda dönmeme + dokunulmayan tuşlar, Enter tekrarı, tıklama, sayfa değişince odağın korunması, restoreFocus, :focus-visible işareti, onFocusTarget), uygulama bağlantısı (seçim -> showPage, başlık -> Sure Bilgisi, panel açılınca odak + kaydırma, yalnızca klavye odağında halka/kaydırma, Ezber'de gizleme), çağrı noktaları ve sıraları, axe-core). NOT: bunlar otomatik/yapısal kontroller -- gerçek bir ekran okuyucu testinin ve gerçek Tab gezintisinin yerini tutmaz (gerçek Chromium ölçümü GELISTIRICI.md'de)."
   );
 }

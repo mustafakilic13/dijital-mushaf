@@ -1,5 +1,5 @@
 // Sure modalındaki ayet düğmeleri ızgarası (.ayah-chip): tek Tab durağı (roving tabindex) + iki boyutlu ok tuşu gezintisi:
-// js/izgara-gezintisi.js ve app.js'teki kablolama. Regresyon kontrolü.
+// js/izgara-gezintisi.js ile modals.js ve modal-lists.js'teki kablolama. Regresyon kontrolü.
 //
 // Neden var: "ayetlerini listele" ile açılan ızgarada her ayet düğmesi ayrı bir Tab durağıydı ve ok tuşları hiçbir şey yapmıyordu.
 // Gerçek Chromium'da (430x900, sayfa 50: Sure 3 etkin, yalnızca klavye), düzeltmeden ÖNCE ölçülen (Bakara ızgarası: 286 düğme):
@@ -10,11 +10,11 @@
 //
 // Düzeltme: js/izgara-gezintisi.js (yeni) ızgaranın TEK Tab durağını koyuyor (odaktaki düğme, yoksa seçili ayet, yoksa ilk düğme) ve
 // ızgaranın GÖRSEL düzenine göre gezdiriyor: Sağ/Sol bir önceki/sonraki ayet (satır sonunda yandaki satıra geçer), Yukarı/Aşağı bir
-// üst/alt görsel satırda yatay merkezi en yakın düğme, PageUp/PageDown 10 görsel satır, Home/End ilk/son ayet. app.js: syncGridStop
+// üst/alt görsel satırda yatay merkezi en yakın düğme, PageUp/PageDown 10 görsel satır, Home/End ilk/son ayet. modal-lists.js: syncGridStop
 // çağrıları (ızgara açılışı, setActiveAyahChip, syncAyahGridHighlight) ve setupGridNav(els.surahList); sw.js yeni dosyayı önbelleğe alıyor.
 //
 // Burada kontrol edilenler:
-//   (1) kaynak: modülün dışa aktardıkları, PAGE_ROWS, app.js'in import'u ve her çağrı yeri, tabIndex'in tek yazıcısı, sw.js ön yüklemesi,
+//   (1) kaynak: modülün dışa aktardıkları, PAGE_ROWS, uygulama modüllerinin import'u ve her çağrı yeri, tabIndex'in tek yazıcısı, sw.js ön yüklemesi,
 //       modülün yerleşimi yalnızca tam sayı offset'lerden okuması (dönüşümlerden etkilenmesin);
 //   (2) düzen modeli: jsdom'da yerleşim yok, bu yüzden offsetTop/offsetLeft/offsetWidth style.css'ten türetilen bir akış modeliyle
 //       taklit ediliyor (boşluk, dolgu, en küçük düğme genişliği CSS dosyasından okunuyor). Model, GERÇEK Chromium'da ölçülen satır
@@ -43,13 +43,13 @@ import { PAGE_ROWS, targetChip, setupGridNav, syncGridStop } from "../js/izgara-
 import { setupListNav, syncListStop, listRows } from "../js/liste-gezintisi.js";
 import { createModalFocus, tabbablesIn } from "../js/modal-odak.js";
 import { setupTablist } from "../js/sekme-gezintisi.js";
+import { appSource, appImportedNames } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
 const readJSON = (...p) => JSON.parse(readText(...p));
 const html = readText("index.html");
-const appSource = readText("js", "app.js");
 const moduleSource = readText("js", "izgara-gezintisi.js");
 const swSource = readText("sw.js");
 const cssSource = readText("css", "style.css");
@@ -119,9 +119,9 @@ const CONSTS = ["JUZ_TABS", "EZBER_TABS", "EZBER_SETTINGS_KEY"].map(constLine);
 const FN = {};
 for (const n of ["surahLabel", "populateSurahList", "toggleAyahGrid", "closeAllAyahGrids", "setActiveAyahChip", "syncAyahGridHighlight", "populateUnitList", "populateJuzList", "switchJuzTab", "switchEzberTab", "setActiveModalItem", "readEzberRange", "loadEzberSettings", "saveEzberSettings", "setupModals", "setupEzberModal"]) FN[n] = fnSource(n);
 const extracted = !!BLOCK && MODAL_START > 0 && MODAL_END > MODAL_START && !!ELS_SRC && !!RECITERS_SRC && CONSTS.every(Boolean) && Object.values(FN).every(Boolean);
-check("app.js: els, RECITERS, üç sabit (JUZ_TABS, EZBER_TABS, EZBER_SETTINGS_KEY), modal odak bloğu, <ezber-picker> bloğu ve 16 işlev kaynaktan çıkarıldı", extracted);
+check("uygulama modülleri: els, RECITERS, üç sabit (JUZ_TABS, EZBER_TABS, EZBER_SETTINGS_KEY), modal odak bloğu, <ezber-picker> bloğu ve 16 işlev kaynaktan çıkarıldı", extracted);
 if (!extracted) {
-  console.error("app.js'ten gerekli kaynak parçaları çıkarılamadı");
+  console.error("uygulama modüllerinden gerekli kaynak parçaları çıkarılamadı");
   console.error(`${failures} check(s) failed.`);
   process.exit(1);
 }
@@ -130,15 +130,15 @@ const CODE = Object.fromEntries(Object.entries(FN).map(([k, v]) => [k, strip(v)]
 // -- (1) Kaynak ----------------------------------------------------------------------------------------------------
 check("izgara-gezintisi.js: PAGE_ROWS, targetChip, syncGridStop, setupGridNav dışa aktarılıyor (başka dışa aktarım yok)", Object.keys(izgaraModulu).sort().join() === "PAGE_ROWS,setupGridNav,syncGridStop,targetChip" && [targetChip, syncGridStop, setupGridNav].every((f) => typeof f === "function"));
 check("izgara-gezintisi.js: PAGE_ROWS 10 (10 satır = 360 px; Sure modalının listesi 430x900'de 583, 1200x800'de 582, 320x640'ta 442 px: hiçbir ekranda bir ekrandan fazla atlamıyor)", PAGE_ROWS === 10);
-check('app.js: setupGridNav, syncGridStop "./izgara-gezintisi.js"ten import ediliyor', /import \{ setupGridNav, syncGridStop \} from "\.\/izgara-gezintisi\.js";/.test(appSource));
-check("app.js: setupGridNav tam bir yerde, setupModals içinde ve Sure listesine (olay devri: ızgaralar tembel kuruluyor) kaydediliyor", (appCode.match(/setupGridNav\(/g) || []).length === 1 && /setupGridNav\(els\.surahList\);/.test(CODE.setupModals));
+check('uygulama modülleri: setupGridNav, syncGridStop "./izgara-gezintisi.js"ten import ediliyor (başka ad yok)', appImportedNames("./izgara-gezintisi.js").join() === "setupGridNav,syncGridStop");
+check("modals.js: setupGridNav tam bir yerde, setupModals içinde ve Sure listesine (olay devri: ızgaralar tembel kuruluyor) kaydediliyor", (appCode.match(/setupGridNav\(/g) || []).length === 1 && /setupGridNav\(els\.surahList\);/.test(CODE.setupModals));
 {
   const total = (appCode.match(/syncGridStop\(/g) || []).length;
-  check(`app.js: syncGridStop tam 3 çağrı yerinde (toggleAyahGrid açılışı, setActiveAyahChip, syncAyahGridHighlight'ın başka-sure dalı; bulunan ${total})`, total === 3 && [CODE.toggleAyahGrid, CODE.setActiveAyahChip, CODE.syncAyahGridHighlight].every((f) => (f.match(/syncGridStop\(gridEl\);/g) || []).length === 1));
+  check(`uygulama modülleri: syncGridStop tam 3 çağrı yerinde (toggleAyahGrid açılışı, setActiveAyahChip, syncAyahGridHighlight'ın başka-sure dalı; bulunan ${total})`, total === 3 && [CODE.toggleAyahGrid, CODE.setActiveAyahChip, CODE.syncAyahGridHighlight].every((f) => (f.match(/syncGridStop\(gridEl\);/g) || []).length === 1));
   const t = CODE.toggleAyahGrid;
-  check("app.js: toggleAyahGrid ızgarayı AÇARKEN durağı kuruyor (gizli ızgara açılıp seçili ayet işaretlendikten sonra, kapatma dalında değil)", t.indexOf("syncGridStop(gridEl);") > t.indexOf("gridEl.hidden = false;") && t.indexOf("syncGridStop(gridEl);") > t.indexOf("setActiveAyahChip(gridEl, state.selectedAyah.ayah);") && t.indexOf("syncGridStop(gridEl);") < t.indexOf("scrollIntoView"));
-  check("app.js: setActiveAyahChip durağı, aria-current/.active'i yazdıktan hemen sonra (aynı yerde, aynı anda) ayarlıyor", /\}\);\s*syncGridStop\(gridEl\);\s*const active = gridEl\.querySelector\("\.ayah-chip\.active"\);/.test(CODE.setActiveAyahChip));
-  check("app.js: syncAyahGridHighlight, seçili ayetin sure'sinde olmayan ızgarada .active/aria-current'ı temizledikten sonra durağı da sıfırlıyor", /\.ayah-chip\.active"\)\.forEach\(\(c\) => \{[\s\S]*?removeAttribute\("aria-current"\);\s*\}\);\s*syncGridStop\(gridEl\);\s*\}/.test(CODE.syncAyahGridHighlight));
+  check("modal-lists.js: toggleAyahGrid ızgarayı AÇARKEN durağı kuruyor (gizli ızgara açılıp seçili ayet işaretlendikten sonra, kapatma dalında değil)", t.indexOf("syncGridStop(gridEl);") > t.indexOf("gridEl.hidden = false;") && t.indexOf("syncGridStop(gridEl);") > t.indexOf("setActiveAyahChip(gridEl, state.selectedAyah.ayah);") && t.indexOf("syncGridStop(gridEl);") < t.indexOf("scrollIntoView"));
+  check("modal-lists.js: setActiveAyahChip durağı, aria-current/.active'i yazdıktan hemen sonra (aynı yerde, aynı anda) ayarlıyor", /\}\);\s*syncGridStop\(gridEl\);\s*const active = gridEl\.querySelector\("\.ayah-chip\.active"\);/.test(CODE.setActiveAyahChip));
+  check("modal-lists.js: syncAyahGridHighlight, seçili ayetin sure'sinde olmayan ızgarada .active/aria-current'ı temizledikten sonra durağı da sıfırlıyor", /\.ayah-chip\.active"\)\.forEach\(\(c\) => \{[\s\S]*?removeAttribute\("aria-current"\);\s*\}\);\s*syncGridStop\(gridEl\);\s*\}/.test(CODE.syncAyahGridHighlight));
 }
 {
   const writers = (moduleCode.match(/\.tabIndex\s*=/g) || []).length;
@@ -704,7 +704,7 @@ const KEYS_MODS = ["shiftKey", "ctrlKey", "altKey", "metaKey"];
   check(`ölçüm yatay MERKEZE göre (düğme genişlikleri çok farklıyken, elle kurulmuş yerleşim): 3'ten Yukarı 2'ye, Aşağı 5'e gidiyor (sağ kenara göre 1 ve 4 olurdu; bulunan ${up}, ${down})`, up === "ayet:5:2" && down === "ayet:5:5");
 }
 
-// -- (5) Davranış: GERÇEK app.js işlevleri x GERÇEK modal-odak.js x GERÇEK liste-gezintisi.js x GERÇEK index.html x GERÇEK data ----
+// -- (5) Davranış: GERÇEK uygulama işlevleri x GERÇEK modal-odak.js x GERÇEK liste-gezintisi.js x GERÇEK index.html x GERÇEK data ----
 const CURRENT = { surah: 3, juz: 3, hizb: 5, rub: 20, manzil: 1 }; // Chromium ölçümündeki durum (sayfa 50)
 
 function makeEnv({ surah = CURRENT.surah, selectedAyah = null } = {}) {
@@ -1147,4 +1147,4 @@ if (failures) {
   console.error(`${failures} check(s) failed.`);
   process.exit(1);
 }
-console.log("All checks passed (izgara_gezintisi: ayet düğmeleri ızgarası, tek Tab durağı + iki boyutlu ok tuşu gezintisi -- CSS'ten türetilen düzen modeli x Chromium satır uzunlukları, targetChip (elle hesaplanmış tablolar + tüm küçük yerleşimler + rastgele x bağımsız model), yalıtılmış setupGridNav/syncGridStop, GERÇEK app.js işlevleri x GERÇEK modal-odak.js/liste-gezintisi.js/index.html/data kablolaması, 8 tohumlu rastgele dizi x bağımsız model).");
+console.log("All checks passed (izgara_gezintisi: ayet düğmeleri ızgarası, tek Tab durağı + iki boyutlu ok tuşu gezintisi -- CSS'ten türetilen düzen modeli x Chromium satır uzunlukları, targetChip (elle hesaplanmış tablolar + tüm küçük yerleşimler + rastgele x bağımsız model), yalıtılmış setupGridNav/syncGridStop, GERÇEK uygulama işlevleri x GERÇEK modal-odak.js/liste-gezintisi.js/index.html/data kablolaması, 8 tohumlu rastgele dizi x bağımsız model).");

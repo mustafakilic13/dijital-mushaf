@@ -14,7 +14,7 @@
 // bir değil İKİ ayet ilerliyordu (1. ayet bitti -> doğrudan 3. ayet; duyurulan: "...1. ayet", "...3. ayet"): başarısız klip için
 // hem "error" olayı hem play()'in reddi onSettled'ı çağırıyor, ikisi de korumadan geçiyordu.
 //
-// Düzeltme: (index.html, css/style.css, js/app.js)
+// Düzeltme: (index.html, css/style.css, js/ezber-study.js)
 //   - #ezber-reveal: Oku çalışırken görünen (aksi hâlde `hidden`) "Sıradaki kelimeyi aç" düğmesi, alt çubukta Ezber/Bitir'den hemen
 //     sonra. Görsel olarak gizli (.sr-only), klavyeyle odaklanınca alt çubuğun üstüne tam genişlikte biniyor (:focus-visible);
 //     fareyle/dokunmayla kullananlar için ekran değişmiyor. Oku başlayınca odak ona geçiyor; oturum bitince (son kelime, ya da
@@ -51,7 +51,7 @@
 //   (2) css/style.css (jsdom CSSOM'uyla ayrıştırılıyor): .sr-only'nin kırptığı HER özelliğin :focus-visible kuralında geri alındığı
 //       (.sr-only'den TÜRETİLİYOR: ileride yeni bir kırpma özelliği eklenirse test kırılır), `display` verilmediği (hidden
 //       çalışsın), odak halkasının kapatılmadığı, metin/zemin kontrastı;
-//   (3) app.js'ten çıkarılan GERÇEK işlevler (ezberRevealNextWord, onEzberStudyTap, setupEzberReveal, startEzberStudy,
+//   (3) ezber-study.js ve announce.js'ten çıkarılan GERÇEK işlevler (ezberRevealNextWord, onEzberStudyTap, setupEzberReveal, startEzberStudy,
 //       endEzberStudy, ezberStudyGoToAyah, ezberStudyPlayAyahThenAdvance, handleEzberYazKeyPress, toggleEzberYazHint,
 //       onEzberYazPhysicalKey, onEzberYazKeyboardKeydown, setupEzberYazKeyboard, <announce> bloğu) x gerçek index.html DOM'u:
 //       kelime açma / harf eşleştirme (düğme, dokunma, ekran tuşu, fiziksel tuş), duyuru metinleri ve birleşmeleri, ok tuşları
@@ -72,13 +72,13 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { JSDOM } from "jsdom";
 import { tabbablesIn } from "../js/modal-odak.js";
+import { appSource } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
 const css = readText("css", "style.css");
 const html = readText("index.html");
-const appSource = readText("js", "app.js");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let failures = 0;
@@ -205,7 +205,7 @@ const SRCS = Object.fromEntries(NAMES.map((n) => [n, fnSource(n)]));
 // Modül düzeyindeki iki sabit: harf eşleştirme tablosu ve fiziksel tuş deseni (kaynaktan aynen çıkarılıyor).
 const BASE_MAP_SRC = /const ARABIC_BASE_MAP = \{[\s\S]*?\n\};/.exec(appSource);
 const PHYS_RE_SRC = /const YAZ_PHYSICAL_KEY = [^\n]+;/.exec(appSource);
-check(`app.js: gerekli işlevlerin hepsi bulundu (eksik: ${NAMES.filter((n) => !SRCS[n]).join(", ") || "yok"}), ARABIC_BASE_MAP ve YAZ_PHYSICAL_KEY sabitleri ve <announce> bloğu var`, NAMES.every((n) => SRCS[n]) && !!ANNOUNCE_BLOCK && !!BASE_MAP_SRC && !!PHYS_RE_SRC);
+check(`ezber-study.js ve announce.js: gerekli işlevlerin hepsi bulundu (eksik: ${NAMES.filter((n) => !SRCS[n]).join(", ") || "yok"}), ARABIC_BASE_MAP ve YAZ_PHYSICAL_KEY sabitleri ve <announce> bloğu var`, NAMES.every((n) => SRCS[n]) && !!ANNOUNCE_BLOCK && !!BASE_MAP_SRC && !!PHYS_RE_SRC);
 
 const STUB_NAMES = ["ezberRenderCoverState", "ezberWordMealText", "showEzberWordTooltip", "ayahPage", "showPage", "ezberBuildUnits", "recitationAudioUrl", "stopPlayback", "isWordMealDataReady", "loadWordMealData", "syncAyahNav", "positionYazKeyboard", "drawEzberCovers"];
 
@@ -866,29 +866,29 @@ if (NAMES.every((n) => SRCS[n]) && ANNOUNCE_BLOCK) {
 {
   const tap = SRCS.onEzberStudyTap || "";
   const setup = SRCS.setupEzberReveal || "";
-  check("app.js: dokunma yolu (onEzberStudyTap) kelimeyi KENDİSİ açmıyor, ezberRevealNextWord()'ü çağırıyor", /ezberRevealNextWord\(\)/.test(tap) && !/revealedCount\+\+/.test(tap));
-  check("app.js: düğme yolu (setupEzberReveal) 'click' dinleyip ezberRevealNextWord()'ü çağırıyor", /ezberReveal\.addEventListener\("click", \(\) => ezberRevealNextWord\(\)\)/.test(setup));
-  check("app.js: `revealedCount++` tam 2 yerde (Oku: ezberRevealNextWord, Yaz: handleEzberYazKeyPress) -- Oku'da ikinci bir kelime açma kopyası yok", (appSource.match(/revealedCount\+\+/g) || []).length === 2);
+  check("ezber-study.js: dokunma yolu (onEzberStudyTap) kelimeyi KENDİSİ açmıyor, ezberRevealNextWord()'ü çağırıyor", /ezberRevealNextWord\(\)/.test(tap) && !/revealedCount\+\+/.test(tap));
+  check("ezber-study.js: düğme yolu (setupEzberReveal) 'click' dinleyip ezberRevealNextWord()'ü çağırıyor", /ezberReveal\.addEventListener\("click", \(\) => ezberRevealNextWord\(\)\)/.test(setup));
+  check("uygulama modülleri: `revealedCount++` tam 2 yerde (Oku: ezberRevealNextWord, Yaz: handleEzberYazKeyPress) -- Oku'da ikinci bir kelime açma kopyası yok", (appSource.match(/revealedCount\+\+/g) || []).length === 2);
   check("app.js: main() setupEzberReveal()'i çağırıyor (düğme dinleyicisi bağlanıyor)", /setupEzberModal\(\);\s*setupEzberReveal\(\);/.test(appSource));
-  check("app.js: els.ezberReveal = #ezber-reveal", /ezberReveal: document\.getElementById\("ezber-reveal"\)/.test(appSource));
+  check("state.js: els.ezberReveal = #ezber-reveal", /ezberReveal: document\.getElementById\("ezber-reveal"\)/.test(appSource));
   const start = SRCS.startEzberStudy || "";
-  check("app.js: Türkçe karşılık verisi iki modda da isteniyor (`mode === \"yaz\" &&` koşulu yok)", /if \(!isWordMealDataReady\(\)\) \{\s*loadWordMealData\(\)/.test(start) && !/mode === "yaz" && !isWordMealDataReady/.test(start));
+  check("ezber-study.js: Türkçe karşılık verisi iki modda da isteniyor (`mode === \"yaz\" &&` koşulu yok)", /if \(!isWordMealDataReady\(\)\) \{\s*loadWordMealData\(\)/.test(start) && !/mode === "yaz" && !isWordMealDataReady/.test(start));
   const hiddenBeforeFocus = start.indexOf("els.ezberReveal.hidden = false;") > -1 && start.indexOf("els.ezberReveal.hidden = false;") < start.indexOf("els.ezberReveal.focus();");
-  check("app.js: startEzberStudy odaklamadan ÖNCE hidden'ı kaldırıyor (gizli öğe odak almaz)", hiddenBeforeFocus);
+  check("ezber-study.js: startEzberStudy odaklamadan ÖNCE hidden'ı kaldırıyor (gizli öğe odak almaz)", hiddenBeforeFocus);
   const end = SRCS.endEzberStudy || "";
   const iMeasure = end.indexOf("const focusInSession = document.activeElement === els.ezberReveal || els.yazKeyboard.contains(document.activeElement);");
   const iHideReveal = end.indexOf("els.ezberReveal.hidden = true;");
   const iHideYaz = end.indexOf("els.yazKeyboard.hidden = true;");
   const iRefocus = end.indexOf("if (focusInSession) els.ezberBtn.focus();");
-  check("app.js: endEzberStudy odağı Oku düğmesi VE Yaz klavyesi GİZLENMEDEN önce ölçüyor, gizledikten sonra Ezber düğmesine veriyor", iMeasure > -1 && iHideReveal > iMeasure && iHideYaz > iMeasure && iRefocus > Math.max(iHideReveal, iHideYaz));
+  check("ezber-study.js: endEzberStudy odağı Oku düğmesi VE Yaz klavyesi GİZLENMEDEN önce ölçüyor, gizledikten sonra Ezber düğmesine veriyor", iMeasure > -1 && iHideReveal > iMeasure && iHideYaz > iMeasure && iRefocus > Math.max(iHideReveal, iHideYaz));
   const startYaz = start.slice(start.indexOf('if (mode === "yaz") {'), start.indexOf("} else {", start.indexOf('if (mode === "yaz") {')));
   const iShowKb = startYaz.indexOf("els.yazKeyboard.hidden = false;");
   const iFocusKey = startYaz.indexOf("firstKey.focus()");
-  check("app.js: startEzberStudy (Yaz dalı) klavyeyi GÖRÜNÜR yaptıktan SONRA ilk tuşa odaklıyor (gizli öğe odak almaz)", iShowKb > -1 && iFocusKey > iShowKb && /els\.yazKeyboard\.querySelector\("\.yaz-key"\)/.test(startYaz));
+  check("ezber-study.js: startEzberStudy (Yaz dalı) klavyeyi GÖRÜNÜR yaptıktan SONRA ilk tuşa odaklıyor (gizli öğe odak almaz)", iShowKb > -1 && iFocusKey > iShowKb && /els\.yazKeyboard\.querySelector\("\.yaz-key"\)/.test(startYaz));
   const setupYaz = SRCS.setupEzberYazKeyboard || "";
-  check("app.js: setupEzberYazKeyboard klavyenin 'keydown'ına onEzberYazKeyboardKeydown'ı, document'in 'keydown'ına onEzberYazPhysicalKey'i bağlıyor", /els\.yazKeyboard\.addEventListener\("keydown", onEzberYazKeyboardKeydown\)/.test(setupYaz) && /document\.addEventListener\("keydown", onEzberYazPhysicalKey\)/.test(setupYaz));
+  check("ezber-study.js: setupEzberYazKeyboard klavyenin 'keydown'ına onEzberYazKeyboardKeydown'ı, document'in 'keydown'ına onEzberYazPhysicalKey'i bağlıyor", /els\.yazKeyboard\.addEventListener\("keydown", onEzberYazKeyboardKeydown\)/.test(setupYaz) && /document\.addEventListener\("keydown", onEzberYazPhysicalKey\)/.test(setupYaz));
   check("app.js: main() setupEzberYazKeyboard()'ı çağırıyor (dinleyiciler bağlanıyor)", /setupEzberReveal\(\);\s*setupEzberYazKeyboard\(\);/.test(appSource));
-  check("app.js: harf eşleştirmenin TEK uygulaması handleEzberYazKeyPress: ekran tuşu (click) da fiziksel tuş da onu çağırıyor, eşleştirmeyi kendileri yapmıyor", /handleEzberYazKeyPress\(key\.dataset\.char\)/.test(setupYaz) && /handleEzberYazKeyPress\(ch\)/.test(SRCS.onEzberYazPhysicalKey || "") && !/ezberBaseChar/.test(setupYaz) && !/ezberBaseChar/.test(SRCS.onEzberYazPhysicalKey || ""));
+  check("ezber-study.js: harf eşleştirmenin TEK uygulaması handleEzberYazKeyPress: ekran tuşu (click) da fiziksel tuş da onu çağırıyor, eşleştirmeyi kendileri yapmıyor", /handleEzberYazKeyPress\(key\.dataset\.char\)/.test(setupYaz) && /handleEzberYazKeyPress\(ch\)/.test(SRCS.onEzberYazPhysicalKey || "") && !/ezberBaseChar/.test(setupYaz) && !/ezberBaseChar/.test(SRCS.onEzberYazPhysicalKey || ""));
 }
 {
   // Duyuru TEK dilli bir canlı bölgeye yazılıyor (Arapça için lang="ar" parçası yok): Türkçe karşılıklarda Arapça harf bulunmamalı.

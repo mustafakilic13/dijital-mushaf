@@ -22,7 +22,7 @@
 //   (1) css/style.css (jsdom CSSOM'uyla ayrıştırılıyor): kapalı/açık kurallardaki visibility değerleri (!important yok);
 //       kapanışın visibility gecikmesi grid geçişinin süresine EŞİT, açılışınki yok; opacity geçişi iki durumda aynı ve
 //       değerleri 0/1; 0fr/1fr kalıbını kullanan panellerin kümesi (aşağıya bakın);
-//   (2) GERÇEK surahInfoBodyHTML (app.js'ten çıkarılıp) x 114 surenin GERÇEK verisi x GERÇEK style.css (jsdom, enjekte
+//   (2) GERÇEK surahInfoBodyHTML (surahinfo-modal.js'ten çıkarılıp) x 114 surenin GERÇEK verisi x GERÇEK style.css (jsdom, enjekte
 //       edilmiş): her kapalı bölümde panelin içi, içeriği ve her bağlantısı computed visibility: hidden; her açık bölümde
 //       visible; başlık düğmeleri her zaman visible; bölümü açıp kapatınca durum izliyor; aria-expanded ile .open tutarlı;
 //   (3) GERÇEK createModalFocus/tabbablesIn: Sure Bilgisi modalında hiçbir durak kapalı bölümde değil, son durak son
@@ -48,13 +48,13 @@ import { fileURLToPath } from "url";
 import { JSDOM } from "jsdom";
 import { createModalFocus, tabbablesIn } from "../js/modal-odak.js";
 import { getSurahInfoEntry, splitInfoSections } from "../js/surahinfo.js";
+import { appSource } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
 const css = readText("css", "style.css");
 const html = readText("index.html");
-const appSource = readText("js", "app.js");
 const infoData = JSON.parse(readText("data", "surah-info-tr.json"));
 
 let failures = 0;
@@ -154,7 +154,7 @@ function bodyOf(src, name) {
 }
 const ESCAPE_SRC = /function escapeHtml\(s\) \{[\s\S]*?\n\}/.exec(appSource);
 const BODY_SRC = bodyOf(appSource, "surahInfoBodyHTML");
-check("app.js: escapeHtml ve surahInfoBodyHTML bulundu", !!ESCAPE_SRC && !!BODY_SRC);
+check("html.js ve surahinfo-modal.js: escapeHtml ve surahInfoBodyHTML bulundu", !!ESCAPE_SRC && !!BODY_SRC);
 
 let surahInfoBodyHTML = () => "";
 if (ESCAPE_SRC && BODY_SRC) {

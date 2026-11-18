@@ -1,4 +1,4 @@
-// Modal odak yönetimi regresyon kontrolü: js/modal-odak.js ve app.js'teki openModal/closeModal/
+// Modal odak yönetimi regresyon kontrolü: js/modal-odak.js ve modals.js'teki openModal/closeModal/
 // closeAllModals bağlantısı. 7 modalın hepsi role="dialog" aria-modal="true" taşıyordu ama odağa
 // hiç dokunulmuyordu: açılınca odak arkadaki sayfada kalıyor, Tab modalın dışına çıkıyor, kapanınca
 // odak <body>'ye düşüyordu (gerçek Chromium ölçümü GELISTIRICI.md'de). Burada kontrol edilenler:
@@ -10,7 +10,7 @@
 //       gönderiliyor), odağın dışarı kaçmasına karşı güvenlik ağı, açan öğenin yakalanması (Chromium'da
 //       activeElement, Safari/iOS'ta son tıklanan düğme), zincirleme açılışta ilk açanın korunması,
 //       restore'un yok olmuş/gizli/devre dışı açanda sessizce vazgeçmesi;
-//   (4) app.js'in openModal/closeModal/closeAllModals bloğu kaynaktan çıkarılıp GERÇEK modal işaretlemesi
+//   (4) modals.js'in openModal/closeModal/closeAllModals bloğu kaynaktan çıkarılıp GERÇEK modal işaretlemesi
 //       ve sahte zamanlayıcıyla çalıştırılıyor: sıralama (açanı kapatmadan ÖNCE yakala, odağı onOpen'dan
 //       ÖNCE al), arama modalının kendi girişine odaklanması, kapanışta odağın geri verilmesi, modaldan
 //       modala geçiş, kapanış animasyonu sürerken yeniden açma yarışı (eski zamanlayıcı modalı gizleyip
@@ -27,13 +27,13 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { JSDOM } from "jsdom";
 import { createModalFocus, tabbablesIn, isRendered } from "../js/modal-odak.js";
+import { appSource, appImportedNames } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
 const html = readText("index.html");
 const css = readText("css", "style.css");
-const appSource = readText("js", "app.js");
 
 let failures = 0;
 function check(name, cond) {
@@ -65,14 +65,14 @@ const MODAL_IDS = ["surah-modal", "juz-modal", "page-modal", "ezber-modal", "sur
   // closeAllModals listesi == HTML'deki modaller (Escape/perde/[data-close] hepsi buradan geçiyor; listede olmayan
   // modal ne kapanır ne de odağı geri verir).
   const list = /function closeAllModals\([^)]*\)\s*\{\s*\[([^\]]+)\]/.exec(appSource);
-  check("app.js: closeAllModals modal listesi bulundu", !!list);
+  check("modals.js: closeAllModals modal listesi bulundu", !!list);
   if (list) {
     const names = list[1].split(",").map((s) => s.trim().replace(/^els\./, ""));
     const ids = names.map((n) => {
       const m = new RegExp(`\\b${n}:\\s*document\\.getElementById\\("([^"]+)"\\)`).exec(appSource);
       return m ? m[1] : `?${n}`;
     });
-    check(`app.js: closeAllModals listesi HTML'deki 7 modalle bire bir aynı (${ids.join(", ")})`, ids.slice().sort().join() === [...MODAL_IDS].sort().join());
+    check(`modals.js: closeAllModals listesi HTML'deki 7 modalle bire bir aynı (${ids.join(", ")})`, ids.slice().sort().join() === [...MODAL_IDS].sort().join());
   }
 }
 
@@ -117,7 +117,7 @@ function makeEnv() {
   const dom = new JSDOM(html, { pretendToBeVisual: true });
   const win = dom.window;
   const document = win.document;
-  // Listeleri gerçek uygulamada app.js dolduruyor; burada birkaç öğe yeterli.
+  // Listeleri gerçek uygulamada modal-lists.js ve ezber-modal.js dolduruyor; burada birkaç öğe yeterli.
   document.getElementById("surah-list").innerHTML = ["1", "2", "3"].map((n) => `<button type="button" class="modal-item">${n}</button>`).join("");
   const env = { dom, win, document, open: null, clock: { t: 0 } };
   win.performance.now = () => env.clock.t;
@@ -375,15 +375,15 @@ for (const [label, mutate] of [
   check("dispose(): dinleyiciler kaldırılıyor (Tab artık yakalanmıyor)", !ev.defaultPrevented);
 }
 
-// -- (4) app.js bağlantısı ---------------------------------------------------------------------------------------
-check('app.js: createModalFocus "./modal-odak.js"ten import ediliyor', /import \{ createModalFocus \} from "\.\/modal-odak\.js";/.test(appSource));
-check("app.js: modalFocus, açık modal olarak state.openModalEl'i okuyor", /const modalFocus = createModalFocus\(document, \(\) => state\.openModalEl\);/.test(appSource));
-check("app.js: perde ve [data-close] düğmeleri closeAllModals'ı ok işleviyle çağırıyor (click olayı seçenek nesnesi olarak geçmesin)",
+// -- (4) modals.js bağlantısı ---------------------------------------------------------------------------------------
+check('uygulama modülleri: createModalFocus "./modal-odak.js"ten import ediliyor (başka ad yok)', appImportedNames("./modal-odak.js").join() === "createModalFocus");
+check("modals.js: modalFocus, açık modal olarak state.openModalEl'i okuyor", /const modalFocus = createModalFocus\(document, \(\) => state\.openModalEl\);/.test(appSource));
+check("modals.js: perde ve [data-close] düğmeleri closeAllModals'ı ok işleviyle çağırıyor (click olayı seçenek nesnesi olarak geçmesin)",
   /modalBackdrop\.addEventListener\("click", \(\) => closeAllModals\(\)\)/.test(appSource) && /\[data-close\][^\n]*addEventListener\("click", \(\) => closeAllModals\(\)\)/.test(appSource));
 
 const startIdx = appSource.indexOf("const modalFocus = createModalFocus(");
 const endIdx = appSource.indexOf("function setupModals()");
-check("app.js: modal odak bloğu (modalFocus .. closeAllModals) kaynaktan çıkarılabildi", startIdx > 0 && endIdx > startIdx);
+check("modals.js: modal odak bloğu (modalFocus .. closeAllModals) kaynaktan çıkarılabildi", startIdx > 0 && endIdx > startIdx);
 
 if (startIdx > 0 && endIdx > startIdx) {
   const block = appSource.slice(startIdx, endIdx);
@@ -578,6 +578,6 @@ if (failures) {
   process.exit(1);
 } else {
   console.log(
-    "All checks passed (modal işaretlemesi + closeAllModals listesi, tabbablesIn/isRendered, odağın modala alınması, Tab/Shift+Tab döngüsü, kaçan odağın geri çekilmesi, açan öğenin yakalanması (Chromium + Safari/iOS yolu), zincirleme açılış, restore'un sessiz vazgeçmeleri, app.js openModal/closeModal bağlantısı, kapat-yeniden-aç yarışı). NOT: jsdom'da gerçek Tab gezintisi/düzen yok -- bunlar yapısal/mantıksal kontroller, gerçek ekran okuyucu testinin yerini tutmaz."
+    "All checks passed (modal işaretlemesi + closeAllModals listesi, tabbablesIn/isRendered, odağın modala alınması, Tab/Shift+Tab döngüsü, kaçan odağın geri çekilmesi, açan öğenin yakalanması (Chromium + Safari/iOS yolu), zincirleme açılış, restore'un sessiz vazgeçmeleri, modals.js openModal/closeModal bağlantısı, kapat-yeniden-aç yarışı). NOT: jsdom'da gerçek Tab gezintisi/düzen yok -- bunlar yapısal/mantıksal kontroller, gerçek ekran okuyucu testinin yerini tutmaz."
   );
 }

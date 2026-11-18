@@ -381,7 +381,7 @@ body {
    [aria-selected] ile vurgulanır. Cüz modalında dördü aynı
    { "n": {firstVerseKey, page} } şeklini paylaştığı ve birbirinin alt
    kümesi değil eşdeğer/bağımsız bölümlemeler olduğu için (bkz.
-   app.js'teki state.manzil yorumu: menzil cüze girmiyor, birkaç cüzü
+   state.js'teki state.manzil yorumu: menzil cüze girmiyor, birkaç cüzü
    birden kapsıyor) akordion yerine bu sekmeler tercih edildi; Ezber
    modalında ise Dinle/Oku/Yaz zaten birbirinden bağımsız üç ayrı mod.
    Varsayılan sekme her ikisinde de modal her açıldığında sıfırlanır
@@ -562,7 +562,7 @@ body {
   flex-direction: column;
   position: relative;
   flex-shrink: 0;
-  /* Width is set in px by layoutPageContainer() in app.js: the page always
+  /* Width is set in px by layoutPageContainer() in page-layout.js: the page always
      fills the reader's available WIDTH (like "Page Width" mode in a PDF
      viewer, matching digitalkhatt.org). Height is intentionally left
      automatic here -- normally there's a single svg child sized to the
@@ -593,7 +593,7 @@ body {
 .mushaf-page-svg .glyph-path { fill: currentColor; }
 /* Ayah-ending numbers alternate colour by ruku: 1st, 3rd, 5th... ruku of a
    surah keeps the page's normal ink colour (fill: currentColor above);
-   2nd, 4th, 6th... gets this accent instead (see js/app.js isAltRuku).
+   2nd, 4th, 6th... gets this accent instead (see js/lookup.js isAltRuku).
    Needs a colour with clearly different LIGHTNESS from --ink, not just a
    different hue -- two similarly-dark colours read as "the same dark ink"
    at a glance, especially at this glyph size. --gold-deep has ~9x the
@@ -634,7 +634,7 @@ body {
    Ayet detay paneli -- kelime meali, meal (ve ileride tefsir), üst üste
    ------------------------------------------------------------------- */
 /* The two "slices" of the page svg the panel opens between -- see
-   js/app.js's openWordMealStructure. Each is an overflow:hidden window
+   js/ayah-panel.js's openWordMealStructure. Each is an overflow:hidden window
    showing only part of a (real, or cloned) full-height page svg; heights
    are set in px by layoutPageContainer(). */
 .page-slice { overflow: hidden; width: 100%; }
@@ -731,7 +731,7 @@ body {
 }
 
 /* Tefsir: a row of source buttons, one shared collapsible area below them
-   -- see js/app.js's onTafsirTabClick. Reuses the same 0fr/1fr grid trick
+   -- see js/ayah-panel.js's onTafsirTabClick. Reuses the same 0fr/1fr grid trick
    as .word-meal-panel for the same JS-measurement-free reason. */
 .wm-tafsir-tabs {
   display: flex;
@@ -762,7 +762,7 @@ body {
   transition: grid-template-rows 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .wm-tafsir-panel.wm-open { grid-template-rows: 1fr; }
-/* Kapalıyken bu panelde metin YOK: js/app.js onTafsirTabClick, kapanış animasyonu bitince metni DOM'dan
+/* Kapalıyken bu panelde metin YOK: js/ayah-panel.js onTafsirTabClick, kapanış animasyonu bitince metni DOM'dan
    kaldırıyor (clearTafsirContent; ilk açılıştan önce zaten boş). Kapanış sürerken metin görünür kalıyor
    (yükseklik küçülüyor, opacity sönüyor). BİLEREK visibility:hidden verilmedi (.info-section-panel-inner'daki
    gibi): bu panel .word-meal-body'nin aria-live bölgesinin içinde ve içerik kapalı panele yazılıp bir kare
@@ -836,7 +836,7 @@ body {
 
 /* ---------------------------------------------------------------------
    Sure Bilgisi: sayfadaki sure başlığı kutusuna dokununca açılan modal
-   (bkz. js/render.js drawSurahHeader, js/app.js openSurahInfo). Kutunun
+   (bkz. js/render.js drawSurahHeader, js/surahinfo-modal.js openSurahInfo). Kutunun
    kendisi salt SVG içinde çizildiği için tıklanabilirliği burada değil
    render.js'te (.surah-header-hit + görünmez hit-rect) veriliyor; burada
    sadece imleci ipucu olarak değiştiriyoruz -- eser üzerinde hover'da
@@ -852,7 +852,7 @@ body {
        (#ayah-nav[data-kbd] yalnızca :focus-visible iken konuyor, değeri odaklanan öğenin türü: "ayah" |
        "surah"): fareyle bir şeye dokunan kullanıcı hiçbir halka görmez, yani görünüm öncekiyle birebir
        aynı kalır; sure başlığı düğmesindeyken ayet vurgusuna halka çizilmez (iki halka birden olmasın).
-     - sure başlığı: js/app.js (markAyahNavFocus) .kbd-focus sınıfını veriyor.
+     - sure başlığı: js/ayah-nav.js (markAyahNavFocus) .kbd-focus sınıfını veriyor.
    vector-effect: non-scaling-stroke -> çizgi kalınlığı sayfa ölçeğinden bağımsız, ekranda 3 px.
    ------------------------------------------------------------------- */
 #ayah-nav[data-kbd="ayah"] ~ .reader-scroll .mushaf-page-svg .ayah-highlight {
@@ -866,7 +866,7 @@ body {
   stroke-width: 3px;
   vector-effect: non-scaling-stroke;
 }
-/* Ayet düğmesine Enter ile açılan panele odak alınır (js/app.js focusWordMealPanel): klavye kullanıcısı
+/* Ayet düğmesine Enter ile açılan panele odak alınır (js/ayah-nav.js focusWordMealPanel): klavye kullanıcısı
    odağın panelde olduğunu görsün. Fareyle/dokunarak açılışta panele odak verilmiyor, halka da çıkmıyor. */
 .word-meal-panel:focus { outline: none; }
 .word-meal-panel:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
@@ -1038,7 +1038,7 @@ body {
 }
 .info-intro a:hover { text-decoration-color: var(--gold); }
 
-/* Sure Bilgisi içindeki linkler (js/surahinfo.js parseInfoLink, js/app.js
+/* Sure Bilgisi içindeki linkler (js/surahinfo.js parseInfoLink, js/surahinfo-modal.js
    openSurahInfoLink): #surah-info-body ile aynı .modal-sheet içinde bir
    kardeş panel, .ezber-picker'la birebir aynı "ikisinden biri her an
    [hidden]" düzeni -- bkz. o bloğun üstündeki yorum. */
@@ -1157,7 +1157,7 @@ body {
 
 /* ---------------------------------------------------------------------
    Konu Fihristi: ayet detay panelindeki "Konular" etiket satırı (bkz.
-   js/app.js ayahTopicsRowHTML) ve bunlardan açılan #topics-modal (bkz.
+   js/ayah-panel.js ayahTopicsRowHTML) ve bunlardan açılan #topics-modal (bkz.
    openTopicsModal/setupTopicsModal). Modal, Sure Bilgisi'nin
    .modal-sheet--info/.info-body'sini olduğu gibi kullanıyor; kendine
    özgü olan yalnızca dört parça: başlıktaki geri butonu, tür rozetleri,
@@ -1397,7 +1397,7 @@ body {
    <select> yerine uygulamanın kendi listeleriyle aynı satır tasarımını
    (.modal-item) paylaşan bir buton (.ezber-picker-btn) + alt-görünüm liste
    (.ezber-picker) üzerinden yapılıyor -- Sure listesini üç sekme de
-   (Dinle/Oku/Yaz) paylaşıyor, Kârî listesi yalnızca Dinle'de (bkz. app.js'teki
+   (Dinle/Oku/Yaz) paylaşıyor, Kârî listesi yalnızca Dinle'de (bkz. ezber-modal.js'teki
    openEzberPicker).
    ------------------------------------------------------------------- */
 .ezber-panel {
@@ -1499,7 +1499,7 @@ body {
   flex: 1;
 }
 .ezber-picker[hidden] { display: none; }
-/* Seçici açılınca odak kapsayıcının kendisine alınıyor (js/app.js openEzberPicker; ekran okuyucu "Sure Seç" ya da
+/* Seçici açılınca odak kapsayıcının kendisine alınıyor (js/ezber-modal.js openEzberPicker; ekran okuyucu "Sure Seç" ya da
    "Kârî Seç" başlığını okusun diye). Kapsayıcı etkileşimli değil: klavyeyle açılınca bütün görünümün çevresine halka
    çizilmesin (.modal-sheet:focus ile aynı gerekçe). Halka içindeki düğmelerde, olduğu gibi. */
 .ezber-picker:focus { outline: none; }
@@ -1666,7 +1666,7 @@ select:focus-visible, input:focus-visible, button:focus-visible {
 
 /* ---------------------------------------------------------------------
    Ezber -> Yaz: virtual Arabic keyboard, fixed just above the bottombar
-   (see app.js's positionYazKeyboard -- "just above" is measured from the
+   (see ezber-study.js's positionYazKeyboard -- "just above" is measured from the
    bottombar's own real height, not a guessed offset, since that height
    comes from its buttons' content/padding rather than a fixed value).
    ------------------------------------------------------------------- */

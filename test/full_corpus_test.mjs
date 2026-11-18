@@ -8,7 +8,7 @@
 //   3. Görünmez metin katmanı (render.js addTextSelectionLayer) her sayfada, her
 //      satırda gerçek metni taşıyor: ayet satırları kelime başına bir
 //      <span class="text-layer-word" data-word-id> (Ezber'in kapak altı metni
-//      erişilebilirlik ağacından çıkarması -- app.js syncEzberTextLayer -- bu
+//      erişilebilirlik ağacından çıkarması -- ezber-study.js syncEzberTextLayer -- bu
 //      yapıya dayanıyor), besmele satırı düz metin; textContent hiçbir satırda
 //      değişmemiş.
 // Raporun kendisi (ölçüm tabloları) de basılır -- tek başına çalıştırınca
@@ -92,7 +92,7 @@ async function main() {
   const instance = await createHarfBuzz();
   const hb = hbjs(instance);
 
-  // js/app.js'in loadHarfBuzzAndFont()'uyla BİREBİR aynı kaynak: gerçekten
+  // js/data-load.js'in loadHarfBuzzAndFont()'uyla BİREBİR aynı kaynak: gerçekten
   // deploy edilen fonts/DigitalKhattV2.woff2, aynı wawoff2 çözücüsüyle.
   // (fonts/DigitalKhattV2.otf artık repo'da yok -- uygulama onu kullanmıyor.)
   const woff2 = require("wawoff2");
@@ -169,7 +169,7 @@ async function main() {
         }
       }
       // exercise the full page render, including every surah header on it
-      // (fetch header data up front, same as app.js's buildPage does)
+      // (fetch header data up front, same as page.js's buildPage does)
       const surahsOnPage = [...new Set(lines.filter((l) => l.t === "s").map((l) => l.surah))];
       const headerDataBySurah = new Map();
       for (const surah of surahsOnPage) {
@@ -348,7 +348,7 @@ async function main() {
   // fine, so it's specific to this line's justification, not the text).
   // Functionally harmless either way: Yaz's keyboard-matching target
   // comes from the independent text-based split (ezberBuildUnits in
-  // app.js), not from this segment data, so the affected letter is still
+  // ezber-study.js), not from this segment data, so the affected letter is still
   // typeable -- only its cover rectangle may fail to render, i.e. it can
   // show slightly early. Investigated but not chased further given the
   // rarity and purely-cosmetic impact; revisit if a future mushaf.json

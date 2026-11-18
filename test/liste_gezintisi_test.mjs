@@ -1,4 +1,4 @@
-// Modal listelerinde ok tuşu gezintisi ve tek Tab durağı (roving tabindex): js/liste-gezintisi.js ve app.js'teki kablolama.
+// Modal listelerinde ok tuşu gezintisi ve tek Tab durağı (roving tabindex): js/liste-gezintisi.js ile modals.js ve ezber-modal.js'teki kablolama.
 // Regresyon kontrolü.
 //
 // Neden var: Sure, Cüz/Hizb/Rub/Menzil ve Ezber'in Sure/Kârî seçicilerinin her satırı ayrı bir Tab durağıydı ve ok tuşları hiçbir
@@ -11,11 +11,11 @@
 //
 // Düzeltme: js/liste-gezintisi.js (yeni) bir listenin TEK Tab durağını koyuyor (etkin satır, yoksa ilk hücre; sonra odaklanan hücre)
 // ve Yukarı/Aşağı/Home/End/PageUp/PageDown ile satırlar arasında, Sure listesinde Sağ/Sol ile bir satırın iki hücresi (sure düğmesi,
-// "ayetlerini listele") arasında gezdiriyor. app.js: setActiveModalItem durağı etkin satıra koyuyor (syncListStop); setupModals
-// (Sure, Cüz, Hizb, Rub, Menzil) ve setupEzberModal (iki seçici) listeleri kaydediyor; sw.js yeni dosyayı önbelleğe alıyor.
+// "ayetlerini listele") arasında gezdiriyor. modals.js: setActiveModalItem durağı etkin satıra koyuyor (syncListStop); setupModals
+// (Sure, Cüz, Hizb, Rub, Menzil) ve ezber-modal.js'teki setupEzberModal (iki seçici) listeleri kaydediyor; sw.js yeni dosyayı önbelleğe alıyor.
 //
 // Burada kontrol edilenler:
-//   (1) kaynak: modülün dışa aktardıkları, PAGE_STEP, app.js'in import'u ve her kayıt (hangi liste, hangi hücre/satır seçicisi),
+//   (1) kaynak: modülün dışa aktardıkları, PAGE_STEP, uygulama modüllerinin import'u ve her kayıt (hangi liste, hangi hücre/satır seçicisi),
 //       setActiveModalItem'in syncListStop çağırması, tabIndex'i yazan tek yer (modül), sw.js ön yüklemesi;
 //   (2) targetCell (saf): tablo + küçük matrislerde tüm (matris, konum, tuş) birleşimleri + 600 rastgele durum x bağımsız model;
 //       geçersiz girdi, işlenmeyen tuş, değişmezlik (dondurulmuş dizi);
@@ -49,13 +49,13 @@ import * as listeModulu from "../js/liste-gezintisi.js";
 import { setupGridNav, syncGridStop } from "../js/izgara-gezintisi.js";
 import { createModalFocus, tabbablesIn } from "../js/modal-odak.js";
 import { setupTablist } from "../js/sekme-gezintisi.js";
+import { appSource, appImportedNames } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
 const readJSON = (...p) => JSON.parse(readText(...p));
 const html = readText("index.html");
-const appSource = readText("js", "app.js");
 const moduleSource = readText("js", "liste-gezintisi.js");
 const swSource = readText("sw.js");
 const strip = (s) => s.replace(/^\s*\/\/.*$/gm, ""); // tam satır yorumları olmadan (yorumlardaki örnek kod sayımı bozmasın)
@@ -124,9 +124,9 @@ const CONSTS = ["JUZ_TABS", "EZBER_TABS", "EZBER_SETTINGS_KEY"].map(constLine);
 const FN = {};
 for (const n of ["surahLabel", "populateSurahList", "toggleAyahGrid", "closeAllAyahGrids", "setActiveAyahChip", "syncAyahGridHighlight", "populateUnitList", "populateJuzList", "switchJuzTab", "switchEzberTab", "setActiveModalItem", "readEzberRange", "loadEzberSettings", "saveEzberSettings", "setupModals", "setupEzberModal"]) FN[n] = fnSource(n);
 const extracted = !!BLOCK && MODAL_START > 0 && MODAL_END > MODAL_START && !!ELS_SRC && !!RECITERS_SRC && CONSTS.every(Boolean) && Object.values(FN).every(Boolean);
-check("app.js: els, RECITERS, üç sabit (JUZ_TABS, EZBER_TABS, EZBER_SETTINGS_KEY), modal odak bloğu, <ezber-picker> bloğu ve 16 işlev kaynaktan çıkarıldı", extracted);
+check("uygulama modülleri: els, RECITERS, üç sabit (JUZ_TABS, EZBER_TABS, EZBER_SETTINGS_KEY), modal odak bloğu, <ezber-picker> bloğu ve 16 işlev kaynaktan çıkarıldı", extracted);
 if (!extracted) {
-  console.error("app.js'ten gerekli kaynak parçaları çıkarılamadı");
+  console.error("uygulama modüllerinden gerekli kaynak parçaları çıkarılamadı");
   console.error(`${failures} check(s) failed.`);
   process.exit(1);
 }
@@ -136,15 +136,15 @@ const RECITER_KEYS = Object.keys(new Function(`${RECITERS_SRC}\nreturn RECITERS;
 // -- (1) Kaynak ----------------------------------------------------------------------------------------------------
 check("liste-gezintisi.js: PAGE_STEP, targetCell, listRows, setupListNav, syncListStop dışa aktarılıyor (başka dışa aktarım yok)", Object.keys(listeModulu).sort().join() === "PAGE_STEP,listRows,setupListNav,syncListStop,targetCell" && typeof targetCell === "function" && typeof listRows === "function" && typeof setupListNav === "function" && typeof syncListStop === "function");
 check("liste-gezintisi.js: PAGE_STEP 10 (PageUp/PageDown yaklaşık bir ekran: Sure modalı 430x900'de ≈ 9,4 satır gösteriyor)", PAGE_STEP === 10);
-check('app.js: setupListNav, syncListStop, listRows "./liste-gezintisi.js"ten import ediliyor', /import \{ setupListNav, syncListStop, listRows \} from "\.\/liste-gezintisi\.js";/.test(appSource));
-check("app.js: setActiveModalItem, satırları işaretledikten sonra syncListStop(listEl) çağırıyor (durak etkin satıra; liste her açılışta o satırdan başlar)", /\}\);\s*syncListStop\(listEl\);/.test(CODE.setActiveModalItem) && (appCode.match(/syncListStop\(/g) || []).length === 1);
-check('app.js: setupModals Sure listesini kaydediyor: satır .surah-row, hücreler ".modal-item, .surah-expand-btn" (ayet düğmeleri hariç)', /setupListNav\(els\.surahList, listRows\(els\.surahList, "\.modal-item, \.surah-expand-btn", "\.surah-row"\)\);/.test(CODE.setupModals));
-check("app.js: setupModals Cüz, Hizb, Rub ve Menzil listelerini tek hücreli satırlar (.modal-item) olarak kaydediyor", /for \(const listEl of \[els\.juzList, els\.hizbList, els\.rubList, els\.manzilList\]\) setupListNav\(listEl, listRows\(listEl, "\.modal-item"\)\);/.test(CODE.setupModals));
-check("app.js: setupEzberModal iki seçici listesini (surah, reciter) tek hücreli satırlar olarak kaydediyor", /for \(const kind of \["surah", "reciter"\]\) \{[\s\S]*?const pickerList = document\.getElementById\(`ezber-\$\{kind\}-picker-list`\);\s*setupListNav\(pickerList, listRows\(pickerList, "\.modal-item"\)\);/.test(CODE.setupEzberModal));
-check("app.js: setupListNav tam 3 çağrı satırında: Sure listesi, Cüz/Hizb/Rub/Menzil döngüsü, iki Ezber seçicisi döngüsü (toplam 7 liste; kayıtsız kalan modal listesi yok)", (appCode.match(/setupListNav\(/g) || []).length === 3);
+check('uygulama modülleri: setupListNav, syncListStop, listRows "./liste-gezintisi.js"ten import ediliyor (başka ad yok)', appImportedNames("./liste-gezintisi.js").join() === "listRows,setupListNav,syncListStop");
+check("modals.js: setActiveModalItem, satırları işaretledikten sonra syncListStop(listEl) çağırıyor (durak etkin satıra; liste her açılışta o satırdan başlar)", /\}\);\s*syncListStop\(listEl\);/.test(CODE.setActiveModalItem) && (appCode.match(/syncListStop\(/g) || []).length === 1);
+check('modals.js: setupModals Sure listesini kaydediyor: satır .surah-row, hücreler ".modal-item, .surah-expand-btn" (ayet düğmeleri hariç)', /setupListNav\(els\.surahList, listRows\(els\.surahList, "\.modal-item, \.surah-expand-btn", "\.surah-row"\)\);/.test(CODE.setupModals));
+check("modals.js: setupModals Cüz, Hizb, Rub ve Menzil listelerini tek hücreli satırlar (.modal-item) olarak kaydediyor", /for \(const listEl of \[els\.juzList, els\.hizbList, els\.rubList, els\.manzilList\]\) setupListNav\(listEl, listRows\(listEl, "\.modal-item"\)\);/.test(CODE.setupModals));
+check("ezber-modal.js: setupEzberModal iki seçici listesini (surah, reciter) tek hücreli satırlar olarak kaydediyor", /for \(const kind of \["surah", "reciter"\]\) \{[\s\S]*?const pickerList = document\.getElementById\(`ezber-\$\{kind\}-picker-list`\);\s*setupListNav\(pickerList, listRows\(pickerList, "\.modal-item"\)\);/.test(CODE.setupEzberModal));
+check("uygulama modülleri: setupListNav tam 3 çağrı satırında: Sure listesi, Cüz/Hizb/Rub/Menzil döngüsü, iki Ezber seçicisi döngüsü (toplam 7 liste; kayıtsız kalan modal listesi yok)", (appCode.match(/setupListNav\(/g) || []).length === 3);
 {
   const writers = (appCode.match(/\.tabIndex\s*=/g) || []).length;
-  check(`app.js: tabIndex yazan 3 yer var ve üçü de liste dışı: iki sekme düğmesi (switchJuzTab, switchEzberTab: tabBtn) ve bir panelin programatik odağı (focusWordMealPanel: panelEl, -1); liste hücrelerinin tabindex'ini YALNIZCA modül yazıyor (bulunan: ${writers})`, writers === 3 && (appCode.match(/\b(tabBtn|panelEl)\.tabIndex\s*=/g) || []).length === 3);
+  check(`uygulama modülleri: tabIndex yazan 3 yer var ve üçü de liste dışı: iki sekme düğmesi (switchJuzTab, switchEzberTab: tabBtn) ve bir panelin programatik odağı (focusWordMealPanel: panelEl, -1); liste hücrelerinin tabindex'ini YALNIZCA modül yazıyor (bulunan: ${writers})`, writers === 3 && (appCode.match(/\b(tabBtn|panelEl)\.tabIndex\s*=/g) || []).length === 3);
   const mod = (moduleCode.match(/\.tabIndex\s*=/g) || []).length;
   check(`liste-gezintisi.js: tabIndex'i yazan tek yer setStop (bulunan: ${mod}); değer yalnızca 0 ve -1 (olumlu tabindex yok)`, mod === 1 && /cell\.tabIndex = cell === stop \? 0 : -1;/.test(moduleCode));
 }
@@ -665,7 +665,7 @@ const HANDLED = ["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp", "A
   check("Etkin satır (100) verilince durak o satıra", singleStop(rub, m[99][0]));
   env.api.setActiveModalItem(rub, "rub", "x");
   check("Sonra yine eşleşmeyen değer: durak ilk satıra dönüyor (eski etkin satırda kalmıyor)", singleStop(rub, m[0][0]));
-  // Şu anki öğe yalnızca aria-current="true" olan: app.js "false" yazmıyor, ama "false" şu anki DEĞİL demek (WAI-ARIA)
+  // Şu anki öğe yalnızca aria-current="true" olan: uygulama "false" yazmıyor, ama "false" şu anki DEĞİL demek (WAI-ARIA)
   m[4][0].setAttribute("aria-current", "false");
   syncListStop(rub);
   check('aria-current="false" şu anki öğe sayılmıyor: durak ilk satırda kalıyor', singleStop(rub, m[0][0]));

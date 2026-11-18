@@ -12,7 +12,7 @@
 // Burada üç şey yapılıyor:
 //   1. Roving tabindex: bir ızgaranın TEK Tab durağı var (tabindex="0"), öteki düğmeler "-1". Durak, odak ızgaradaysa odaktaki düğme,
 //      değilse seçili ayet (aria-current="true"), o da yoksa ilk düğme; sonra odaklanan düğme (focusin). tabindex'i
-//      `.active`/aria-current'la AYNI yerlerde yazmak app.js'in işi (syncGridStop çağırıyor: setActiveAyahChip, syncAyahGridHighlight,
+//      `.active`/aria-current'la AYNI yerlerde yazmak modal-lists.js'in işi (syncGridStop çağırıyor: setActiveAyahChip, syncAyahGridHighlight,
 //      ızgaranın her açılışı; modal her kapanışta ızgaraları kapattığı için ızgara hep yeniden açılışla başlıyor): iki bilgi
 //      ayrışmasın. Odaktaki düğme durak kalıyor: ses oynarken sayfa ve seçili ayet ilerler (showPage ızgaraları eşler), ızgarada
 //      gezen kullanıcının düğmesinin tabindex'i -1'e düşmemeli. modal-odak.js'in tabbablesIn'i tabindex < 0 olanları zaten saymıyor.
@@ -116,7 +116,7 @@ function setStop(chips, stop) {
 }
 
 // Izgaranın tek Tab durağını koyar: odak bu ızgaradaki bir düğmedeyse o düğme, değilse seçili ayet (aria-current="true"), o da
-// yoksa ilk düğme. Izgara her açıldığında ve seçili ayet her değiştiğinde çağrılır (app.js): ızgaraya Tab'la girerken ok
+// yoksa ilk düğme. Izgara her açıldığında ve seçili ayet her değiştiğinde çağrılır (modal-lists.js): ızgaraya Tab'la girerken ok
 // tuşlarıyla gezilen son düğme değil seçili ayet karşılar.
 export function syncGridStop(gridEl) {
   const chips = [...gridEl.querySelectorAll(CHIP)];

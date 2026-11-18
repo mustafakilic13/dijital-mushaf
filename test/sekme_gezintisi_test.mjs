@@ -1,4 +1,4 @@
-// Cüz ve Ezber pencerelerindeki sekme listelerinin (role="tablist") klavye gezintisi: js/sekme-gezintisi.js ve app.js'teki
+// Cüz ve Ezber pencerelerindeki sekme listelerinin (role="tablist") klavye gezintisi: js/sekme-gezintisi.js ile modal-lists.js ve ezber-modal.js'teki
 // switchJuzTab/switchEzberTab'ın tabindex yönetimi. Regresyon kontrolü.
 //
 // Neden var: iki sekme çubuğu role="tablist"/"tab"/"tabpanel", aria-selected ve aria-controls ilan ediyordu ama klavyede düz düğme
@@ -17,16 +17,16 @@
 //
 // Düzeltme: js/sekme-gezintisi.js (yeni): targetTabIndex() (saf: tuş + sıra + sayı -> hedef sıra) ve setupTablist() (tablist'e keydown
 // bağlar: Sağ/Sol sararak, Home/End; Alt/Ctrl/Meta/Shift ve tüketilmiş olay yok sayılır; yalnızca işlenen tuşun varsayılanı engellenir;
-// hedef sekme seçili değilse onSelect çağrılır, sonra odaklanır). app.js: switchJuzTab/switchEzberTab aria-selected'ı yazdıkları
+// hedef sekme seçili değilse onSelect çağrılır, sonra odaklanır). modal-lists.js/ezber-modal.js: switchJuzTab/switchEzberTab aria-selected'ı yazdıkları
 // döngüde tabindex'i de yazıyor (seçili 0, ötekiler -1; roving tabindex), setupModals/setupEzberModal iki sekme listesini setupTablist'e
 // bağlıyor; index.html'deki başlangıç tabindex'leri aynı kurala uyuyor; sw.js yeni dosyayı önbelleğe alıyor.
 //
 // Burada kontrol edilenler:
-//   (1) kaynak: modül dışa aktarımları, app.js import'u ve iki bağlama, iki switch işlevinde tabindex yazımı, sw.js önbellek listesi;
+//   (1) kaynak: modül dışa aktarımları, uygulama modüllerinin import'u ve iki bağlama, iki switch işlevinde tabindex yazımı, sw.js önbellek listesi;
 //   (2) targetTabIndex: 1..9 sekme x her sıra (taşan/negatif/tamsayı olmayan dahil) x tuşlar, bağımsız bir kurala karşı + 4000 rastgele
 //       çağrı + sarma özellikleri; ilgisiz tuşlar ve geçersiz girdiler;
 //   (3) index.html: iki sekme listesinin başlangıç durumu (tek tabindex=0 = aria-selected=true), aria-controls <-> aria-labelledby karşılıklılığı;
-//   (4) GERÇEK switch*Tab x GERÇEK bağlama (app.js'teki satırlar kaynaktan çıkarılıp çalıştırılıyor) x GERÇEK index.html DOM'u x gerçek
+//   (4) GERÇEK switch*Tab x GERÇEK bağlama (uygulama modüllerindeki satırlar kaynaktan çıkarılıp çalıştırılıyor) x GERÇEK index.html DOM'u x gerçek
 //       KeyboardEvent'ler, her iki sekme listesi için: 4 işlenen tuş x her sekme, işlenmeyen 14 tuş, 15 değiştirici birleşimi, tüketilmiş olay,
 //       sekme olmayan hedefler, fare tıklaması, listenin yeniden kaydırılmaması, Tab durağı sayısı (modal-odak.js'in tabbablesIn'iyle), sayfa
 //       çevirme dinleyicisiyle (GERÇEK onPageTurnKeydown) birlikte sayfanın dönmemesi;
@@ -46,11 +46,11 @@ import { fileURLToPath } from "url";
 import { JSDOM } from "jsdom";
 import { targetTabIndex, setupTablist } from "../js/sekme-gezintisi.js";
 import { tabbablesIn } from "../js/modal-odak.js";
+import { appSource, appImportedNames } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
-const appSource = readText("js", "app.js");
 const html = readText("index.html");
 const swSource = readText("sw.js");
 
@@ -95,7 +95,7 @@ const juzConst = constSource("JUZ_TABS");
 const ezberConst = constSource("EZBER_TABS");
 const turnSrc = fnSource("onPageTurnKeydown");
 const selM = /const ARROW_KEY_OWNER_SELECTOR = \[[\s\S]*?\]\.join\(", "\);/.exec(appSource);
-// app.js'teki GERÇEK bağlama satırları ve tıklama dinleyicileri (kaynaktan alınıp çalıştırılıyor)
+// uygulama modüllerindeki GERÇEK bağlama satırları ve tıklama dinleyicileri (kaynaktan alınıp çalıştırılıyor)
 const wireJuz = /^ {2}(setupTablist\(els\.juzTabs, [^\n]*\));$/m.exec(appSource);
 const wireEzber = /^ {2}(setupTablist\(els\.ezberTabs, [^\n]*\));$/m.exec(appSource);
 const clickJuz = /^ {2}els\.juzTabs\.addEventListener\("click", [\s\S]*?\n {2}\}\);$/m.exec(appSource);
@@ -103,16 +103,16 @@ const clickEzber = /^ {2}els\.ezberTabs\.addEventListener\("click", [\s\S]*?\n {
 
 // -- (1) Kaynak ----------------------------------------------------------------------------------------------
 check("sekme-gezintisi.js: targetTabIndex ve setupTablist dışa aktarılıyor", typeof targetTabIndex === "function" && typeof setupTablist === "function");
-check('app.js: setupTablist "./sekme-gezintisi.js"ten import ediliyor', /import \{ setupTablist \} from "\.\/sekme-gezintisi\.js";/.test(appSource));
-check("app.js: Cüz sekme listesi setupTablist'e tam bir kez bağlanıyor ve onSelect switchJuzTab'ı çağırıyor", (appSource.match(/setupTablist\(els\.juzTabs,/g) || []).length === 1 && !!wireJuz && /switchJuzTab\(/.test(wireJuz[1]));
-check("app.js: Ezber sekme listesi setupTablist'e tam bir kez bağlanıyor ve onSelect switchEzberTab'ı çağırıyor", (appSource.match(/setupTablist\(els\.ezberTabs,/g) || []).length === 1 && !!wireEzber && /switchEzberTab\(/.test(wireEzber[1]));
-check("app.js: switchJuzTab aria-selected'ı yazdığı döngüde tabindex'i de yazıyor (seçili 0, öteki -1)", !!switchJuzSrc && /setAttribute\("aria-selected"[\s\S]*?\.tabIndex = active \? 0 : -1;/.test(switchJuzSrc));
-check("app.js: switchEzberTab aria-selected'ı yazdığı döngüde tabindex'i de yazıyor (seçili 0, öteki -1)", !!switchEzberSrc && /setAttribute\("aria-selected"[\s\S]*?\.tabIndex = active \? 0 : -1;/.test(switchEzberSrc));
-check("app.js: sekme tıklama dinleyicileri duruyor (fare yolu değişmedi)", !!clickJuz && !!clickEzber && /switchJuzTab\(/.test(clickJuz[0]) && /switchEzberTab\(/.test(clickEzber[0]));
+check('uygulama modülleri: setupTablist "./sekme-gezintisi.js"ten import ediliyor (başka ad yok)', appImportedNames("./sekme-gezintisi.js").join() === "setupTablist");
+check("uygulama modülleri: Cüz sekme listesi setupTablist'e tam bir kez bağlanıyor ve onSelect switchJuzTab'ı çağırıyor", (appSource.match(/setupTablist\(els\.juzTabs,/g) || []).length === 1 && !!wireJuz && /switchJuzTab\(/.test(wireJuz[1]));
+check("uygulama modülleri: Ezber sekme listesi setupTablist'e tam bir kez bağlanıyor ve onSelect switchEzberTab'ı çağırıyor", (appSource.match(/setupTablist\(els\.ezberTabs,/g) || []).length === 1 && !!wireEzber && /switchEzberTab\(/.test(wireEzber[1]));
+check("modal-lists.js: switchJuzTab aria-selected'ı yazdığı döngüde tabindex'i de yazıyor (seçili 0, öteki -1)", !!switchJuzSrc && /setAttribute\("aria-selected"[\s\S]*?\.tabIndex = active \? 0 : -1;/.test(switchJuzSrc));
+check("ezber-modal.js: switchEzberTab aria-selected'ı yazdığı döngüde tabindex'i de yazıyor (seçili 0, öteki -1)", !!switchEzberSrc && /setAttribute\("aria-selected"[\s\S]*?\.tabIndex = active \? 0 : -1;/.test(switchEzberSrc));
+check("modals.js ve ezber-modal.js: sekme tıklama dinleyicileri duruyor (fare yolu değişmedi)", !!clickJuz && !!clickEzber && /switchJuzTab\(/.test(clickJuz[0]) && /switchEzberTab\(/.test(clickEzber[0]));
 check("sw.js: PRECACHE_URLS js/sekme-gezintisi.js'i içeriyor (çevrimdışı açılışta modül eksik kalmasın)", /^ {2}"js\/sekme-gezintisi\.js",$/m.test(swSource));
 
 if (!switchJuzSrc || !switchEzberSrc || !juzConst || !ezberConst || !turnSrc || !selM || !wireJuz || !wireEzber || !clickJuz || !clickEzber) {
-  console.error("app.js'ten gerekli kaynak parçaları çıkarılamadı");
+  console.error("uygulama modüllerinden gerekli kaynak parçaları çıkarılamadı");
   console.error(`${failures + 1} check(s) failed.`);
   process.exit(1);
 }
@@ -204,7 +204,7 @@ const SETS = [
   },
 ];
 
-// app.js'ten OLDUĞU GİBİ alınan işlevler + bağlama satırları + tıklama dinleyicileri + sayfa çevirme dinleyicisi.
+// uygulama modüllerinden OLDUĞU GİBİ alınan işlevler + bağlama satırları + tıklama dinleyicileri + sayfa çevirme dinleyicisi.
 function makeEnv({ modalOpen = true } = {}) {
   const dom = new JSDOM(html, { pretendToBeVisual: true });
   const win = dom.window;
@@ -442,7 +442,7 @@ for (const set of SETS) {
   }
 }
 
-// Ezber'de Sure seçici açıkken sekme çubuğu gizli; gizli çubuğun roving durumu seçici kapanınca bozulmuyor (app.js yalnızca hidden'ı değiştiriyor)
+// Ezber'de Sure seçici açıkken sekme çubuğu gizli; gizli çubuğun roving durumu seçici kapanınca bozulmuyor (ezber-modal.js yalnızca hidden'ı değiştiriyor)
 {
   const set = SETS[1];
   const env = makeEnv();

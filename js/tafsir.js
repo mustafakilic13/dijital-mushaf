@@ -17,7 +17,7 @@
 //
 // The .text HTML (paragraph breaks, plus colour/typeface spans marking
 // Qur'an quotations, key terms, editorial notes, etc.) is passed through
-// as-is -- see app.js's tafsirContentHTML, which deliberately does NOT
+// as-is -- see ayah-panel.js's tafsirContentHTML, which deliberately does NOT
 // escape it. The one change resolveTafsirText makes is the language
 // marking of markTafsirLanguages below (lang="ar" on the Arabic quotations,
 // the data's wrong lang labels on Turkish phrases corrected).
@@ -31,7 +31,7 @@
 // properly-licensed source back is still just one entry here plus a data
 // file, per the original design.
 
-import { escapeHtml } from "./search.js";
+import { escapeHtml } from "./html.js";
 
 const sources = {
   saadi: {
@@ -54,7 +54,7 @@ const cache = new Map(); // sourceId -> resolved data
 const promises = new Map(); // sourceId -> in-flight fetch promise
 
 // Ordered list of every configured source's id -- drives the tab buttons
-// in app.js's ayahPanelBodyHTML, so adding a new source only means adding
+// in ayah-panel.js's ayahPanelBodyHTML, so adding a new source only means adding
 // an entry to `sources` above.
 export function tafsirSourceIds() {
   return Object.keys(sources);
@@ -71,7 +71,7 @@ export function tafsirSourceCredit(id) {
   return credit ? { ...credit } : null;
 }
 
-// Tefsir metninin kaynağına atıf satırı (HTML; değerler kaçışlanıyor): ayet panelinde metnin hemen altında (js/app.js
+// Tefsir metninin kaynağına atıf satırı (HTML; değerler kaçışlanıyor): ayet panelinde metnin hemen altında (js/ayah-panel.js
 // tafsirContentHTML) ve arama sonuçlarındaki "Tefsir" bölümünün başında (js/arama.js) AYNI satır gösteriliyor. Metnin
 // kendisine dokunmuyor: ayrı bir <p class="tafsir-kaynak">. Atıfı olmayan kaynak için "". Bağlantı yeni sekmede açılıyor
 // (rel="noopener noreferrer"): kullanıcı okuduğu ayetin başından ayrılmasın.

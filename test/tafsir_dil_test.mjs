@@ -12,7 +12,7 @@
 //      eklenen sarmalayıcılar geri alınınca özgün veri geri gelmeli,
 //   4. resolveTafsirText (ayet panelinin yolu) işaretlenmiş metni veriyor, yönlendirmeli ayetlerde de,
 //   5. arama özeti (düz metin + <mark>) aynı işlevden geçiyor: kaynak kablolaması + gerçek pencerelerde tarama,
-//   6. app.js'in tefsir panelinin işaretleyiciyi atlamadan resolveTafsirText'ten beslendiği.
+//   6. ayah-panel.js'in tefsir panelinin işaretleyiciyi atlamadan resolveTafsirText'ten beslendiği.
 //
 // jsdom gerekiyor (test/package.json'da devDependency):
 //   npm install && node tafsir_dil_test.mjs
@@ -22,12 +22,12 @@ import { fileURLToPath } from "url";
 import { JSDOM } from "jsdom";
 import { markTafsirLanguages, resolveTafsirText } from "../js/tafsir.js";
 import { htmlToPlainText, snippetHTML } from "../js/search.js";
+import { appSource } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
 const data = JSON.parse(readText("data", "tafsir-saadi.json"));
-const appSource = readText("js", "app.js");
 const aramaSource = readText("js", "arama.js");
 
 let failures = 0;
@@ -238,9 +238,9 @@ check("arama.js: tafsirRowHTML özeti markTafsirLanguages'tan geçiriyor", /<spa
   check("özetlerin metni değişmiyor, <mark> vurguları kaybolmuyor", textChanged === 0 && markLost === 0);
 }
 
-// -- 6. app.js: tefsir paneli işaretleyiciyi atlamıyor ------------------------------------------------------
-check("app.js: tafsirContentHTML metni resolveTafsirText'ten alıyor (işaretleyici tek noktada, panel onu atlamıyor)", /function tafsirContentHTML\(sourceId, ayah\) \{[\s\S]*?const text = resolveTafsirText\(getCachedTafsirData\(sourceId\), ayah\.surah, ayah\.ayah\);/.test(appSource));
-check("app.js: tefsir verisinin .text alanı resolveTafsirText dışında doğrudan okunmuyor", !/getCachedTafsirData\([^)]*\)\s*\[[^\]]*\]\s*\.text|\.text\b[^\n]*tafsir/i.test(appSource.replace(/\/\/[^\n]*/g, "")));
+// -- 6. ayah-panel.js: tefsir paneli işaretleyiciyi atlamıyor ------------------------------------------------------
+check("ayah-panel.js: tafsirContentHTML metni resolveTafsirText'ten alıyor (işaretleyici tek noktada, panel onu atlamıyor)", /function tafsirContentHTML\(sourceId, ayah\) \{[\s\S]*?const text = resolveTafsirText\(getCachedTafsirData\(sourceId\), ayah\.surah, ayah\.ayah\);/.test(appSource));
+check("uygulama modülleri: tefsir verisinin .text alanı resolveTafsirText dışında doğrudan okunmuyor", !/getCachedTafsirData\([^)]*\)\s*\[[^\]]*\]\s*\.text|\.text\b[^\n]*tafsir/i.test(appSource.replace(/\/\/[^\n]*/g, "")));
 
 if (failures) {
   console.error(`\n${failures} check(s) failed.`);

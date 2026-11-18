@@ -21,14 +21,14 @@
 // Sol ok Yaz oturumunu eskisi gibi bitiriyor (bilinçli sayfa çevirme). Tuş BASILI TUTULUNCA (e.repeat) her tekrar sayfa çevirmeye devam ediyor
 // (5 tekrar = 5 sayfa; önce de öyleydi, bilerek değiştirilmedi).
 //
-// Düzeltme (js/app.js): satır içi dinleyici adlandırılmış işleve (onPageTurnKeydown) çıkarıldı; sırayla vazgeçiyor: açık modal; Sol/Sağ dışındaki
+// Düzeltme (js/page-nav.js): satır içi dinleyici adlandırılmış işleve (onPageTurnKeydown) çıkarıldı; sırayla vazgeçiyor: açık modal; Sol/Sağ dışındaki
 // tuş; Alt/Ctrl/Meta/Shift; defaultPrevented ya da isComposing; hedef ARROW_KEY_OWNER_SELECTOR'a uyuyorsa (yazı alanları, kaydırıcı, açılır
 // liste, radyo, ARIA'daki karşılıkları, sekme/menü/liste/ağaç/ızgara gibi bileşik bileşenler). Düz düğme, onay kutusu, bağlantı ve gezgin/panel
 // düğmeleri bu listede değil: orada düz ok eskisi gibi sayfa çevirir.
 //
 // Burada kontrol edilenler:
 //   (1) kaynak: işlev ve seçici var, setupNav document'in 'keydown'ına onPageTurnKeydown'ı bağlıyor, satır içi çevirme dinleyicisi kalmadı;
-//   (2) davranış: app.js'ten çıkarılan GERÇEK işlev x GERÇEK index.html DOM'u x gerçek KeyboardEvent'ler: düz tuşlar ve yönler, diğer tuşlar,
+//   (2) davranış: page-nav.js'ten çıkarılan GERÇEK işlev x GERÇEK index.html DOM'u x gerçek KeyboardEvent'ler: düz tuşlar ve yönler, diğer tuşlar,
 //       15 değiştirici birleşimi x 2 yön, açık modal, tüketilmiş olay, bileşim, ok kullanan / kullanmayan hedefler (hepsi tek tek), sahte
 //       olay nesneleri; ayrıca index.html'deki HER öğe için (bağımsız bir elle yazılmış sınıflandırıcıya karşı) düz ok ve Shift+ok;
 //   (3) GERÇEK Yaz ekran klavyesi işleyicisiyle (onEzberYazKeyboardKeydown) birlikte: düz ok klavyede tüketiliyor (sayfa çevrilmiyor, odak
@@ -44,11 +44,11 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { JSDOM } from "jsdom";
+import { appSource } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
-const appSource = readText("js", "app.js");
 const html = readText("index.html");
 
 let failures = 0;
@@ -76,28 +76,28 @@ const turnSrc = fnSource("onPageTurnKeydown");
 const yazKbSrc = fnSource("onEzberYazKeyboardKeydown");
 const setupNavSrc = fnSource("setupNav");
 const selM = /const ARROW_KEY_OWNER_SELECTOR = \[[\s\S]*?\]\.join\(", "\);/.exec(appSource);
-check("app.js: onPageTurnKeydown bulundu", !!turnSrc);
-check("app.js: ARROW_KEY_OWNER_SELECTOR bulundu", !!selM);
-check("app.js: onEzberYazKeyboardKeydown ve setupNav bulundu", !!yazKbSrc && !!setupNavSrc);
+check("page-nav.js: onPageTurnKeydown bulundu", !!turnSrc);
+check("page-nav.js: ARROW_KEY_OWNER_SELECTOR bulundu", !!selM);
+check("ezber-study.js ve page-nav.js: onEzberYazKeyboardKeydown ve setupNav bulundu", !!yazKbSrc && !!setupNavSrc);
 if (!turnSrc || !selM || !yazKbSrc || !setupNavSrc) {
   console.error(`${failures} check(s) failed.`);
   process.exit(1);
 }
 
 // -- (1) Kaynak ----------------------------------------------------------------------------------------------
-check("app.js: onPageTurnKeydown tek bir yerde tanımlı", (appSource.match(/function onPageTurnKeydown\(/g) || []).length === 1);
+check("page-nav.js: onPageTurnKeydown tek bir yerde tanımlı", (appSource.match(/function onPageTurnKeydown\(/g) || []).length === 1);
 check(
-  "app.js: setupNav sayfa çevirme dinleyicisini bağlıyor: document 'keydown' -> onPageTurnKeydown (tam bir kez)",
+  "page-nav.js: setupNav sayfa çevirme dinleyicisini bağlıyor: document 'keydown' -> onPageTurnKeydown (tam bir kez)",
   (setupNavSrc.match(/document\.addEventListener\("keydown", onPageTurnKeydown\);/g) || []).length === 1
 );
 check(
-  "app.js: setupNav'ta goToNextPage/goToPrevPage çağıran satır içi (isimsiz) bir 'keydown' dinleyicisi KALMADI",
+  "page-nav.js: setupNav'ta goToNextPage/goToPrevPage çağıran satır içi (isimsiz) bir 'keydown' dinleyicisi KALMADI",
   !/addEventListener\("keydown", \(\w*\) => \{[^}]*goTo(?:Next|Prev)Page/.test(setupNavSrc)
 );
-check("app.js: onPageTurnKeydown'ın ilk koşulu açık modalda vazgeçmek (modalın içindeki alanlarda oklar sayfa çevirmesin)", /^function onPageTurnKeydown\(e\) \{\s*if \(state\.openModalEl\) return;/.test(turnSrc));
+check("page-nav.js: onPageTurnKeydown'ın ilk koşulu açık modalda vazgeçmek (modalın içindeki alanlarda oklar sayfa çevirmesin)", /^function onPageTurnKeydown\(e\) \{\s*if \(state\.openModalEl\) return;/.test(turnSrc));
 
 // -- Ortak donanım --------------------------------------------------------------------------------------------
-// state / goToNextPage / goToPrevPage dışarıdan veriliyor; işlev ve seçici app.js'ten OLDUĞU GİBİ alınıyor.
+// state / goToNextPage / goToPrevPage dışarıdan veriliyor; işlev ve seçici page-nav.js'ten OLDUĞU GİBİ alınıyor.
 function makeEnv({ yazHandler = false } = {}) {
   const dom = new JSDOM(html, { pretendToBeVisual: true });
   const d = dom.window.document;

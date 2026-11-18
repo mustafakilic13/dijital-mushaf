@@ -1,14 +1,14 @@
 // Regression check for js/arama.js (Arama modalının arayüz katmanı) -- bkz.
 // o dosyanın başlık yorumu. GERÇEK index.html jsdom'a yükleniyor (modalın
 // işaretlemesi, sınıf/ID'ler, alt çubuk düğmesi -- app.js/HarfBuzz açılışı
-// olmadan; app.js Node'da import edilemiyor, bkz. juz_subdivisions_test.mjs
+// olmadan; uygulama modülleri Node'da import edilemiyor, bkz. juz_subdivisions_test.mjs
 // başlığı) ve setupArama'ya sahte gezinme/modal fonksiyonları verilip
 // gerçek data/surahs.json + meal.json + word-meal.json + topics-tr.json
 // üzerinde uçtan uca sınanıyor: düğme -> ilk ekran -> yazma -> bölümler
 // (önizleme / tümünü gör) -> tık -> gezinme + son aramalar. Son bölümde
-// app.js'in KAYNAK metni de kontrol ediliyor (kablolama: import, closeAllModals
+// uygulama modüllerinin KAYNAK metni de kontrol ediliyor (kablolama: import, closeAllModals
 // listesi, setupArama bağımlılıkları) ve ayahRawWordsAnywhere fonksiyonu
-// app.js'ten çıkarılıp sahte state ile çalıştırılıyor.
+// ayah-panel.js'ten çıkarılıp sahte state ile çalıştırılıyor.
 //
 // jsdom gerekiyor (test/package.json'da devDependency):
 //   npm install && node arama_ui_test.mjs
@@ -18,6 +18,7 @@ import { fileURLToPath } from "url";
 import { JSDOM } from "jsdom";
 import { setupArama, RECENT_KEY, PAGE, PREVIEW, POPULAR_TOPICS, DEBOUNCE_MS } from "../js/arama.js";
 import { buildTopicsSearchIndex, findTopicByName, fold, isArabicScript } from "../js/search.js";
+import { appSource, importedNames } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
@@ -30,10 +31,9 @@ const topicsData = JSON.parse(readText("data", "topics-tr.json"));
 const tafsirData = JSON.parse(readText("data", "tafsir-saadi.json"));
 const ayahBoundsData = JSON.parse(readText("data", "ayahs.json"));
 const mushaf = JSON.parse(readText("data", "mushaf.json"));
-const appSource = readText("js", "app.js");
 
-// Gerçek mushaf verisinden ayetin kelimeleri (app.js'teki ayahRawWordsAnywhere ile aynı iş;
-// o fonksiyonun kendisi en altta app.js kaynağından çıkarılıp ayrıca sınanıyor).
+// Gerçek mushaf verisinden ayetin kelimeleri (ayah-panel.js'teki ayahRawWordsAnywhere ile aynı iş;
+// o fonksiyonun kendisi en altta ayah-panel.js kaynağından çıkarılıp ayrıca sınanıyor).
 function rawWordsOf(s, a) {
   const b = (ayahBoundsData[String(s)] || [])[a - 1];
   if (!b) return [];
@@ -169,7 +169,7 @@ function makeEnv(deps = {}) {
   check("alt çubuktaki Arama düğmesi artık etkin (disabled değil)", btn && !btn.disabled);
   const modal = d.getElementById("arama-modal");
   check("modal .modal-sheet ve başlangıçta gizli, dialog rolünde", modal && modal.classList.contains("modal-sheet") && modal.hidden && modal.getAttribute("role") === "dialog" && modal.getAttribute("aria-modal") === "true");
-  check("modalda [data-close] kapatma düğmesi var (app.js closeAllModals'a bağlıyor)", !!modal.querySelector("[data-close]"));
+  check("modalda [data-close] kapatma düğmesi var (modals.js closeAllModals'a bağlıyor)", !!modal.querySelector("[data-close]"));
   const input = modal.querySelector(".arama-input");
   check("giriş: type=search, enterkeyhint=search, otomatik düzeltme kapalı", input && input.type === "search" && input.getAttribute("enterkeyhint") === "search" && input.getAttribute("autocorrect") === "off" && input.getAttribute("spellcheck") === "false");
   check("giriş: ARIA etiketi var", !!input.getAttribute("aria-label"));
@@ -740,17 +740,17 @@ function makeEnv(deps = {}) {
   check("görünür alan kayınca (iOS offsetTop) alt boşluk buna göre hesaplanıyor (kb=230px)", e.modal.style.getPropertyValue("--arama-kb") === "230px");
 }
 
-// -- app.js kablolaması (kaynak metin) ------------------------------------------------------------------------
-check('app.js: setupArama import ediliyor', /import \{ setupArama \} from "\.\/arama\.js";/.test(appSource));
-check("app.js: els.aramaModal tanımlı", /aramaModal:\s*document\.getElementById\("arama-modal"\)/.test(appSource));
-check("app.js: closeAllModals listesinde arama modalı var (Escape/perde/[data-close] hepsi buradan)", /\[els\.surahModal[^\]]*els\.aramaModal\]\.forEach\(\(m\) => closeModal\(m, \{ restoreFocus \}\)\)/.test(appSource));
+// -- uygulama kablolaması (kaynak metin) ------------------------------------------------------------------------
+check('app.js: setupArama "./arama.js"ten import ediliyor (açılışta kuran main() orada)', importedNames("app.js", "./arama.js").has("setupArama"));
+check("state.js: els.aramaModal tanımlı", /aramaModal:\s*document\.getElementById\("arama-modal"\)/.test(appSource));
+check("modals.js: closeAllModals listesinde arama modalı var (Escape/perde/[data-close] hepsi buradan)", /\[els\.surahModal[^\]]*els\.aramaModal\]\.forEach\(\(m\) => closeModal\(m, \{ restoreFocus \}\)\)/.test(appSource));
 {
   const call = appSource.slice(appSource.indexOf("setupArama({"), appSource.indexOf("setupArama({") + 900);
   check("app.js: setupArama gerekli bağımlılıkların hepsiyle çağrılıyor", ["modal: els.aramaModal", "openBtn: els.aramaBtn", "getSurahs", "openModal", "closeModal", "goToAyah", "goToSurah", "goToJuz: goToJuzNum", "goToPage", "openTopic: openTopicsModal", "loadMealData", "loadWordMealData", "loadTopicsData", "ayahRawWords: ayahRawWordsAnywhere"].every((k) => call.includes(k)));
 }
 {
   const m = /function ayahRawWordsAnywhere\(surah, ayah\) \{[\s\S]*?\n\}\n/.exec(appSource);
-  check("app.js: ayahRawWordsAnywhere bulundu", !!m);
+  check("ayah-panel.js: ayahRawWordsAnywhere bulundu", !!m);
   if (m) {
     const state = { mushaf };
     const ayahBounds = (s, a) => (ayahBoundsData[String(s)] || [])[a - 1] || null;
@@ -768,5 +768,5 @@ if (failures) {
   console.error(`\n${failures} check(s) failed.`);
   process.exit(1);
 } else {
-  console.log("All checks passed (Arama modalı: işaretleme, ilk ekran, hızlı gitme, bölümler + önizleme/tümünü gör, konular, kelime meali, çipler, son aramalar, yükleme/hata/yarış, XSS, klavye, app.js kablolaması).");
+  console.log("All checks passed (Arama modalı: işaretleme, ilk ekran, hızlı gitme, bölümler + önizleme/tümünü gör, konular, kelime meali, çipler, son aramalar, yükleme/hata/yarış, XSS, klavye, uygulama kablolaması).");
 }

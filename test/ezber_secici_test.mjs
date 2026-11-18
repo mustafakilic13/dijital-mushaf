@@ -42,12 +42,12 @@ import { JSDOM, VirtualConsole } from "jsdom";
 import { createModalFocus, tabbablesIn } from "../js/modal-odak.js";
 import { setupTablist } from "../js/sekme-gezintisi.js";
 import { setupListNav, syncListStop, listRows } from "../js/liste-gezintisi.js";
+import { appSource } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
 const html = readText("index.html");
-const appSource = readText("js", "app.js");
 const appCode = appSource.replace(/^\s*\/\/.*$/gm, ""); // tam satır yorumları olmadan (örnek kod içeren yorumlar sayımı bozmasın)
 const surahs = JSON.parse(readText("data", "surahs.json"));
 
@@ -104,10 +104,10 @@ const constLine = (name) => {
 
 // -- (1) Kaynak ----------------------------------------------------------------------------------------------
 const BLOCK = /\/\/ <ezber-picker>([\s\S]*?)\/\/ <\/ezber-picker>/.exec(appSource);
-check("app.js: <ezber-picker> ... </ezber-picker> bloğu bulundu", !!BLOCK);
+check("ezber-modal.js: <ezber-picker> ... </ezber-picker> bloğu bulundu", !!BLOCK);
 const MODAL_START = appSource.indexOf("const modalFocus = createModalFocus(");
 const MODAL_END = appSource.indexOf("function setupModals()");
-check("app.js: modal odak bloğu (modalFocus .. closeAllModals) bulundu", MODAL_START > 0 && MODAL_END > MODAL_START);
+check("modals.js: modal odak bloğu (modalFocus .. closeAllModals) bulundu", MODAL_START > 0 && MODAL_END > MODAL_START);
 const RECITERS_SRC = constObjSource("RECITERS");
 const TABS_SRC = constLine("EZBER_TABS");
 const KEY_SRC = constLine("EZBER_SETTINGS_KEY");
@@ -119,10 +119,10 @@ const SW = {
   saveEzberSettings: fnSource("saveEzberSettings"),
   setupEzberModal: fnSource("setupEzberModal"),
 };
-check("app.js: RECITERS, EZBER_TABS, EZBER_SETTINGS_KEY ve gerekli işlevler kaynaktan çıkarıldı", !!RECITERS_SRC && !!TABS_SRC && !!KEY_SRC && Object.values(SW).every(Boolean));
+check("uygulama modülleri: RECITERS, EZBER_TABS, EZBER_SETTINGS_KEY ve gerekli işlevler kaynaktan çıkarıldı", !!RECITERS_SRC && !!TABS_SRC && !!KEY_SRC && Object.values(SW).every(Boolean));
 
 if (!BLOCK || !(MODAL_START > 0 && MODAL_END > MODAL_START) || !RECITERS_SRC || !TABS_SRC || !KEY_SRC || !Object.values(SW).every(Boolean)) {
-  console.error("app.js'ten gerekli kaynak parçaları çıkarılamadı");
+  console.error("uygulama modüllerinden gerekli kaynak parçaları çıkarılamadı");
   console.error(`${failures + 1} check(s) failed.`);
   process.exit(1);
 }
@@ -133,8 +133,8 @@ const RECITER_KEYS = Object.keys(RECITERS);
   const src = BLOCK[1];
   const open = bodyOf(src, "openEzberPicker");
   const close = bodyOf(src, "closeEzberPicker");
-  check("app.js: openEzberPicker, closeEzberPicker, setEzberSurah, setEzberReciter ve iki liste doldurucusu bloğun içinde", !!open && !!close && ["setEzberSurah", "setEzberReciter", "populateEzberSurahPickerList", "populateEzberReciterPickerList"].every((n) => !!bodyOf(src, n)));
-  check("app.js: eski adlar yok (openEzberSurahPicker / closeEzberSurahPicker / populateEzberReciterSelect / ezberSurahPickerTarget)", !/EzberSurahPicker\b|populateEzberReciterSelect|ezberSurahPickerTarget|els\.ezberSurahPicker/.test(appSource));
+  check("ezber-modal.js: openEzberPicker, closeEzberPicker, setEzberSurah, setEzberReciter ve iki liste doldurucusu bloğun içinde", !!open && !!close && ["setEzberSurah", "setEzberReciter", "populateEzberSurahPickerList", "populateEzberReciterPickerList"].every((n) => !!bodyOf(src, n)));
+  check("uygulama modülleri: eski adlar yok (openEzberSurahPicker / closeEzberSurahPicker / populateEzberReciterSelect / ezberSurahPickerTarget)", !/EzberSurahPicker\b|populateEzberReciterSelect|ezberSurahPickerTarget|els\.ezberSurahPicker/.test(appSource));
   if (open && close) {
     const iHide = open.indexOf("els.ezberTabs.hidden = true;");
     const iPanel = open.indexOf("`ezber-panel-${target}`).hidden = true;");
@@ -155,8 +155,8 @@ const RECITER_KEYS = Object.keys(RECITERS);
     check("closeEzberPicker: odak yalnızca isteyince taşınıyor (restoreFocus varsayılanı false; closeModal sıfırlaması kapanan modalda odağa dokunmuyor)", /function closeEzberPicker\(\{ restoreFocus = false \} = \{\}\)/.test(src));
   }
 }
-check("app.js: Geri ve satır seçimi odağı açık seçenekle geri istiyor (2 çağrı), tıklama olayı seçenek nesnesi olarak geçmiyor", (appCode.match(/closeEzberPicker\(\{ restoreFocus: true \}\)/g) || []).length === 2 && !/addEventListener\("click", closeEzberPicker\)/.test(appCode));
-check("app.js: Kârî düğmesi Sure düğmeleri gibi openEzberPicker'a bağlı (kind 'reciter', sekme 'dinle'); Sure düğmeleri 3 sekmede", /getElementById\("ezber-dinle-reciter-btn"\)\.addEventListener\("click", \(\) => openEzberPicker\("reciter", "dinle"\)\)/.test(appSource) && /openEzberPicker\("surah", target\)/.test(appSource));
+check("ezber-modal.js: Geri ve satır seçimi odağı açık seçenekle geri istiyor (2 çağrı), tıklama olayı seçenek nesnesi olarak geçmiyor", (appCode.match(/closeEzberPicker\(\{ restoreFocus: true \}\)/g) || []).length === 2 && !/addEventListener\("click", closeEzberPicker\)/.test(appCode));
+check("ezber-modal.js: Kârî düğmesi Sure düğmeleri gibi openEzberPicker'a bağlı (kind 'reciter', sekme 'dinle'); Sure düğmeleri 3 sekmede", /getElementById\("ezber-dinle-reciter-btn"\)\.addEventListener\("click", \(\) => openEzberPicker\("reciter", "dinle"\)\)/.test(appSource) && /openEzberPicker\("surah", target\)/.test(appSource));
 {
   const m = /if \(modalEl === els\.ezberModal\) \{([\s\S]*?)\n  \}/.exec(appSource);
   const body = m ? m[1] : "";
@@ -164,8 +164,8 @@ check("app.js: Kârî düğmesi Sure düğmeleri gibi openEzberPicker'a bağlı 
   const iTab = body.indexOf('switchEzberTab("dinle");');
   check("closeModal: Ezber kapanışında önce seçici (açık olduğu sekmenin formunu geri getirir) sonra Dinle sekmesi sıfırlanıyor", iPick >= 0 && iTab >= 0 && iPick < iTab);
 }
-check("app.js: Kârî alanı geri yüklemesi setEzberReciter('dinle', ...) ile; geçersiz/eksik/prototip adlı (toString) kayıtta 'husary'", /setEzberReciter\("dinle", d && Object\.hasOwn\(RECITERS, d\.reciter\) \? d\.reciter : "husary"\);/.test(appSource));
-check("app.js: els.ezberReciter gizli girişi (#ezber-dinle-reciter) gösteriyor; Dinle formu bundan okuyor", /ezberReciter: document\.getElementById\("ezber-dinle-reciter"\)/.test(appSource) && /const reciter = els\.ezberReciter\.value;/.test(appSource));
+check("ezber-modal.js: Kârî alanı geri yüklemesi setEzberReciter('dinle', ...) ile; geçersiz/eksik/prototip adlı (toString) kayıtta 'husary'", /setEzberReciter\("dinle", d && Object\.hasOwn\(RECITERS, d\.reciter\) \? d\.reciter : "husary"\);/.test(appSource));
+check("uygulama modülleri: els.ezberReciter gizli girişi (#ezber-dinle-reciter) gösteriyor; Dinle formu bundan okuyor", /ezberReciter: document\.getElementById\("ezber-dinle-reciter"\)/.test(appSource) && /const reciter = els\.ezberReciter\.value;/.test(appSource));
 
 // -- (2) index.html -------------------------------------------------------------------------------------------
 const norm = (el) =>

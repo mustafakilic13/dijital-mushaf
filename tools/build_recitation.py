@@ -5,7 +5,7 @@ ayah-recitation-*.json exports (unzipped as-is -- see
 https://qul.tarteel.ai/resources, "Recitations and segments data").
 Originally written for Husary only; generalized when Abdulbasit
 Abdussamed was added as a second Ezber "Dinle" reciter (see RECITERS
-below and js/app.js's own RECITERS registry, which mirrors this one).
+below and js/playback.js's own RECITERS registry, which mirrors this one).
 
 The raw export is keyed "surah:ayah" -> {surah_number, ayah_number,
 audio_url, duration, segments}. Two of those five fields are pure
@@ -16,12 +16,12 @@ overhead once you look at the data as a whole:
     a given reciter's export matches
     "https://audio-cdn.tarteel.ai/quran/<cdnSlug>/SSSAAA.mp3" (zero-
     padded 3-digit surah+ayah) exactly, so storing it 6236 times is
-    pure repetition. js/app.js rebuilds it with a one-line template
+    pure repetition. js/playback.js rebuilds it with a one-line template
     (recitationAudioUrl(surah, ayah, reciter)) instead.
 That leaves "segments" ([wordPositionInAyah, startMs, endMs] triples,
 1-indexed, time-ordered but NOT always position-monotonic -- some ayahs
 have the reciter repeat a word/phrase, which shows up as a position
-appearing twice; js/app.js's highlight lookup is time-based so this
+appearing twice; js/playback.js's highlight lookup is time-based so this
 doesn't need special-casing) as the only per-ayah payload worth keeping.
 
 Output shape mirrors data/ayahs.json's own surah-nested, ayah-index
@@ -30,7 +30,7 @@ repeating "surah:ayah" string keys 6236 times:
   { "1": [ [[1,0,4080],[2,4280,4640],...], ...(ayah 2, 3, ...) ], "2": [...], ... }
 This cuts each file roughly in half before gzip. Loaded lazily (only
 once the person actually starts playback / opens Ezber -> Dinle -- see
-loadRecitationData in app.js), same as data/sura-info.json already is,
+loadRecitationData in playback.js), same as data/sura-info.json already is,
 so this size only ever costs someone who uses the feature.
 
 Usage: python3 build_recitation.py [reciter] [out-dir]

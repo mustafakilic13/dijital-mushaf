@@ -1,12 +1,14 @@
 // meal.js
 //
 // "Meal" -- the full-ayah Turkish translation, shown as its own section in
-// the ayah panel right after "kelime meal" (see app.js's openWordMeal /
+// the ayah panel right after "kelime meal" (see ayah-panel.js's openWordMeal /
 // ayahPanelBodyHTML). Source: Elmalılı Muhammed Hamdi Yazır's
 // (sadeleştirilmiş/simplified-language) translation.
 //
 // data/meal.json is a flat { "surah:ayah": {"t": "..."} } map (QUL's
 // translation export, one entry per ayah -- 6236 total, full coverage).
+
+import { escapeHtml } from "./html.js";
 
 const SOURCE_LABEL = "Elmalılı Muhammed Hamdi Yazır";
 
@@ -50,10 +52,6 @@ export function loadMealData() {
 export function getMealText(data, surah, ayah) {
   const entry = data && data[`${surah}:${ayah}`];
   return entry && entry.t ? entry.t.trim() : "";
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 }
 
 // `text` -> the meal section's inner HTML: the translation itself plus the

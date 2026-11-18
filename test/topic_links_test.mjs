@@ -7,15 +7,15 @@
 // etkinleştirilen öğe DOM'dan kalkıyor ve odak <body>'ye düşüyordu (yeni konunun adını duyuracak bir odak değişimi yok,
 // Tab görünümün ortasından sürüyor). Düzeltme üç parça:
 //   - js/topics.js markTopicLinks: data-id'li <topic>'e role="link" tabindex="0" (data-id'siz 48 tanesine dokunmaz);
-//   - app.js setupTopicsModal: bağlantıda YALNIZCA Enter tıklama sayılır (APG "Link" deseni; Space değil);
-//   - app.js pushTopicsModalTopic: her gezinme adımından sonra odak modalın kapsayıcısına alınır (modal açılırkenki gibi);
-//   - app.js popTopicsModalTopic (Geri): aynı kural. Geri düğmesi kökte `hidden` oluyor ve Chromium odaktaki öğe gizlenince
+//   - topics-modal.js setupTopicsModal: bağlantıda YALNIZCA Enter tıklama sayılır (APG "Link" deseni; Space değil);
+//   - topics-modal.js pushTopicsModalTopic: her gezinme adımından sonra odak modalın kapsayıcısına alınır (modal açılırkenki gibi);
+//   - topics-modal.js popTopicsModalTopic (Geri): aynı kural. Geri düğmesi kökte `hidden` oluyor ve Chromium odaktaki öğe gizlenince
 //     odağı <body>'ye düşürüyordu (yamasız ağaçta da öyleydi: ekran okuyucu nerede olduğunu kaybeder, Tab sayfanın başından
 //     sürer); ara adımda Geri görünür kalıyor ama başlık sessizce değişirdi. (Geri'nin kökte hiç gizlenmemesi ayrı bir CSS
 //     hatasıydı: test/erisilebilirlik_test.mjs'teki genel `[hidden]` kuralı kontrolleri.)
 //
 // Burada kontrol edilenler:
-//   (1) kaynak bağlantıları: app.js'in import'u, render yolunda markTopicLinks'in kullanılması, <topics-modal> bloğu;
+//   (1) kaynak bağlantıları: topics-modal.js'in import'u, render yolunda markTopicLinks'in kullanılması, <topics-modal> bloğu;
 //   (2) GERÇEK openModal/closeModal bloğu + <topics-modal> bloğu, gerçek index.html, topics.js, modal-odak.js ve
 //       data/topics-tr.json ile jsdom'da: Allah konusu üzerinde ayrıntılı senaryo (rol/tabindex, Tab sırası, odaklanabilirlik,
 //       Enter ile gezinme, Geri, Enter'ın YAPMAMASI gerekenler: Space/Tab/değiştirici tuşlar/data-id'siz <topic>/düğmeler,
@@ -36,6 +36,7 @@ import { fileURLToPath } from "url";
 import { JSDOM } from "jsdom";
 import axeCore from "axe-core";
 import { createModalFocus, tabbablesIn } from "../js/modal-odak.js";
+import { appSource, appImportedNames } from "./uygulama_kaynagi.mjs";
 import {
   loadTopicsData,
   getTopicsIndex,
@@ -50,7 +51,6 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const readText = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf-8");
 const html = readText("index.html");
-const appSource = readText("js", "app.js");
 
 let failures = 0;
 function check(name, cond) {
@@ -80,20 +80,20 @@ const linksOf = (t) => [...(t.description || "").matchAll(/<topic data-id="(\d+)
 const bareCountOf = (t) => ((t.description || "").match(/<topic>/g) || []).length;
 
 // -- (1) Kaynak bağlantıları ----------------------------------------------------------------------------------
-check('app.js: markTopicLinks "./topics.js"ten import ediliyor', /import \{[^}]*\bmarkTopicLinks\b[^}]*\} from "\.\/topics\.js";/.test(appSource));
+check('uygulama modülleri: markTopicLinks "./topics.js"ten import ediliyor', appImportedNames("./topics.js").includes("markTopicLinks"));
 check(
-  "app.js: konu açıklaması markTopicLinks'ten geçiyor (markArabicSpans ile birlikte, tek bir .topic-description içinde)",
+  "topics-modal.js: konu açıklaması markTopicLinks'ten geçiyor (markArabicSpans ile birlikte, tek bir .topic-description içinde)",
   /<div class="topic-description">\$\{markTopicLinks\(markArabicSpans\(t\.description\)\)\}<\/div>/.test(appSource)
 );
 const TOPICS_BLOCK = /\/\/ <topics-modal>([\s\S]*?)\/\/ <\/topics-modal>/.exec(appSource);
-check("app.js: <topics-modal> ... </topics-modal> bloğu bulundu", !!TOPICS_BLOCK);
+check("topics-modal.js: <topics-modal> ... </topics-modal> bloğu bulundu", !!TOPICS_BLOCK);
 const MODAL_START = appSource.indexOf("const modalFocus = createModalFocus(");
 const MODAL_END = appSource.indexOf("function setupModals()");
-check("app.js: modal odak bloğu (modalFocus .. closeAllModals) bulundu", MODAL_START > 0 && MODAL_END > MODAL_START);
+check("modals.js: modal odak bloğu (modalFocus .. closeAllModals) bulundu", MODAL_START > 0 && MODAL_END > MODAL_START);
 const ESCAPE_SRC = /function escapeHtml\(s\) \{[\s\S]*?\n\}/.exec(appSource);
-check("app.js: escapeHtml bulundu", !!ESCAPE_SRC);
+check("html.js: escapeHtml bulundu", !!ESCAPE_SRC);
 check(
-  "app.js: popTopicsModalTopic: erken dönüş (kök) -> pop -> render -> odağı kapsayıcıya al (modalFocus.enter(els.topicsModal)), bu sırayla",
+  "topics-modal.js: popTopicsModalTopic: erken dönüş (kök) -> pop -> render -> odağı kapsayıcıya al (modalFocus.enter(els.topicsModal)), bu sırayla",
   /function popTopicsModalTopic\(\) \{\s*if \(state\.topicsModal\.stack\.length <= 1\) return;\s*state\.topicsModal\.stack\.pop\(\);\s*renderTopicsModalView\(\);[^}]*modalFocus\.enter\(els\.topicsModal\);\s*\}/.test(appSource)
 );
 {

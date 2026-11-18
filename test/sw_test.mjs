@@ -14,6 +14,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { appSource } from "./uygulama_kaynagi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
@@ -50,7 +51,6 @@ const [PRECACHE_URLS, SURAH_HEADER_URLS] = new Function(
 );
 const PRECACHE_SAMPLE = PRECACHE_URLS; // install testinde tamamı kontrol ediliyor
 check("SURAH_HEADER_URLS tam 114 (Kur'an'daki sure sayısı)", SURAH_HEADER_URLS.length === 114 && SURAH_HEADER_URLS[0] === "data/surah-headers/1.json" && SURAH_HEADER_URLS[113] === "data/surah-headers/114.json");
-const appSource = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf-8");
 
 let failures = 0;
 function check(name, cond) {
@@ -60,10 +60,10 @@ function check(name, cond) {
   }
 }
 
-// -- gerçek CDN kalıbıyla senkron mu (app.js'teki recitationAudioUrl'den) --------------------------------
+// -- gerçek CDN kalıbıyla senkron mu (playback.js'teki recitationAudioUrl'den) --------------------------------
 const REAL_HOST = /https:\/\/([a-z0-9.-]+)\/quran\//.exec(appSource)?.[1];
-check("app.js'te recitationAudioUrl'in gerçek CDN host'u bulundu (regresyon: aşağıdaki kontrol boşa geçmesin)", !!REAL_HOST);
-check(`sw.js: AUDIO_HOST, app.js'teki gerçek CDN host'uyla (${REAL_HOST}) birebir aynı`, new RegExp(`AUDIO_HOST = "${REAL_HOST}"`).test(swSource));
+check("playback.js'te recitationAudioUrl'in gerçek CDN host'u bulundu (regresyon: aşağıdaki kontrol boşa geçmesin)", !!REAL_HOST);
+check(`sw.js: AUDIO_HOST, playback.js'teki gerçek CDN host'uyla (${REAL_HOST}) birebir aynı`, new RegExp(`AUDIO_HOST = "${REAL_HOST}"`).test(swSource));
 
 // -- tahliye YALNIZCA ses önbelleğinde ve YALNIZCA kota kuralıyla (kullanıcının kararı) -----------------------
 // (satır başındaki "//" yorumları çıkarılıyor: dosyanın kendi açıklayıcı yorumu bu kelimeleri zaten
@@ -898,9 +898,9 @@ for (const f of ["./", "index.html", "js/app.js", "css/style.css", "data/mushaf.
 // önbelleğe alamıyor (<audio> Range ister, sunucu 206 döner, Cache.put reddeder): kurulumdaki Range'siz indirme tek yol.
 {
   const intros = [...appSource.matchAll(/introLocal:\s*"([^"]+)"/g)].map((m) => m[1]);
-  check(`app.js'te RECITERS.*.introLocal bulundu (en az 2; aşağıdaki kontrol boş kümede sessizce geçmesin): ${intros.join(", ")}`, intros.length >= 2);
+  check(`playback.js'te RECITERS.*.introLocal bulundu (en az 2; aşağıdaki kontrol boş kümede sessizce geçmesin): ${intros.join(", ")}`, intros.length >= 2);
   const missingIntro = intros.filter((f) => !PRECACHE_URLS.includes(f));
-  check(`app.js'teki her introLocal ses dosyası PRECACHE_URLS'te${missingIntro.length ? ` -- EKSİK: ${missingIntro.join(", ")}` : ""}`, missingIntro.length === 0);
+  check(`playback.js'teki her introLocal ses dosyası PRECACHE_URLS'te${missingIntro.length ? ` -- EKSİK: ${missingIntro.join(", ")}` : ""}`, missingIntro.length === 0);
 }
 // Uygulamanın yüklediği HER yerel kabuk dosyası listede mi? Yeni bir JS modülü eklenip buraya yazılmazsa,
 // kurulumdan hemen sonra çevrimdışı açılışta `import` başarısız olur ve uygulama hiç açılmaz (ilk ziyarette

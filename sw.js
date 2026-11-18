@@ -1,7 +1,7 @@
 // sw.js -- Dijital Mushaf servis worker'ı. Üç ayrı sorumluluk, üç ayrı
 // önbellek, üç ayrı strateji:
 //
-//  1. SES (AUDIO_CACHE, audio-cdn.tarteel.ai) -- bkz. js/app.js'teki
+//  1. SES (AUDIO_CACHE, audio-cdn.tarteel.ai) -- bkz. js/playback.js'teki
 //     recitationAudioUrl/RECITERS. Önbellek-önce, DİNLENDİKÇE. Boyut sınırı
 //     YOK, ama tarayıcı kotası dolarken (ya da dolmak üzereyken) EN ESKİ
 //     kayıtlar silinir -- kullanıcının kararı; bkz. "SES ÖNBELLEĞİ KOTASI".
@@ -55,20 +55,39 @@ const PRECACHE_URLS = [
   "./",
   "index.html",
   "css/style.css",
+  "js/announce.js",
   "js/app.js",
   "js/arama.js",
+  "js/ayah-nav.js",
+  "js/ayah-panel.js",
   "js/ayet-gezgini.js",
+  "js/data-load.js",
+  "js/ezber-modal.js",
+  "js/ezber-play.js",
+  "js/ezber-study.js",
+  "js/html.js",
   "js/izgara-gezintisi.js",
   "js/justify.js",
   "js/liste-gezintisi.js",
+  "js/lookup.js",
   "js/meal.js",
+  "js/modal-lists.js",
   "js/modal-odak.js",
+  "js/modals.js",
+  "js/page-layout.js",
+  "js/page-nav.js",
+  "js/page.js",
+  "js/playback.js",
   "js/render.js",
   "js/search.js",
   "js/sekme-gezintisi.js",
+  "js/state.js",
+  "js/surahinfo-modal.js",
   "js/surahinfo.js",
   "js/tafsir.js",
+  "js/topics-modal.js",
   "js/topics.js",
+  "js/wake-lock.js",
   "js/wordmeal.js",
   "vendor/hb.js",
   "vendor/hbjs.js",
@@ -76,7 +95,7 @@ const PRECACHE_URLS = [
   "vendor/woff2-decompress/decompress.js",
   "vendor/woff2-decompress/decompress.wasm",
   "fonts/DigitalKhattV2.woff2",
-  // Yerel euzu klipleri (js/app.js RECITERS.*.introLocal: Fâtiha'nın ilk ayetinden önce çalan
+  // Yerel euzu klipleri (js/playback.js RECITERS.*.introLocal: Fâtiha'nın ilk ayetinden önce çalan
   // isti'âze). Chromium'da bir <audio> yüklemesi "Range: bytes=0-" ile gider (ölçüldü); sunucu buna
   // 206 dönerse (Range destekleyen sunucular; GitHub Pages'in böyle yaptığı DOĞRULANMADI) Cache.put
   // "Partial response (status code 206) is unsupported" diye reddeder -- yani çalarken ağ-önce yolu
@@ -116,7 +135,7 @@ self.addEventListener("install", (event) => {
   );
 });
 
-// Sure başlığı SVG'leri (data/surah-headers/1.json..114.json, bkz. js/app.js
+// Sure başlığı SVG'leri (data/surah-headers/1.json..114.json, bkz. js/page.js
 // fetchHeaderGlyph) PRECACHE_URLS'te YOK -- hepsi birlikte 9+ MB, ilk kurulumu
 // gereksiz ağırlaştırmasın diye. Ama bunun bedeli: çevrimiçiyken hiç
 // GÖRÜLMEYEN bir surenin başlığı, o sureye gidilmeden çevrimdışı kalınırsa

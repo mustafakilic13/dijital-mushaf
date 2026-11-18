@@ -19,8 +19,8 @@
 // Odak halkası gizli düğmenin değil, sayfadaki seçili ayetin vurgusunun (ya da sure başlığının) üstüne çizilir
 // (CSS: #ayah-nav[data-kbd="ayah"]); yalnızca :focus-visible ise, yani fareyle gelen odakta halka çıkmaz.
 //
-// DOM'a bağlı tek yer createAyahNav(); app.js yalnızca showPage/openWordMeal/closeWordMeal'dan
-// sync() çağırıyor. Saf yardımcılar da dışa aktarılıyor ki jsdom'da sınanabilsin
+// DOM'a bağlı tek yer createAyahNav(); uygulamada yalnızca js/ayah-nav.js'teki syncAyahNav (showPage/openWordMeal/
+// closeWordMeal'dan çağrılıyor) sync() çağırıyor. Saf yardımcılar da dışa aktarılıyor ki jsdom'da sınanabilsin
 // (bkz. test/ayet_gezgini_test.mjs).
 
 const SURAH_CLASS = "ayah-nav-surah";

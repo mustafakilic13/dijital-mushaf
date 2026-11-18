@@ -165,9 +165,9 @@ check(
   })()
 );
 
-// -- ayah-panel tag dedup (js/app.js ayahTopicsRowHTML mirrors this exact
+// -- ayah-panel tag dedup (js/ayah-panel.js ayahTopicsRowHTML mirrors this exact
 // grouping) -- same-named topics tagged to the same ayah collapse to one
-// tag, keeping the lowest topic_id. Kept in sync with app.js by this test
+// tag, keeping the lowest topic_id. Kept in sync with ayah-panel.js by this test
 // failing if the two drift apart -- same pattern as
 // surah_header_cut_test.mjs's mirrored cutY formula. ------------------------
 function dedupTagsByName(topicIds) {
@@ -292,7 +292,7 @@ check("markTopicLinks: markArabicSpans ile hangi sırayla uygulanırsa uygulans�
     if (marked.replace(/ role="link" tabindex="0"/g, "") !== d) textChanged++;
   }
   check(`verideki her <topic> etiketi ya '<topic data-id="N">' ya da çıplak '<topic>' (${tagged} + ${bare}; başka biçim: ${otherForms})`, otherForms === 0 && tagged > 0);
-  // Sayılar GELISTIRICI.md'de ve app.js/topics.js yorumlarında anılıyor; veri değişirse bu iki sayı bilerek kırılır:
+  // Sayılar GELISTIRICI.md'de ve topics.js yorumlarında anılıyor; veri değişirse bu iki sayı bilerek kırılır:
   // çıplak (hedefsiz) bağlantıların ne olacağı kararı da o zaman yeniden gözden geçirilmeli.
   check(`verideki sayılar belgelenenle aynı: 461 data-id'li bağlantı (271 konuda, en çok 6), 48 çıplak (bulunan: ${tagged} / ${bare}, ${topicsWithLink} konu, en çok ${maxInOne})`, tagged === 461 && bare === 48 && topicsWithLink === 271 && maxInOne === 6);
   check("işaretlemeden sonra işaretsiz data-id'li <topic> kalmıyor", unmarked === 0);

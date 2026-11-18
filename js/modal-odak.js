@@ -29,7 +29,7 @@
 // Sure başlığına SVG üzerinden dokunarak açılan Sure Bilgisi modalının odaklanabilir
 // bir açanı yok; orada kapanışta odağa dokunulmaz.
 //
-// DOM'a bağlı tek yer createModalFocus(); app.js yalnızca openModal/closeModal'dan
+// DOM'a bağlı tek yer createModalFocus(); modals.js yalnızca openModal/closeModal'dan
 // çağırıyor. Saf yardımcılar da dışa aktarılıyor ki jsdom'da sınanabilsin
 // (bkz. test/modal_odak_test.mjs).
 
@@ -62,7 +62,7 @@ export function tabbablesIn(root) {
   });
 }
 
-// doc: belge; getOpenModal(): şu an açık olan modal elemanı ya da null (app.js'te state.openModalEl).
+// doc: belge; getOpenModal(): şu an açık olan modal elemanı ya da null (modals.js'te state.openModalEl).
 export function createModalFocus(doc, getOpenModal) {
   const win = doc.defaultView;
   const now = () => (win.performance && win.performance.now ? win.performance.now() : Date.now());

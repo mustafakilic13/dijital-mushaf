@@ -13,7 +13,7 @@
 //   1. Roving tabindex: bir listenin TEK Tab durağı var (tabindex="0"); öteki hücreler "-1". Durak, listeye girerken
 //      şu anki öğe (aria-current="true": Sure 3 açıkken 3. sure) ya da hiçbiri yoksa ilk hücre; sonra odaklanan hücre
 //      olur. Tab listeye bir kez girer, bir kez çıkar. tabindex'i `.active`/aria-current'la AYNI yerde yazmak
-//      app.js'in setActiveModalItem'inin işi (syncListStop çağırıyor): iki bilgi ayrışmasın. Başlangıç değeri de
+//      modals.js'in setActiveModalItem'inin işi (syncListStop çağırıyor): iki bilgi ayrışmasın. Başlangıç değeri de
 //      setupListNav'da aynı kurala göre konuyor. modal-odak.js'in tabbablesIn'i tabindex < 0 olanları zaten saymıyor,
 //      yani modalın ilk/son durağı hesabı doğru kalıyor.
 //   2. Ok tuşları: Yukarı/Aşağı bir satır, Home/End ilk/son satır, PageUp/PageDown PAGE_STEP satır; uçlarda dönülmez
@@ -73,7 +73,7 @@ export function listRows(listEl, cellSel, rowSel = null) {
       : [...listEl.querySelectorAll(cellSel)].map((cell) => [cell]);
 }
 
-// Liste -> getRows. syncListStop, listeyi tanımak için buna bakıyor (app.js'in setActiveModalItem'i listeyi yalnızca
+// Liste -> getRows. syncListStop, listeyi tanımak için buna bakıyor (modals.js'in setActiveModalItem'i listeyi yalnızca
 // elemanıyla çağırıyor); kayıtsız listede syncListStop hiçbir şey yapmaz.
 const registry = new WeakMap();
 
@@ -92,7 +92,7 @@ function setStop(rows, stop) {
 }
 
 // Listenin tek Tab durağını şu anki öğeye (aria-current="true"), yoksa ilk hücreye koyar. Liste her gösterilmeden
-// önce çağrılır (app.js setActiveModalItem): modal yeniden açılınca ok tuşlarıyla gezilen son satır değil, şu anki
+// önce çağrılır (modals.js setActiveModalItem): modal yeniden açılınca ok tuşlarıyla gezilen son satır değil, şu anki
 // satır durak olur.
 export function syncListStop(listEl) {
   const getRows = registry.get(listEl);

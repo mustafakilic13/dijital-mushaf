@@ -1,4 +1,4 @@
-// Regression check for the word-meal panel's page-slice cut (js/app.js
+// Regression check for the word-meal panel's page-slice cut (js/ayah-panel.js
 // openWordMeal) staying clear of a surah-header banner when the tapped
 // ayah is a surah's last on the page -- see openWordMeal's own comment
 // for the bug this guards against (the header rendering ABOVE the panel
@@ -8,7 +8,7 @@
 // REAL page 604 -- Al-Ikhlas -> Al-Falaq -> An-Nas, both surah boundaries
 // on one page, the exact page from the reported bug -- to get real
 // baselineY/topY numbers, then openWordMeal's cutY formula is
-// reimplemented here against those numbers. Kept in sync with app.js by
+// reimplemented here against those numbers. Kept in sync with ayah-panel.js by
 // this test failing if the two drift apart.
 //
 // Pure Node, no deps (computeLayout itself has none) -- just:
