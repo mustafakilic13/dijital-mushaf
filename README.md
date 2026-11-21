@@ -212,10 +212,13 @@ seçeneğiyle uygulama gibi kurabilirsiniz.
 
 ## Bilinen sınırlar
 
-- **Gerçek cihaz testi yok.** Arayüz ve erişilebilirlik, otomatik testlerle ve
-  başsız bir Chromium'da denendi; NVDA, JAWS, VoiceOver ve TalkBack ile, gerçek
-  telefon ya da tabletlerde, Firefox ve Safari'de denenmedi. Denenecekler adım
-  adım [TEST_FOYU.md](TEST_FOYU.md)'de.
+- **Gerçek cihaz testi sınırlı.** Arayüz ve erişilebilirlik, otomatik testlerle
+  ve başsız bir Chromium'da denendi. Gerçek cihazda yalnızca temel işlevlerin
+  hızlı bir denemesi (föyün A bölümü) yapıldı: bir Android 16 telefonda Firefox
+  160 ve Titanium (Chromium tabanlı) ile sayfa, gezinme, ayet paneli, konular,
+  arama, sesli okuma, Ezber ve ekran yönü çalıştı. NVDA, JAWS, VoiceOver ve
+  TalkBack ile, Safari'de ve tabletlerde denenmedi. Denenecekler adım adım
+  [TEST_FOYU.md](TEST_FOYU.md)'de.
 - **Ses internet ister.** Ayet sesleri Tarteel'in sunucusundan gelir; ilk
   dinleme için internet ve o sunucunun erişilebilir olması gerekir. Çevrimdışı
   ses önbelleği yalnızca sahte bir ses sunucusuyla (Chromium'da) sınandı,

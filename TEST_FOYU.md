@@ -6,11 +6,13 @@ ekran okuyucular, Firefox ve Safari, gerçek telefon ve tabletler, gerçek ses
 sunucusu ve yayındaki adres. [README.md](README.md)'deki "Bilinen sınırlar"
 maddelerinin denenebilir karşılığıdır.
 
-**Durum:** bu föydeki hiçbir kart henüz gerçek bir cihazda, tarayıcıda ya da
-ekran okuyucuyla koşulmadı. Sonuç tablosu bilerek boştur ve boş kalmalıdır
-(`test/foy_test.mjs` bunu denetler): her koşuda tabloyu kopyala, kopyayı
-doldur ve sonucu (tablo + Not'lar) bir GitHub Issue'suna yaz. Bu dosyaya
-sonuç yazma.
+**Durum:** 21 Kasım 2026 itibarıyla gerçek cihazda yalnızca A1-A8 (duman
+testi) koşuldu: bir Android 16 telefonda Firefox 160 ve Titanium (Chromium
+tabanlı) ile, hepsi geçti. Henüz koşulmayanlar: B-G kartlarının hepsi (ekran
+okuyucu kartları dahil) ve A bölümünün Safari'deki koşusu. Sonuç tablosu bilerek
+boştur ve boş kalmalıdır (`test/foy_test.mjs` bunu denetler): her koşuda tabloyu
+kopyala, kopyayı doldur ve sonucu (tablo + Not'lar) bir GitHub Issue'suna yaz.
+Bu dosyaya sonuç yazma; yalnızca bu Durum paragrafını güncelle.
 
 Kartların kaynağı iki yerden gelir. **ER-n** ve **PW-n**,
 [GELISTIRICI.md](GELISTIRICI.md)'deki iki kontrol listesinin n. maddesidir:
@@ -61,16 +63,17 @@ beklenen ya da örnek metindir. `…` bir tuş, adres, kimlik ya da dosya adıd�
 ### Ortam
 
 Her kartı her kombinasyonda koşmak gerekmez. A bölümünü Chrome'da, Firefox'ta
-ve Safari'de (README'ye göre ikisi hiç denenmedi) bir kez koş. B–F bölümlerini
-en az bir masaüstü kombinasyonunda ve bir telefon kombinasyonunda koş. G'yi
-önce Chrome'da, G3'ü ayrıca Firefox ve Safari'de koş.
+ve Safari'de bir kez koş. B–F bölümlerini en az bir masaüstü kombinasyonunda ve
+bir telefon kombinasyonunda koş. G'yi önce Chrome'da, G3'ü ayrıca Firefox ve
+Safari'de koş. Apple cihazın yoksa Safari ve VoiceOver koşularını Y (yapılamadı)
+yaz; diğer kartlar Android'de de koşulabilir ("Gerekir" satırına bak).
 
 | Platform | Tarayıcı | Ekran okuyucu |
 |---|---|---|
 | Windows | Chrome, Firefox | NVDA (ücretsiz), JAWS (varsa) |
 | macOS | Safari, Chrome | VoiceOver |
 | iPhone, iPad | Safari | VoiceOver |
-| Android | Chrome | TalkBack |
+| Android | Chrome, Firefox | TalkBack |
 
 ### Ne gerekir
 
