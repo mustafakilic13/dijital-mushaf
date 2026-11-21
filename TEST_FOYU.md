@@ -8,7 +8,7 @@ maddelerinin denenebilir karşılığıdır.
 
 **Durum:** 21 Kasım 2026 itibarıyla gerçek cihazda yalnızca A1-A8 (duman
 testi) koşuldu: bir Android 16 telefonda Firefox 160 ve Titanium (Chromium
-tabanlı) ile, hepsi geçti (sonuçlar: [#1](https://github.com/mustafakilic13/dijital-mushaf/issues/1). Henüz koşulmayanlar: B-G kartlarının hepsi (ekran
+tabanlı) ile, hepsi geçti (sonuçlar: [#1](https://github.com/mustafakilic13/dijital-mushaf/issues/1)). Henüz koşulmayanlar: B-G kartlarının hepsi (ekran
 okuyucu kartları dahil) ve A bölümünün Safari'deki koşusu. Sonuç tablosu bilerek
 boştur ve boş kalmalıdır (`test/foy_test.mjs` bunu denetler): her koşuda tabloyu
 kopyala, kopyayı doldur ve sonucu (tablo + Not'lar) bir GitHub Issue'suna yaz.
