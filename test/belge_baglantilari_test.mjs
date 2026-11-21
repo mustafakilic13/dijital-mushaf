@@ -5,7 +5,7 @@
 // ya da "bkz." atıfları boşa düşer; kullanıcı belgesine yine dosya yolları, test adları birikir ve kısa belge
 // yeniden duvara döner; "izleme yok, tek dış sunucu ses sunucusu" cümlesi koddan ayrışır. Test altı şeyi sınar:
 //   1. README.md ve GELISTIRICI.md kökte var, her birinde tek bir "# " başlığı var.
-//   2. Belgelerdeki (README.md, GELISTIRICI.md, VERI_KAYNAKLARI.md, THIRD_PARTY_NOTICES.md) göreli Markdown
+//   2. Belgelerdeki (README.md, GELISTIRICI.md, VERI_KAYNAKLARI.md, THIRD_PARTY_NOTICES.md, TEST_FOYU.md) göreli Markdown
 //      bağlantılarının hedef dosyası var; "#bağlantı"lar hedef belgede GERÇEK bir başlığa (GitHub'ın bağlantı
 //      üretme kuralıyla) çözülüyor; bir belgede aynı bağlantıyı üreten iki başlık yok (bağlantı belirsizleşirdi).
 //   3. GELISTIRICI.md'nin "İçindekiler" listesi, belgenin "## " başlıklarıyla aynı sırada ve aynı adda.
@@ -95,7 +95,7 @@ function section(text, title) {
 // Satır sayısı `wc -l` gibi sayılır (sondaki satır sonu fazladan bir satır değildir).
 const nLines = (t) => t.replace(/\n$/, "").split("\n").length;
 
-const DOCS = ["README.md", "GELISTIRICI.md", "VERI_KAYNAKLARI.md", "THIRD_PARTY_NOTICES.md"];
+const DOCS = ["README.md", "GELISTIRICI.md", "VERI_KAYNAKLARI.md", "THIRD_PARTY_NOTICES.md", "TEST_FOYU.md"];
 const text = Object.fromEntries(DOCS.map((d) => [d, read(d)]));
 
 // ---- 1. Belgeler var, tek H1 ---------------------------------------------------------------

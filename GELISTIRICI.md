@@ -3662,6 +3662,7 @@ LICENSE                 Proje lisansı (GPL-3.0-or-later); yalnızca bu projede 
 THIRD_PARTY_NOTICES.md  Üçüncü taraf kod ve yazı tipleri: atıf ve lisans metinleri (DigitalKhatt, harfbuzzjs, HarfBuzz, wawoff2, Brotli)
 VERI_KAYNAKLARI.md      Veri, ses ve yazı tipi dosyalarının kaynakları ve lisans durumu (doğrulandı / doğrulanamadı), atıf yükümlülükleri, açık işler
 README.md               Kullanıcı belgesi: ne olduğu, nasıl kullanıldığı, klavye ve ekran okuyucu, çevrimdışı, gizlilik, bilinen sınırlar, lisans ve telif (geliştirici ayrıntısı GELISTIRICI.md'de)
+TEST_FOYU.md            Elle test föyü: gerçek cihaz, ekran okuyucu (NVDA, JAWS, VoiceOver, TalkBack), Firefox/Safari ve gerçek ses sunucusu için adım adım kartlar + boş sonuç tablosu (bkz. "Testler ve CI")
 GELISTIRICI.md          Geliştirici belgesi (bu dosya): mimari, özelliklerin ayrıntısı, erişilebilirlik ölçümleri, PWA, proje yapısı, testler ve CI, veri üretimi, açık işler
 .nojekyll                 Boş dosya: GitHub Pages'in Jekyll işlemesini kapatır
 css/style.css          Görünüm (kağıt/zümrüt paleti, bkz. aşağı)
@@ -3765,6 +3766,7 @@ test/modal_liste_aria_test.mjs     Modal listeleri (Sure, Cüz, Ezber seçiciler
 test/liste_gezintisi_test.mjs      Modal listelerinde ok tuşu gezintisi ve tek Tab durağı: saf targetCell (tüm küçük matrisler x model), GERÇEK kablolama (Sure, Cüz, Ezber seçicileri), rastgele diziler x model (jsdom)
 test/izgara_gezintisi_test.mjs     Ayet düğmeleri ızgarası: CSS'ten türetilen düzen modeli (Chromium satır uzunluklarıyla doğrulanmış), saf targetChip (tüm küçük yerleşimler x model), GERÇEK kablolama (Bakara, Fâtiha), rastgele diziler x model (jsdom)
 test/uygulama_kaynagi.mjs         Testlerin ortak yardımcısı (test değil): uygulama modüllerinin birleşik kaynağı appSource, moduleSource, importedNames (bkz. "Modül haritası")
+test/foy_test.mjs                 Elle test föyünün tutarlılığı: kart yapısı, GELISTIRICI.md'deki ER/PW maddelerinin hepsi kapsanıyor, «...» uygulama metinleri ve `...` başvuruları kodda var, sonuç tablosu boş (Node)
 test/modul_siniri_test.mjs        Modül sınırı: import grafiği, çevrimsel gruptaki her modül İLK modül olarak yüklenebiliyor (jsdom, ayrı süreç), eksik import taraması, tek escapeHtml, app.js yalnızca açılış (Node + jsdom)
 ```
 
@@ -3832,7 +3834,7 @@ SIGTERM, 3 sn sonra SIGKILL ile öldürülüyor: SIGTERM'i yok sayan bir test de
 öksüz süreç olarak kalmıyor. Seçenekler: `npm test -- --only sw,topics`,
 `--skip full_corpus`, `--list`, `-v`, `--timeout SN`. Kısayollar:
 `npm run test:fast` (tam tarama hariç, ≈ 105-135 sn) ve `npm run test:corpus`
-(yalnız tam tarama; ölçüm raporunun tamamını basar). 33 dosyanın hepsi ≈
+(yalnız tam tarama; ölçüm raporunun tamamını basar). 34 dosyanın hepsi ≈
 2,5-3,5 dk sürüyor (2 çekirdekli sandbox; en uzunları tam tarama 53-86 sn, arama
 arayüzü 19-22 sn, koşucu testi 12 sn, tefsir dil testi 8-12 sn, kapalı panel
 testi 8-10 sn, Ezber klavye testi ≈ 8 sn, Ezber metin katmanı testi ≈ 5 sn,
@@ -3843,7 +3845,7 @@ Ezber aralık testi ≈ 15-19 sn,
 modal liste testi ≈ 8-12 sn,
 liste gezinti testi ≈ 6-8 sn,
 ızgara gezinti testi ≈ 16-18 sn,
-modül sınırı testi ≈ 5-8 sn);
+modül sınırı testi ≈ 5-8 sn, elle test föyü testi < 1 sn);
 GitHub Actions'taki ilk koşuda işin tamamı 1 dk 25 sn sürdü.
 
 **Tam tarama testi artık gerçekten doğruluyor.** `test/full_corpus_test.mjs`
@@ -4054,6 +4056,45 @@ gizlenen, çok açık renkli ya da 10 px atıf, odak halkasının kalkması; kod
 sürüm ya da adresin belgelerden ayrışması, belgelerde "atıf yok" cümlelerinin
 geri gelmesi, "doğrulanmadı" notunun silinmesi.
 
+**Elle test föyü de sınanıyor.** [`TEST_FOYU.md`](TEST_FOYU.md) gerçek cihazda
+elle koşulan bir belge olduğu için kodla ve bu belgedeki kontrol listeleriyle
+sessizce ayrışabilir; `test/foy_test.mjs` (34 kontrol, < 1 sn) bu ayrışmayı
+yakalar (föyü çalıştırmaz): kart yapısı (bölümler A-G, kartlar `X<n>` ve 1'den
+boşluksuz numaralı, her kartta Kaynak ve Gerekir satırı, en az 2 numaralı adım,
+en az bir "Beklenen" maddesi); kapsam (yukarıdaki iki kontrol listesinin HER
+maddesi en az bir kartta, kartların "ER-n", "PW-n" ve "README: başlık"
+başvuruları gerçek; "Kaynak maddeleri" tablosu her numarayı maddenin ilk
+sözcüklerine bağlıyor, yani listeye madde araya girip numaralar kayarsa kartlar
+sessizce yanlış maddeye bağlı kalmaz); «...» ile yazılan uygulama metinlerinin
+hepsi `index.html`, `sw.js` ya da `js/` altında geçiyor (yorumlar hariç; yorum
+süzgeci bir kanarya denetimiyle sınanıyor); `...` ile yazılan başvurular gerçek
+(`#kimlik`, `sw.js`'ten türetilen önbellek adları, dosya yolları, `aria-*`,
+`lang` ve `tabindex` öznitelikleri, ses sunucusu adresi, "kotanın %80" eşiğinin
+`AUDIO_HIGH_WATER` ile aynı olması); "Gerekir" terimleri bilinen sözlükten;
+sonuç tablosu boş bir form (her kart için bir satır, Sonuç ve Not hücreleri boş:
+doldurulmuş bir kopya depoya girmesin) ve rapor şablonunun alanları tam; belge
+bağları (iki kontrol listesi ve `README.md`'nin "Bilinen sınırlar" bölümü föye
+bağlanıyor); GitHub'da yanlış görünecek şeyler yok (gizlenen çıplak `<etiket>`;
+satır başında ya da girintili "1. sayfa" gibi sayı ya da madde işaretine
+benzeyip iç içe liste yapan satırlar: adımlar ve maddeler sayıyla başlamaz,
+satır kırılırken de devam satırı sayıyla başlamaz). 108 mutasyonun (85 bozucu,
+23 masum) hepsi beklendiği gibi sonuçlandı. Bozucuların hepsi beklenen iletiyle
+yakalandı: listeye ER-28 ya da PW-5 eklenip kart eklenmemesi, araya madde girip
+numaraların kayması, silinen ER-27, tekrarlanan ya da atlanan kart ve adım
+numaraları, yanlış bölümde kart, eksik Gerekir ya da Beklenen, yer değiştiren ya
+da çok kısa etiketler, kodda değişen ya da yalnızca yorumda kalan arayüz metni
+(JS satır / blok yorumu, HTML yorumu), yeniden adlandırılan kimlik, önbellek adı
+ya da dosya, değişen kota eşiği, sözlükte olmayan terim, dolu sonuç hücresi,
+silinen sonuç satırı, kopan belge bağları, çıplak `<Sure>`, sayıyla başlayan
+adım ya da madde, sayıyla ya da "- " ile başlayan girintili devam satırı, alıntı
+bloğu. Masum değişikliklerin hiçbiri yanlış alarm vermedi: yeni kart ve madde
+eklemenin doğru sırası, yeniden yazılan "Beklenen", NFD, CRLF ve BOM'lu
+dosyalar, dizgede `//` ya da `/*`, düzenli ifadede tırnak, iç içe şablon, satır
+ortasındaki "50. sayfa". Sınırı: test föyün gerçek cihazda ne vereceğini
+bilemez; kartın anlattığının listedeki maddenin anlamıyla uyumunu (yalnızca
+maddenin başını) ve föydeki ses sunucusu adının yazım hatasını (yalnızca doğru
+yazımın kodda olduğunu) denetlemez.
+
 ## Sayfa boyutlandırma mantığı
 
 Okuyucu, PDF görüntüleyicilerin "Page Width" moduyla aynı mantıkla çalışıyor
@@ -4167,6 +4208,12 @@ doğrulanamadı. Öncelik sırası (ayrıntı `VERI_KAYNAKLARI.md`, "Açık işl
     denetlemek; olmazsa simgeyi kaldırıp yalnızca metin bırakmak.
 
 ### Erişilebilirlik: gerçek cihaz/ekran okuyucu testi
+
+Bu maddelerin adım adım denenebilir hâli [TEST_FOYU.md](TEST_FOYU.md)'dedir:
+kartlar bu listeye "ER-n" (n, aşağıdaki sıra numarası) diye başvurur ve
+`test/foy_test.mjs` her maddenin en az bir kartta karşılığı olduğunu denetler.
+Listeye madde eklerken föye de kart ekle; numaraları ortadan kaydırma (föyün
+"Kaynak maddeleri" tablosu numaraları maddelerin başlarına bağlar).
 
 Yukarıdaki "Erişilebilirlik" bölümünde açıklanan otomatik/yapısal
 kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
@@ -4426,6 +4473,10 @@ tuşu gezintisi ve ayet düğmeleri ızgarasının adlı grubu ayrı ayrı tek
 commit'tir, geri alınabilir.
 
 ### PWA: gerçek tarayıcıda ses önbelleği testi
+
+Bu maddelerin adım adım denenebilir hâli [TEST_FOYU.md](TEST_FOYU.md)'nin
+"G. Ses sunucusu, çevrimdışı ve kurulum" bölümündedir (kartlar "PW-n" diye
+başvurur; kurallar yukarıdaki ER listesindekiyle aynı).
 
 Yukarıdaki "Ses önbelleği ve `Range`" ile "Ses önbelleği kotası" ölçümleri
 başsız Chromium 153'te, yerel bir sahte CDN'e karşı yapıldı; gerçek ses CDN'i ve

@@ -245,7 +245,7 @@ check("VERI_KAYNAKLARI.md: 'Hak sahibiyseniz' ve 'Yeni veri eklerken' bölümler
 }
 
 // ---- 5. E-posta adresi yok ----------------------------------------------------------------
-for (const f of ["LICENSE", "THIRD_PARTY_NOTICES.md", "VERI_KAYNAKLARI.md", "README.md", "GELISTIRICI.md"]) {
+for (const f of ["LICENSE", "THIRD_PARTY_NOTICES.md", "VERI_KAYNAKLARI.md", "README.md", "GELISTIRICI.md", "TEST_FOYU.md"]) {
   const t = exists(f) ? readText(f) : "";
   const m = EMAIL_RE.exec(t);
   check(`${f}: e-posta adresi içermiyor (telif sahibi adı yazılır, e-posta yazılmaz)`, !m, m && m[0].replace(/^(.).*(@.*)$/, "$1***$2"));

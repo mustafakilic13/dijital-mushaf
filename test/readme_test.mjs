@@ -105,6 +105,7 @@ const mustList = [
   "VERI_KAYNAKLARI.md",
   "README.md",
   "GELISTIRICI.md",
+  "TEST_FOYU.md",
 ].filter((p) => fs.existsSync(path.join(ROOT, p)));
 const unlisted = mustList.filter((p) => !listed.has(p));
 check("GELISTIRICI.md ağacı: depodaki her kaynak/veri/test dosyası listeli", unlisted.length === 0, `GELISTIRICI.md "Proje yapısı"na eklenmesi gereken dosyalar: ${unlisted.join(", ")}`);

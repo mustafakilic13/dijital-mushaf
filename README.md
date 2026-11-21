@@ -214,7 +214,8 @@ seçeneğiyle uygulama gibi kurabilirsiniz.
 
 - **Gerçek cihaz testi yok.** Arayüz ve erişilebilirlik, otomatik testlerle ve
   başsız bir Chromium'da denendi; NVDA, JAWS, VoiceOver ve TalkBack ile, gerçek
-  telefon ya da tabletlerde, Firefox ve Safari'de denenmedi.
+  telefon ya da tabletlerde, Firefox ve Safari'de denenmedi. Denenecekler adım
+  adım [TEST_FOYU.md](TEST_FOYU.md)'de.
 - **Ses internet ister.** Ayet sesleri Tarteel'in sunucusundan gelir; ilk
   dinleme için internet ve o sunucunun erişilebilir olması gerekir. Çevrimdışı
   ses önbelleği yalnızca sahte bir ses sunucusuyla (Chromium'da) sınandı,
