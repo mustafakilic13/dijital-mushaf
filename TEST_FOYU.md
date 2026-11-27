@@ -6,12 +6,18 @@ ekran okuyucular, Firefox ve Safari, gerçek telefon ve tabletler, gerçek ses
 sunucusu ve yayındaki adres. [README.md](README.md)'deki "Bilinen sınırlar"
 maddelerinin denenebilir karşılığıdır.
 
-**Durum:** 26 Kasım 2026 itibarıyla gerçek cihazda yalnızca A1-A8 ve D3, G3, G5 (duman
-testi) koşuldu: bir Android 16 telefonda Firefox 160 ile, hepsi geçti (sonuçlar: [#1](https://github.com/mustafakilic13/dijital-mushaf/issues/1)). Henüz koşulmayanlar: B-G kartlarında D3, G3 ve G5 hariç hepsi (ekran
-okuyucu kartları dahil) ve A bölümünün Safari'deki koşusu. Sonuç tablosu bilerek
-boştur ve boş kalmalıdır (`test/foy_test.mjs` bunu denetler): her koşuda tabloyu
-kopyala, kopyayı doldur ve sonucu (tablo + Not'lar) bir GitHub Issue'suna yaz.
-Bu dosyaya sonuç yazma; yalnızca bu Durum paragrafını güncelle.
+**Durum:** 26 Kasım 2026 itibarıyla gerçek cihazda yalnızca A1-A8 (duman
+testi), D3, G3 ve G5 koşuldu ve hepsi geçti. Hepsi bir Android 16 telefonda
+Firefox 160 ile koşuldu; A1-A8 21 Kasım'da ayrıca Titanium'da (Chromium
+tabanlı) koşulmuştu. Son koşunun sonuçları:
+[#1](https://github.com/mustafakilic13/dijital-mushaf/issues/1). G3'ün
+yalnızca Firefox yarısı (Android'de) koşuldu; masaüstü Firefox, macOS Safari ve
+iPhone/iPad Safari koşulmadı. Henüz koşulmayanlar: D3, G3 ve G5 dışındaki B-G
+kartlarının hepsi (ekran okuyucu kartları dahil) ve A bölümünün Safari'deki
+koşusu. Sonuç tablosu bilerek boştur ve boş kalmalıdır (`test/foy_test.mjs`
+bunu denetler): her koşuda tabloyu kopyala, kopyayı doldur ve sonucu (tablo +
+Not'lar) bir GitHub Issue'suna yaz. Bu dosyaya sonuç yazma; yalnızca bu Durum
+paragrafını güncelle.
 
 Kartların kaynağı iki yerden gelir. **ER-n** ve **PW-n**,
 [GELISTIRICI.md](GELISTIRICI.md)'deki iki kontrol listesinin n. maddesidir:

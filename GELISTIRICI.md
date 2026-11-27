@@ -4217,8 +4217,12 @@ Listeye madde eklerken föye de kart ekle; numaraları ortadan kaydırma (föyü
 
 Yukarıdaki "Erişilebilirlik" bölümünde açıklanan otomatik/yapısal
 kontroller geçti, ama gerçek bir NVDA+Chrome (Windows) ve bir VoiceOver
-(iOS/Mac) testi hâlâ yapılmadı — bu ortamda mümkün değildi. Özellikle
-şu noktalar doğrulanmalı:
+(iOS/Mac) testi hâlâ yapılmadı — bu ortamda mümkün değildi. Gerçek bir
+Android 16 telefonda Firefox 160 ile yalnızca ekran okuyucu gerektirmeyen
+kartlar koşuldu (föyde A, D3, G3, G5; 26 Kasım 2026); TalkBack test
+telefonunda kararlı çalıştırılamadığı için ekran okuyucu kartlarının hiçbiri
+koşulmadı ve ekran okuyucu kullanan gönüllülerin denemesi bekleniyor. Güncel
+durum föyün "Durum" paragrafında. Özellikle şu noktalar doğrulanmalı:
 
 1. Sayfa geçişinde `#nav-announcer`'ın anonsu ("Sayfa N, <Sure> Suresi,
    M. ayet") duyuluyor mu, ve sayfanın Arapça metni **kendiliğinden
@@ -4480,8 +4484,13 @@ başvurur; kurallar yukarıdaki ER listesindekiyle aynı).
 
 Yukarıdaki "Ses önbelleği ve `Range`" ile "Ses önbelleği kotası" ölçümleri
 başsız Chromium 153'te, yerel bir sahte CDN'e karşı yapıldı; gerçek ses CDN'i ve
-yayın adresi bu ortamdan erişilemediği için hiç denenmedi, Firefox ve Safari da
-denenmedi. Gerçek tarayıcıda ve cihazda doğrulanması gerekenler:
+yayın adresi bu ortamdan erişilemediği için burada hiç denenmedi. Gerçek bir
+Android 16 telefonda Firefox 160 ile 26 Kasım 2026'da elle denenenler: madde
+3'ün Android'deki Firefox yarısı (föyde G3: ayet sesi çalıyor, uçak modunda
+eûzü çalıyor) ve kurulum ile çevrimdışı açılış (föyde G5); ikisi de geçti.
+Safari/iOS (madde 3'ün öbür yarısı), masaüstü Firefox ve DevTools isteyen
+1, 2 ve 4. maddeler denenmedi. Gerçek tarayıcıda ve cihazda doğrulanması
+gerekenler:
 
 1. Gerçek CDN'in `Range` davranışı: DevTools > Network'te `audio-cdn.tarteel.ai`
    isteği 206 mı 200 mü dönüyor, yanıtta `Content-Range` ve
